@@ -9,10 +9,10 @@
   <rect x="2" y="2" width="1276" height="356" rx="26" fill="none" stroke="#1d3a52" stroke-width="3"/>
   <g transform="translate(90 70) scale(1.1)">
     <rect width="200" height="200" rx="44" fill="#04121f" stroke="#1d3a52" stroke-width="3"/>
-    <g fill="none" stroke="url(#wg)" stroke-linecap="round" stroke-width="13">
-      <path d="M20 0 C38 -34,60 -34,78 0 S118 34,136 0" transform="translate(8 62)"/>
-      <path d="M20 0 C38 -34,60 -34,78 0 S118 34,136 0" transform="translate(22 100)" opacity=".62"/>
-      <path d="M20 0 C38 -34,60 -34,78 0 S118 34,136 0" transform="translate(36 138)" opacity=".3"/>
+    <g fill="none" stroke="url(#wg)" stroke-linecap="round" stroke-width="12">
+      <path d="M20 0 C38 -22,60 -22,78 0 S118 22,136 0" transform="translate(8 54)"/>
+      <path d="M20 0 C38 -22,60 -22,78 0 S118 22,136 0" transform="translate(22 100)" opacity=".62"/>
+      <path d="M20 0 C38 -22,60 -22,78 0 S118 22,136 0" transform="translate(36 146)" opacity=".3"/>
     </g>
   </g>
   <text x="370" y="190" font-family="Segoe UI, Arial, Helvetica, sans-serif" font-size="108" font-weight="700" fill="#e8f1f7" letter-spacing="6">WAVY</text>
