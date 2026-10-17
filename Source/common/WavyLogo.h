@@ -6,27 +6,38 @@ namespace wavy
 {
 inline const char* const repoUrl = "https://github.com/MaymiPR/WavySuite";
 
-// The Wavy mark: a mock of the reference's about-button, a black block holding a "W" built from
-// tapered waveform bars (up, down, up, down, up), here in cyan.
-inline void drawMark (juce::Graphics& g, juce::Rectangle<float> r, juce::Colour colour)
+// The Wavy mark: a black tile with one smooth sine swell, cyan into amber, and an amber drop
+// resting on the crest.
+inline void drawMark (juce::Graphics& g, juce::Rectangle<float> r, bool bright)
 {
     g.setColour (juce::Colours::black);
     g.fillRect (r);
 
-    const float sx = r.getWidth() / 16.0f, sy = r.getHeight() / 15.0f, mid = r.getY() + 7.0f * sy;
-    struct Bar { float x, tip; };   // tip: distance from the mid line (negative = up)
-    static const Bar bars[] = { { 1.8f, -6.8f }, { 4.7f, 6.0f }, { 8.0f, -5.8f }, { 11.3f, 6.0f }, { 14.2f, -6.8f } };
-    g.setColour (colour);
-    for (auto& b : bars)
+    const auto a = r.reduced (1.2f, 0.0f);
+    const float mid = a.getCentreY() + 1.2f, amp = a.getHeight() * 0.30f;
+    juce::Path wave;
+    constexpr int n = 40;
+    for (int i = 0; i <= n; ++i)
     {
-        const float cx = r.getX() + b.x * sx, wm = 1.7f * sx, wt = 0.7f * sx, ty = mid + b.tip * sy;
-        juce::Path p;
-        p.startNewSubPath (cx - wm, mid);
-        p.lineTo (cx - wt, ty);
-        p.lineTo (cx + wt, ty);
-        p.lineTo (cx + wm, mid);
-        p.closeSubPath();
-        g.fillPath (p);
+        const float t = (float) i / n;
+        // 1.25 periods, damped at the ends so the swell grows and fades
+        const float env = std::sin (juce::MathConstants<float>::pi * t);
+        const juce::Point<float> p (a.getX() + t * a.getWidth(),
+                                    mid - amp * (0.55f + 0.45f * env) * std::sin (t * juce::MathConstants<float>::twoPi * 1.25f - 0.6f));
+        if (i == 0) wave.startNewSubPath (p); else wave.lineTo (p);
     }
+    const auto cyan = bright ? juce::Colour (150, 235, 255) : juce::Colour (64, 214, 240);
+    const auto amber = bright ? juce::Colour (255, 210, 110) : juce::Colour (255, 170, 30);
+    g.setGradientFill (juce::ColourGradient (cyan, a.getX(), 0.0f, amber, a.getRight(), 0.0f, false));
+    g.strokePath (wave, juce::PathStrokeType (1.7f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+
+    // the drop, on the first crest
+    const float t = (juce::MathConstants<float>::pi * 0.5f + 0.6f) / (juce::MathConstants<float>::twoPi * 1.25f);
+    const float env = std::sin (juce::MathConstants<float>::pi * t);
+    const float cx = a.getX() + t * a.getWidth(), cy = mid - amp * (0.55f + 0.45f * env) - 2.6f;
+    g.setColour (amber);
+    juce::Path drop;
+    drop.addEllipse (cx - 1.4f, cy - 1.0f, 2.8f, 2.8f);
+    g.fillPath (drop);
 }
 }

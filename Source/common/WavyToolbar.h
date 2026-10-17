@@ -45,6 +45,7 @@ private:
     void saveTo (const juce::File&);
     void showPresetMenu();
     void showToolbarMenu();
+    void showAboutMenu();
     std::vector<float> currentValues() const;
     bool isModified() const;
 

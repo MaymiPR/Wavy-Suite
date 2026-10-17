@@ -201,13 +201,40 @@ void Toolbar::showPresetMenu()
     });
 }
 
-void Toolbar::showToolbarMenu()
+void Toolbar::showAboutMenu()
 {
     juce::PopupMenu m;
     m.setLookAndFeel (&menuLook);
     m.addSectionHeader (product + "  v" + version);
-    m.addItem (1, "Wavy Suite on GitHub");
+    m.addItem (1, "About " + product);
     m.addSeparator();
+    m.addItem (2, "Wavy Suite on GitHub");
+    m.addItem (3, "Report an Issue");
+    m.addItem (4, "License (AGPL-3.0)");
+    juce::Component::SafePointer<Toolbar> safe (this);
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (rect (About))).withMinimumWidth (150).withStandardItemHeight (16),
+                     [safe] (int r)
+    {
+        if (safe == nullptr || r <= 0) return;
+        if (r == 1)
+        {
+            auto* w = new juce::AlertWindow (safe->product, safe->product + "  v" + safe->version + "\n\nOpen-source (AGPL-3.0)\n"
+                                             + repoUrl + "\n\nNot affiliated with or endorsed by Waves Audio.",
+                                             juce::MessageBoxIconType::NoIcon, safe.getComponent());
+            w->setLookAndFeel (&safe->menuLook);
+            w->addButton ("OK", 1, juce::KeyPress (juce::KeyPress::returnKey));
+            w->enterModalState (true, nullptr, true);
+        }
+        else if (r == 2) juce::URL (repoUrl).launchInDefaultBrowser();
+        else if (r == 3) juce::URL (juce::String (repoUrl) + "/issues").launchInDefaultBrowser();
+        else if (r == 4) juce::URL (juce::String (repoUrl) + "/blob/main/LICENSE").launchInDefaultBrowser();
+    });
+}
+
+void Toolbar::showToolbarMenu()
+{
+    juce::PopupMenu m;
+    m.setLookAndFeel (&menuLook);
     const float cur = getWindowScale ? getWindowScale() : 1.0f;
     m.addSectionHeader ("Window Size");
     for (int i = 0; i < 5; ++i)
@@ -219,8 +246,7 @@ void Toolbar::showToolbarMenu()
                      [safe] (int r)
     {
         if (safe == nullptr || r <= 0) return;
-        if (r == 1) juce::URL (repoUrl).launchInDefaultBrowser();
-        else if (r >= 10 && r < 15) { if (safe->setWindowScale) safe->setWindowScale (kScales[r - 10]); }
+        if (r >= 10 && r < 15) { if (safe->setWindowScale) safe->setWindowScale (kScales[r - 10]); }
         else if (r == 20 && safe->getWindowScale) setDefaultWindowScale (safe->getWindowScale());
     });
 }
@@ -282,7 +308,7 @@ void Toolbar::paint (juce::Graphics& g)
         switch ((Item) i)
         {
             case About:
-                drawMark (g, r.toFloat(), hot ? juce::Colours::white : juce::Colour (64, 214, 240));
+                drawMark (g, r.toFloat(), hot);
                 break;
             case Skins: box (r, hot); label (r, juce::String::fromUTF8 ("Skins \xe2\x96\xbc")); break;
             case Mode:
@@ -341,6 +367,7 @@ void Toolbar::mouseDown (const juce::MouseEvent& e)
         case Setup:  switchSetup(); break;
         case Save:   if (presetFile.exists()) saveTo (presetFile); else saveAs(); break;
         case Preset: showPresetMenu(); break;
+        case About:  showAboutMenu(); break;
         case Menu:   showToolbarMenu(); break;
         case Skins:
         {
