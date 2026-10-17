@@ -1,0 +1,13 @@
+build/
+_deps/
+.vs/
+*.user
+__pycache__/
+*.pyc
+# private reference material: never publish
+measurements/
+reference/
+nulltest/renders/
+nulltest/reference_renders/
+.DS_Store
+Thumbs.db
