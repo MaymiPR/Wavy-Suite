@@ -9,7 +9,13 @@ Sources
 - **S3** Local `GUIXML\1000.xml` — control rectangles, fonts, colors, view size.
 - **S4** Local `ProcessXML\1000.xml`, `AlgXML\1001.xml` — components (mono/stereo), algorithm name `RVOX`.
 - **S5** Web search, 2026-10-17 (reviews and shop pages; secondary, not manufacturer): [Joseph Nilo, "Waves RVox explained"](https://josephnilo.com/blog/waves-rvox-explained/), [Toolfarm](https://toolfarm.com/buy/waves_renaissance_vox), [Sweetwater](https://www.sweetwater.com/store/detail/RenVox--waves-renaissance-vox-plug-in/reviews).
-- `https://www.waves.com/plugins/rvox` returned HTTP 404 when fetched; the official page was not readable, so S1 is the primary documented source.
+- **S6** Official product page, fetched 2026-10-17: [waves.com/plugins/renaissance-vox](https://www.waves.com/plugins/renaissance-vox). Official manual PDF linked from it: [renaissance-vox.pdf](https://assets.wavescdn.com/pdf/plugins/renaissance-vox.pdf) (matches local S1). The earlier guess `waves.com/plugins/rvox` is a 404.
+
+### Product-page facts (S6)
+- "Classic compressor/limiter optimized for vocals"; three controls: Gate, Compression, Output Gain.
+- Gate = "gentle downward expansion", not a hard gate; compressor = soft-knee curve; limiting/level maximizing run automatically (no limiter control); smart metering.
+- Components: mono and stereo only. Skins: light, dark, legacy.
+- **Published latency:** 64 samples @ 44.1/48 kHz, 128 @ 88.2/96 kHz, 256 @ 176.4/192 kHz (67 on TDM 48 kHz). Max sample rate 192 kHz.
 
 ## Naming (Wavy identity, recognisable, own branding)
 
