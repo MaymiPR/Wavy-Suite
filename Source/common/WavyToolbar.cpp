@@ -209,11 +209,10 @@ void Toolbar::showToolbarMenu()
     m.addItem (1, "Wavy Suite on GitHub");
     m.addSeparator();
     const float cur = getWindowScale ? getWindowScale() : 1.0f;
-    juce::PopupMenu sizes;
-    sizes.setLookAndFeel (&menuLook);
+    m.addSectionHeader ("Window Size");
     for (int i = 0; i < 5; ++i)
-        sizes.addItem (10 + i, juce::String (juce::roundToInt (kScales[i] * 100.0f)) + "%", true, std::abs (cur - kScales[i]) < 0.02f);
-    m.addSubMenu ("Window Size", sizes);
+        m.addItem (10 + i, juce::String (juce::roundToInt (kScales[i] * 100.0f)) + "%", true, std::abs (cur - kScales[i]) < 0.02f);
+    m.addSeparator();
     m.addItem (20, "Apply as Default to All");
     juce::Component::SafePointer<Toolbar> safe (this);
     m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (rect (Menu))).withStandardItemHeight (16),
@@ -283,8 +282,7 @@ void Toolbar::paint (juce::Graphics& g)
         switch ((Item) i)
         {
             case About:
-                box (r, hot);
-                drawMark (g, r.toFloat().reduced (2.0f, 2.5f), hot ? juce::Colours::white : juce::Colour (64, 214, 240));
+                drawMark (g, r.toFloat(), hot ? juce::Colours::white : juce::Colour (64, 214, 240));
                 break;
             case Skins: box (r, hot); label (r, juce::String::fromUTF8 ("Skins \xe2\x96\xbc")); break;
             case Mode:
