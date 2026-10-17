@@ -1,5 +1,6 @@
 #include "WavyToolbar.h"
 #include "WavyLogo.h"
+#include "WavyMenuLook.h"
 
 namespace wavy
 {
@@ -9,24 +10,24 @@ Toolbar::Toolbar (juce::UndoManager& u, juce::AudioProcessorValueTreeState& s, j
                   juce::RangedAudioParameter* mp, juce::String name, juce::String ver)
     : undo (u), apvts (s), modes (std::move (m)), modeParam (mp), product (std::move (name)), version (std::move (ver))
 {
-    setSize (367, height);
+    setSize (367, 18 + height);
 }
 
 juce::Rectangle<int> Toolbar::rect (Item i) const
 {
     switch (i)
     {
-        case Logo:   return { 0, 0, 17, height };
-        case Skins:  return { 19, 0, 44, height };
-        case Undo:   return { 66, 0, 22, height };
-        case Redo:   return { 90, 0, 22, height };
-        case SlotA:  return { 115, 0, 15, height };
-        case SlotB:  return { 132, 0, 15, height };
-        case Copy:   return { 149, 0, 20, height };
-        case Prev:   return { 173, 0, 20, height };
-        case Preset: return { 195, 0, 72, height };
-        case Next:   return { 269, 0, 20, height };
-        case Menu:   return { 292, 0, 15, height };
+        case Logo:   return { 0, 0, 21, height };
+        case Skins:  return { 24, 0, 44, height };
+        case Undo:   return { 76, 0, 22, height };
+        case Redo:   return { 100, 0, 22, height };
+        case SlotA:  return { 216, 0, 15, height };
+        case SlotB:  return { 235, 0, 15, height };
+        case Copy:   return { 254, 0, 22, height };
+        case Prev:   return { 162, 0, 20, height };
+        case Preset: return { 84, 18, 200, height };
+        case Next:   return { 186, 0, 20, height };
+        case Menu:   return { 285, 0, 15, height };
         case Mode:   return { 309, 0, 58, height };
         default:     return {};
     }
@@ -106,7 +107,7 @@ void Toolbar::paint (juce::Graphics& g)
         {
             case Logo:
                 g.setColour (juce::Colour (34, 34, 34)); g.fillRect (r);
-                drawMark (g, r.toFloat().reduced (1.0f, 3.0f), 1.6f, hot ? 1.0f : 0.9f);
+                drawMark (g, r.toFloat().reduced (1.0f, 0.0f), hot ? 1.0f : 0.9f);
                 break;
             case Skins:
                 box (r, hot);
@@ -168,8 +169,9 @@ void Toolbar::mouseExit (const juce::MouseEvent&) { hot = -1; repaint(); }
 
 void Toolbar::mouseDown (const juce::MouseEvent& e)
 {
-    const auto target = juce::PopupMenu::Options().withTargetComponent (this);
-    switch ((Item) hitTest (e.getPosition()))
+    const auto item = (Item) hitTest (e.getPosition());
+    const auto target = juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (rect (item))).withStandardItemHeight (16);
+    switch (item)
     {
         case Prev:  if (onPresetStep) onPresetStep (-1); break;
         case Next:  if (onPresetStep) onPresetStep (+1); break;
@@ -180,21 +182,21 @@ void Toolbar::mouseDown (const juce::MouseEvent& e)
         case Copy:  copyToOther(); break;
         case Skins:
         {
-            juce::PopupMenu m;
+            juce::PopupMenu m; m.setLookAndFeel (&menuLook);
             m.addItem (1, "Dark", true, true);   // the other skins of the reference are not part of Wavy
             m.showMenuAsync (target);
             break;
         }
         case Preset:
         {
-            juce::PopupMenu m;
+            juce::PopupMenu m; m.setLookAndFeel (&menuLook);
             m.addItem (1, "Default", true, true);
-            m.showMenuAsync (target);
+            m.showMenuAsync (target.withMinimumWidth (200));
             break;
         }
         case Menu:
         {
-            juce::PopupMenu m;
+            juce::PopupMenu m; m.setLookAndFeel (&menuLook);
             m.addSectionHeader (product + "  v" + version);
             m.addItem (1, "Wavy Suite on GitHub");
             m.addSeparator();
@@ -205,7 +207,7 @@ void Toolbar::mouseDown (const juce::MouseEvent& e)
         case Mode:
             if (modeParam != nullptr)
             {
-                juce::PopupMenu m;
+                juce::PopupMenu m; m.setLookAndFeel (&menuLook); m.setLookAndFeel (&menuLook);
                 const int cur = (int) modeParam->convertFrom0to1 (modeParam->getValue());
                 for (int i = 0; i < modes.size(); ++i) m.addItem (i + 1, modes[i], true, i == cur);
                 m.showMenuAsync (target.withMinimumWidth (58), [this] (int r)

@@ -226,11 +226,13 @@ void WVoxEditor::paintContent (Graphics& g)
     g.setColour (kFrameLine);
     g.drawRect (panel, 1.0f);
 
-    // logo: the Wavy wave-W mark + VOX
-    wavy::drawMark (g, Rectangle<float> (146.0f, 50.0f, 34.0f, 22.0f), 3.0f);
+    // logo: script W + VOX
+    g.setColour (Colour (170, 176, 182));
+    g.setFont (Font (FontOptions ("Georgia", 26.0f, Font::italic)));
+    g.drawText ("W", Rectangle<int> (146, 46, 34, 30), Justification::centred);
     g.setColour (Colour (166, 28, 45));
     g.setFont (arial (22.0f));
-    g.drawText ("VOX", Rectangle<int> (184, 49, 48, 26), Justification::centredLeft);
+    g.drawText ("VOX", Rectangle<int> (178, 49, 48, 26), Justification::centredLeft);
 
     // big housing
     g.setColour (kOuterFill);

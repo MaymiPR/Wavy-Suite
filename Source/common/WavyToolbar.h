@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <functional>
+#include "WavyMenuLook.h"
 
 namespace wavy
 {
@@ -38,5 +39,6 @@ private:
     juce::ValueTree slot[2];
     int active = 0;
     int hot = -1;
+    MenuLook menuLook;
 };
 }
