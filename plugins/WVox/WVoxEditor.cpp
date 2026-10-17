@@ -129,7 +129,7 @@ public:
 WVoxEditor::WVoxEditor (WVoxProcessor& p)
     : AudioProcessorEditor (&p), proc (p), look (std::make_unique<Look>()), content (std::make_unique<Content> (*this)),
       toolbar (std::make_unique<wavy::Toolbar> (p.undo, p.apvts, StringArray { "Stereo", "Mono" }, p.apvts.getParameter (wvox::mode),
-                                                "Wavy WVox", JucePlugin_VersionString))
+                                                "WVox", JucePlugin_VersionString))
 {
     addAndMakeVisible (*content);
     content->setBounds (0, 0, W, H);

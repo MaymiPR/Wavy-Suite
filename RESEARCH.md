@@ -21,15 +21,15 @@ Sources
 
 | Waves original | Wavy plugin | Product folder |
 |---|---|---|
-| Renaissance Vox (RVox) | **WVox** | Wavy WVox |
-| Renaissance Bass (RBass) | **WBass** | Wavy WBass |
-| MaxxBass | **WMaxxBass** | Wavy WMaxxBass |
-| H-Comp | **WComp** | Wavy WComp |
-| H-Delay | **WDelay** | Wavy WDelay |
-| Bass Rider | **WBass Ride** | Wavy WBassRide |
-| Vocal Rider | **WVox Ride** | Wavy WVoxRide |
-| CLA Vocals | **WVox Chain** | Wavy WVoxChain |
-| Vocal Bender | **WVox Bend** | Wavy WVoxBend |
+| Renaissance Vox (RVox) | **WVox** | WVox |
+| Renaissance Bass (RBass) | **WBass** | WBass |
+| MaxxBass | **WMaxxBass** | WMaxxBass |
+| H-Comp | **WComp** | WComp |
+| H-Delay | **WDelay** | WDelay |
+| Bass Rider | **WBass Ride** | WBassRide |
+| Vocal Rider | **WVox Ride** | WVoxRide |
+| CLA Vocals | **WVox Chain** | WVoxChain |
+| Vocal Bender | **WVox Bend** | WVoxBend |
 
 Mono / stereo / mono→stereo / live components are one plugin with a **Mode** switch.
 

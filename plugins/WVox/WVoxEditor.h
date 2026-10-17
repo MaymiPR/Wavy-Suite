@@ -2,7 +2,7 @@
 #include "WVoxProcessor.h"
 #include "WavyToolbar.h"
 
-// Wavy WVox editor. Designed on a 371 x 357 px grid (dark skin); the window can be resized
+// WVox editor. Designed on a 371 x 357 px grid (dark skin); the window can be resized
 // at that aspect ratio and everything scales with it.
 class WVoxEditor : public juce::AudioProcessorEditor, private juce::Timer
 {
