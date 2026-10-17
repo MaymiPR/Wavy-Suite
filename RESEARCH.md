@@ -22,8 +22,8 @@ Sources
 | Waves original | Wavy plugin | Product folder |
 |---|---|---|
 | Renaissance Vox (RVox) | **WVox** | Wavy WVox |
-| Renaissance Bass (RBass) | **WSub** | Wavy WSub |
-| MaxxBass | **WMaxx** | Wavy WMaxx |
+| Renaissance Bass (RBass) | **WBass** | Wavy WBass |
+| MaxxBass | **WMaxxBass** | Wavy WMaxxBass |
 | H-Comp | **WComp** | Wavy WComp |
 | H-Delay | **WDelay** | Wavy WDelay |
 | Bass Rider | **WBass Ride** | Wavy WBassRide |
