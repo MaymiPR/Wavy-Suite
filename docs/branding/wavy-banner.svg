@@ -11,7 +11,7 @@
     <rect width="200" height="200" rx="44" fill="#04121f" stroke="#1d3a52" stroke-width="3"/>
     <g fill="none" stroke="url(#wg)" stroke-linecap="round" stroke-width="12">
       <path d="M20 0 C38 -22,60 -22,78 0 S118 22,136 0" transform="translate(8 54)"/>
-      <path d="M20 0 C38 -22,60 -22,78 0 S118 22,136 0" transform="translate(22 100)" opacity=".62"/>
+      <path d="M20 0 C38 -22,60 -22,78 0 S118 22,136 0" transform="translate(22 100)" opacity=".6"/>
       <path d="M20 0 C38 -22,60 -22,78 0 S118 22,136 0" transform="translate(36 146)" opacity=".3"/>
     </g>
   </g>
