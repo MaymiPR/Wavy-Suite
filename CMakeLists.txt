@@ -1,0 +1,73 @@
+cmake_minimum_required(VERSION 3.22)
+
+project(WavySuite VERSION 0.1.0)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Windows: static C++ runtime, so the plugins load on any PC without a redistributable.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+# macOS universal builds: -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
+
+include(FetchContent)
+FetchContent_Declare(JUCE
+    GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
+    GIT_TAG 8.0.16-security
+    GIT_SHALLOW ON)
+FetchContent_MakeAvailable(JUCE)
+
+# CLAP through clap-juce-extensions (MIT; brings the CLAP SDK).
+option(WAVY_CLAP "Build CLAP plugins" ON)
+if(WAVY_CLAP)
+    FetchContent_Declare(clap_juce_extensions
+        GIT_REPOSITORY https://github.com/free-audio/clap-juce-extensions.git
+        GIT_TAG 7adee3a1bd4684d4caa5601100e364abccff4b4d
+        GIT_SUBMODULES_RECURSE ON)
+    FetchContent_MakeAvailable(clap_juce_extensions)
+endif()
+
+# Shared code (toolbar, look) used by every plugin.
+add_library(WavyCommon STATIC
+    Source/common/WavyToolbar.cpp)
+target_include_directories(WavyCommon PUBLIC Source/common)
+target_compile_definitions(WavyCommon PUBLIC
+    JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
+target_link_libraries(WavyCommon PUBLIC
+    juce::juce_audio_processors
+    juce::juce_gui_basics
+    juce::juce_dsp
+    PRIVATE juce::juce_recommended_config_flags)
+
+# wavy_add_plugin(<Target> <Product name> <Folder> <4-char code> <clap id> SOURCES ...)
+function(wavy_add_plugin target product code clapid)
+    cmake_parse_arguments(P "" "" "SOURCES" ${ARGN})
+    set(formats VST3)
+    if(APPLE)
+        list(APPEND formats AU)
+    endif()
+    juce_add_plugin(${target}
+        COMPANY_NAME "Wavy Suite"
+        PLUGIN_MANUFACTURER_CODE Wavy
+        PLUGIN_CODE ${code}
+        FORMATS ${formats}
+        PRODUCT_NAME "${product}"
+        IS_SYNTH FALSE
+        NEEDS_MIDI_INPUT FALSE
+        NEEDS_MIDI_OUTPUT FALSE
+        COPY_PLUGIN_AFTER_BUILD FALSE
+        VST3_CATEGORIES Fx Dynamics
+        AU_MAIN_TYPE kAudioUnitType_Effect)
+    target_sources(${target} PRIVATE ${P_SOURCES})
+    target_link_libraries(${target} PRIVATE WavyCommon juce::juce_recommended_warning_flags)
+    if(WAVY_CLAP)
+        clap_juce_extensions_plugin(TARGET ${target}
+            CLAP_ID "${clapid}" CLAP_FEATURES audio-effect)
+    endif()
+    # Rebuilds land in build/plugins (an FL Studio VST3 scan folder points here).
+    add_custom_command(TARGET ${target}_VST3 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "$<TARGET_FILE_DIR:${target}_VST3>/../.."
+            "${CMAKE_BINARY_DIR}/plugins/${product}.vst3")
+endfunction()
+
+add_subdirectory(plugins/WVox)
