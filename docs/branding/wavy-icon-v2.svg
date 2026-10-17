@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="512" height="512" role="img">
+  <title>Wavy Suite</title>
+  <defs>
+    <linearGradient id="wg" x1="30" y1="0" x2="170" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#40d6f0"/><stop offset="1" stop-color="#ffaa1e"/>
+    </linearGradient>
+    <radialGradient id="bg" cx="100" cy="100" r="130" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0b2e4c"/><stop offset="1" stop-color="#04121f"/>
+    </radialGradient>
+  </defs>
+  <rect width="200" height="200" rx="44" fill="url(#bg)"/>
+  <rect x="2" y="2" width="196" height="196" rx="42" fill="none" stroke="#25506f" stroke-width="3"/>
+  <g fill="none" stroke="url(#wg)" stroke-linecap="round">
+    <path d="M-58 0 C-40 -34,-18 -34,0 0 S40 34,58 0" transform="translate(100 62) scale(.85)" stroke-width="16.5"/>
+    <path d="M-58 0 C-40 -34,-18 -34,0 0 S40 34,58 0" transform="translate(100 100)" stroke-width="12" opacity=".6"/>
+    <path d="M-58 0 C-40 -34,-18 -34,0 0 S40 34,58 0" transform="translate(100 140) scale(1.15)" stroke-width="8.7" opacity=".28"/>
+  </g>
+</svg>
