@@ -1,4 +1,5 @@
 #include "WVoxEditor.h"
+#include "WavyLogo.h"
 
 using namespace juce;
 
@@ -93,44 +94,51 @@ public:
             const float left = 0.0f;
             // rails (full width) and capsule: orange ring 3 px, slate body
             g.setColour (Colour (244, 134, 2));
-            g.fillRect (left, cy - 1.5f, 102.0f, 3.0f);
             Rectangle<float> pill (left + 22.0f, top + 11.0f, 58.0f, 33.0f);
-            g.setColour (Colours::black.withAlpha (0.28f));
-            g.fillRoundedRectangle (pill.translated (0.0f, 3.0f).expanded (1.5f), 16.5f);
+            g.fillRect (left, cy - 1.5f, pill.getX() + 4.0f, 3.0f);                      // rails stop at the ring
+            g.fillRect (pill.getRight() - 4.0f, cy - 1.5f, 102.0f - pill.getRight() + 4.0f, 3.0f);
+            // transparent inside: only the ring (and the rails) are drawn
             g.setColour (Colour (244, 134, 2));
-            g.fillRoundedRectangle (pill, 16.5f);
+            g.drawRoundedRectangle (pill.reduced (1.5f), 15.0f, 3.0f);
             auto in = pill.reduced (3.0f);
-            g.setGradientFill (ColourGradient (Colour (44, 62, 77), in.getX(), in.getY(), Colour (31, 45, 58), in.getX(), in.getBottom(), false));
-            g.fillRoundedRectangle (in, in.getHeight() * 0.5f);
-            if (down) { g.setColour (ring.withAlpha (1.0f)); g.drawRoundedRectangle (in.reduced (0.5f), in.getHeight() * 0.5f, 1.5f); }
+            if (down) { g.setColour (ring); g.drawRoundedRectangle (in.reduced (0.5f), in.getHeight() * 0.5f, 1.5f); }
         }
         else
         {
             const float cx = 16.5f + (float) (f.kind == Fader::Gate ? 4 : 5), cy = pos - 3.0f;
-            g.setColour (Colours::black.withAlpha (0.3f));
-            g.fillEllipse (cx - 13.5f, cy - 12.0f, 27.0f, 27.0f);
-            g.setColour (ring);
-            g.fillEllipse (cx - 13.5f, cy - 13.5f, 27.0f, 27.0f);
-            g.setGradientFill (ColourGradient (Colour (52, 70, 86), cx, cy - 11.5f, Colour (38, 52, 66), cx, cy + 11.5f, false));
-            g.fillEllipse (cx - 11.5f, cy - 11.5f, 23.0f, 23.0f);
+            g.setColour (ring);                                       // ring only, transparent inside
+            g.drawEllipse (cx - 12.5f, cy - 12.5f, 25.0f, 25.0f, 2.0f);
             g.setColour (Colours::white.withAlpha (0.85f));
             g.fillRect (cx - 8.5f, cy - 0.5f, 17.0f, 1.0f);
         }
     }
 };
 
+// Holds everything at the 371 x 357 design size; the editor scales it with a transform.
+class WVoxEditor::Content : public Component
+{
+public:
+    explicit Content (WVoxEditor& e) : ed (e) {}
+    void paint (Graphics& g) override { ed.paintContent (g); }
+    void mouseDown (const MouseEvent& e) override { ed.contentMouseDown (e); }
+    WVoxEditor& ed;
+};
+
 //==============================================================================
 WVoxEditor::WVoxEditor (WVoxProcessor& p)
-    : AudioProcessorEditor (&p), proc (p), look (std::make_unique<Look>()),
-      toolbar (p.undo, StringArray { "Stereo", "Mono" }, p.apvts.getParameter (wvox::mode))
+    : AudioProcessorEditor (&p), proc (p), look (std::make_unique<Look>()), content (std::make_unique<Content> (*this)),
+      toolbar (std::make_unique<wavy::Toolbar> (p.undo, p.apvts, StringArray { "Stereo", "Mono" }, p.apvts.getParameter (wvox::mode),
+                                                "Wavy WVox", JucePlugin_VersionString))
 {
+    addAndMakeVisible (*content);
+    content->setBounds (0, 0, W, H);
     comp = std::make_unique<Fader> (Fader::Comp);
     gate = std::make_unique<Fader> (Fader::Gate);
     gain = std::make_unique<Fader> (Fader::Gain);
     for (auto* f : { comp.get(), gate.get(), gain.get() })
     {
         f->setLookAndFeel (look.get());
-        addAndMakeVisible (*f);
+        content->addAndMakeVisible (*f);
     }
     comp->setBounds (135, 99, 102, 207);
     gate->setBounds (37, 89, 42, 211);
@@ -151,12 +159,25 @@ WVoxEditor::WVoxEditor (WVoxProcessor& p)
     gate->setDoubleClickReturnValue (true, -80.0);
     gain->setDoubleClickReturnValue (true, 0.0);
 
-    addAndMakeVisible (toolbar);
-    toolbar.setTopLeftPosition (2, 2);
-    toolbar.onPresetStep = [] (int) {};
+    content->addAndMakeVisible (*toolbar);
+    toolbar->setTopLeftPosition (2, 2);
+    toolbar->onPresetStep = [] (int) {};
 
-    setSize (W, H);
+    // resizable, fixed aspect ratio; the size is remembered with the plugin state
+    constrainer.setMinimumSize (W * 3 / 4, H * 3 / 4);
+    constrainer.setMaximumSize (W * 3, H * 3);
+    constrainer.setFixedAspectRatio ((double) W / H);
+    setConstrainer (&constrainer);
+    setResizable (true, true);
+    const int savedW = (int) p.apvts.state.getProperty ("uiWidth", W);
+    setSize (jlimit (W * 3 / 4, W * 3, savedW), jlimit (H * 3 / 4, H * 3, savedW * H / W));
     startTimerHz (30);
+}
+
+void WVoxEditor::resized()
+{
+    content->setTransform (AffineTransform::scale ((float) getWidth() / (float) W));
+    proc.apvts.state.setProperty ("uiWidth", getWidth(), nullptr);
 }
 
 WVoxEditor::~WVoxEditor()
@@ -175,11 +196,11 @@ void WVoxEditor::timerCallback()
     outL = proc.outLDb.load();     outR = proc.outRDb.load();
     energyHold = jmax (energyHold, energy); attnHold = jmin (attnHold, attn);
     outLHold = jmax (outLHold, outL);       outRHold = jmax (outRHold, outR);
-    toolbar.refresh();
-    repaint (30, 100, 310, 240);
+    toolbar->refresh();
+    content->repaint (30, 100, 310, 240);
 }
 
-void WVoxEditor::mouseDown (const MouseEvent& e)
+void WVoxEditor::contentMouseDown (const MouseEvent& e)
 {
     const auto p = e.getPosition();   // click a readout to reset its peak hold
     if (Rectangle<int> (39, 303, 33, 14).contains (p)) energyHold = -80.0f;
@@ -188,7 +209,7 @@ void WVoxEditor::mouseDown (const MouseEvent& e)
     if (! isMono() && vuTextRect (true).contains (p)) outRHold = -80.0f;
 }
 
-void WVoxEditor::paint (Graphics& g)
+void WVoxEditor::paintContent (Graphics& g)
 {
     g.fillAll (Colours::black);
 
@@ -205,13 +226,11 @@ void WVoxEditor::paint (Graphics& g)
     g.setColour (kFrameLine);
     g.drawRect (panel, 1.0f);
 
-    // logo: Wavy mark + VOX
-    g.setColour (Colour (170, 176, 182));
-    g.setFont (Font (FontOptions ("Georgia", 26.0f, Font::italic)));
-    g.drawText ("W", Rectangle<int> (146, 46, 34, 30), Justification::centred);
+    // logo: the Wavy wave-W mark + VOX
+    wavy::drawMark (g, Rectangle<float> (146.0f, 50.0f, 34.0f, 22.0f), 3.0f);
     g.setColour (Colour (166, 28, 45));
     g.setFont (arial (22.0f));
-    g.drawText ("VOX", Rectangle<int> (178, 49, 48, 26), Justification::centredLeft);
+    g.drawText ("VOX", Rectangle<int> (184, 49, 48, 26), Justification::centredLeft);
 
     // big housing
     g.setColour (kOuterFill);
