@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="512" height="512" role="img">
+  <title>Wavy Suite</title>
+  <defs>
+    <linearGradient id="wg" x1="30" y1="0" x2="170" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#40d6f0"/><stop offset="1" stop-color="#ffaa1e"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="44" fill="#061b2e"/>
+  <rect x="2" y="2" width="196" height="196" rx="42" fill="none" stroke="#1d3a52" stroke-width="3"/>
+  <g fill="none" stroke="url(#wg)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M30 50 C46 50,54 140,72 140 C90 140,86 78,100 78 C114 78,110 140,128 140 C146 140,154 50,170 50" stroke-width="5" opacity=".14" transform="translate(0 36)"/>
+    <path d="M30 50 C46 50,54 140,72 140 C90 140,86 78,100 78 C114 78,110 140,128 140 C146 140,154 50,170 50" stroke-width="8" opacity=".3" transform="translate(0 18)"/>
+    <path d="M30 50 C46 50,54 140,72 140 C90 140,86 78,100 78 C114 78,110 140,128 140 C146 140,154 50,170 50" stroke-width="13"/>
+  </g>
+  <circle cx="170" cy="50" r="9" fill="#ffaa1e"/>
+  <circle cx="170" cy="50" r="15" fill="none" stroke="#ffaa1e" stroke-width="2" opacity=".45"/>
+</svg>
