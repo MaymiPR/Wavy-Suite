@@ -36,7 +36,7 @@ public:
     void getStateInformation (juce::MemoryBlock&) override;
     void setStateInformation (const void*, int) override;
 
-    juce::UndoManager undo;
+    juce::UndoManager undo { 32, 32 };   // the reference undoes the last 32 actions
     juce::AudioProcessorValueTreeState apvts;
 
     // Meter values shown by the editor (dB): input energy, total gain reduction (<= 0), output peaks.

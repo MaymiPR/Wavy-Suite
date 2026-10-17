@@ -5,31 +5,48 @@
 
 namespace wavy
 {
-// The strip across the top of every Wavy plugin: mark, skins, undo / redo, A/B compare,
-// preset arrows + name, menu (version, repo link) and the Mode switch (mono / stereo / ...).
+// The WaveSystem-style toolbar of every Wavy plugin, on the reference's grid (371 x 36 px):
+//   row 1: mark | Skins | Mode | Undo | Redo | Prev | Next | A>B copy | Setup A/B | Save | menu
+//   row 2: the preset bar across the full width (name, "*" when modified).
+// Setup A/B follows the reference: one Setup button toggles between two settings, the copy
+// button copies the current setup to the other one.
 class Toolbar : public juce::Component
 {
 public:
     Toolbar (juce::UndoManager& undo, juce::AudioProcessorValueTreeState& state, juce::StringArray modeNames,
              juce::RangedAudioParameter* modeParam, juce::String productName, juce::String version);
 
-    std::function<void (int delta)> onPresetStep;   // preset arrows (+1 / -1)
-    juce::String presetName { "Default" };
+    std::function<float()> getWindowScale;            // current window magnification (1 = 100 %)
+    std::function<void (float)> setWindowScale;       // choose a magnification
 
     void paint (juce::Graphics&) override;
     void mouseMove (const juce::MouseEvent&) override;
     void mouseExit (const juce::MouseEvent&) override;
     void mouseDown (const juce::MouseEvent&) override;
-    void refresh() { repaint(); }
+    void refresh();
 
-    static constexpr int height = 15;
+    static constexpr int width = 371, height = 36;
 
 private:
-    enum Item { Logo, Skins, Undo, Redo, SlotA, SlotB, Copy, Prev, Preset, Next, Menu, Mode, numItems };
+    enum Item { About, Skins, Mode, Undo, Redo, Prev, Next, Copy, Setup, Save, Menu, Preset, numItems };
     juce::Rectangle<int> rect (Item) const;
     int hitTest (juce::Point<int>) const;
-    void selectSlot (int);
+
+    void switchSetup();
     void copyToOther();
+
+    // presets: factory "Default" + user presets (.wavypreset files in Documents/Wavy Suite/User Presets/<plugin>)
+    juce::File userDir() const;
+    juce::Array<juce::File> userPresets() const;
+    void loadDefault();
+    void loadUser (const juce::File&);
+    void step (int delta);
+    void saveAs();
+    void saveTo (const juce::File&);
+    void showPresetMenu();
+    void showToolbarMenu();
+    std::vector<float> currentValues() const;
+    bool isModified() const;
 
     juce::UndoManager& undo;
     juce::AudioProcessorValueTreeState& apvts;
@@ -39,6 +56,10 @@ private:
     juce::ValueTree slot[2];
     int active = 0;
     int hot = -1;
+
+    juce::String presetName { "Default" };
+    juce::File presetFile;                 // empty for the factory default
+    std::vector<float> loadedValues;
     MenuLook menuLook;
 };
 }

@@ -1,5 +1,6 @@
 #include "WVoxEditor.h"
 #include "WavyLogo.h"
+#include "WavySettings.h"
 
 using namespace juce;
 
@@ -160,8 +161,9 @@ WVoxEditor::WVoxEditor (WVoxProcessor& p)
     gain->setDoubleClickReturnValue (true, 0.0);
 
     content->addAndMakeVisible (*toolbar);
-    toolbar->setTopLeftPosition (2, 2);
-    toolbar->onPresetStep = [] (int) {};
+    toolbar->setTopLeftPosition (0, 0);
+    toolbar->getWindowScale = [this] { return (float) getWidth() / (float) W; };
+    toolbar->setWindowScale = [this] (float s) { setSize (juce::roundToInt (W * s), juce::roundToInt (H * s)); };
 
     // resizable, fixed aspect ratio; the size is remembered with the plugin state
     constrainer.setMinimumSize (W * 3 / 4, H * 3 / 4);
@@ -169,7 +171,7 @@ WVoxEditor::WVoxEditor (WVoxProcessor& p)
     constrainer.setFixedAspectRatio ((double) W / H);
     setConstrainer (&constrainer);
     setResizable (true, true);
-    const int savedW = (int) p.apvts.state.getProperty ("uiWidth", W);
+    const int savedW = (int) p.apvts.state.getProperty ("uiWidth", juce::roundToInt (W * wavy::defaultWindowScale()));
     setSize (jlimit (W * 3 / 4, W * 3, savedW), jlimit (H * 3 / 4, H * 3, savedW * H / W));
     startTimerHz (30);
 }

@@ -8,6 +8,18 @@ namespace wavy
 class MenuLook : public juce::LookAndFeel_V4
 {
 public:
+    MenuLook()
+    {
+        setColour (juce::AlertWindow::backgroundColourId, juce::Colour (34, 34, 34));
+        setColour (juce::AlertWindow::textColourId, juce::Colour (190, 190, 190));
+        setColour (juce::AlertWindow::outlineColourId, juce::Colour (128, 128, 128));
+        setColour (juce::TextEditor::backgroundColourId, juce::Colours::black);
+        setColour (juce::TextEditor::textColourId, juce::Colours::white);
+        setColour (juce::TextEditor::outlineColourId, juce::Colour (128, 128, 128));
+        setColour (juce::TextEditor::focusedOutlineColourId, juce::Colours::white);
+        setColour (juce::TextButton::buttonColourId, juce::Colour (34, 34, 34));
+        setColour (juce::TextButton::textColourOffId, juce::Colour (190, 190, 190));
+    }
     juce::Font getPopupMenuFont() override { return juce::Font (juce::FontOptions ("Arial", 11.0f, juce::Font::plain)); }
     int getPopupMenuBorderSize() override { return 1; }
 
