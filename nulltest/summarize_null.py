@@ -14,9 +14,9 @@ out = ['', '## Summary by signal', '',
 for sig, v in by.items():
     out.append('| %s | %.1f | %.1f | %.1f | %.1f |' % (sig, min(x[0] for x in v), np.median([x[0] for x in v]), max(x[0] for x in v), np.median([x[1] for x in v])))
 out += ['', '## How to read this', '',
-        '- **Steady tones at 1 kHz and 8 kHz match to numerical precision** (-75 dB and below; mostly -105 to -130 dB): the static law, the look-ahead, the true-peak level reading and the fixed x0.99 are right. A perfect null is claimed only for these stationary cases, and for Compression 0 (which is a fixed gain).',
-        '- **Everything with level changes is only close, not a null**: steps and sweeps -30 to -45 dB, 100 Hz tone about -39 dB, amplitude modulation about -24 dB, noise and noise bursts about -17 to -22 dB, voice-like material about -18 dB. The reference\'s detector and release behaviour is only partly understood (see MEASUREMENTS.md, "Detector model"); WVox approximates it with a fitted model, so on dynamic programme material expect an audible difference in how the gain moves, not in the tone.',
-        '- The gate is a hard-knee 2:1 expander on the same detector; with a gate and compression together the gain is within about 0.3 dB of the reference around the threshold (the -40 dB tone with a -40 dB gate nulls to only -64 dB).',
-        '- WVox was tuned on the same kind of signals (steps, bursts, AM, noise, voice-like, sweeps); the numbers above are therefore not an independent test set.']
+        '- **Steady tones match to numerical precision** (about -95 to -120 dB at 1 kHz and 8 kHz, at 44.1 to 192 kHz, mono and stereo). A null is claimed only for these stationary cases and for Compression 0 (a fixed gain).',
+        '- **Level changes are close but not a null**: steps and sweeps about -35 to -45 dB, a 100 Hz tone about -40 dB, amplitude modulation about -25 dB, noise bursts about -27 dB, white / pink noise about -20 dB, voice-like material about -21 dB. The detector, look-ahead and gate are identified exactly (see MEASUREMENTS.md, "Detector model"); the slow path of the compressor is a fitted model, so on dynamic material expect a small difference in how the gain moves, not in the tone.',
+        '- The gate matches to 0.0004 dB rms on level steps; with gate and compression together the residual follows the compressor numbers.',
+        '- WVox was tuned on the same kinds of signals (steps, bursts, AM, noise, voice-like, sweeps); these numbers are therefore not an independent test set.']
 open(P, 'w', encoding='utf-8').write(txt + '\n'.join(out) + '\n')
 print('ok')

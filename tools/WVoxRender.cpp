@@ -28,7 +28,7 @@ int main (int argc, char** argv)
         const std::string k = a.substr (0, eq); const float v = (float) std::atof (a.c_str() + eq + 1);
         if (k == "hold") t.hold = (int) v; else if (k == "box1") t.box1 = (int) v; else if (k == "box2") t.box2 = (int) v;
         else if (k == "ta1") t.ta1 = v; else if (k == "tr1") t.tr1 = v; else if (k == "ta2") t.ta2 = v; else if (k == "tr2") t.tr2 = v;
-        else if (k == "gateRelMs") t.gateRelMs = v;
+        else if (k == "gateRelMs") t.gateRelMs = v; else if (k == "band") t.band = v; else if (k == "slowWinMs") t.slowWinMs = v;
         else if (k == "fixedGain") t.fixedGain = v;
         else if (k == "compensate") compensate = v != 0.0f;
     }

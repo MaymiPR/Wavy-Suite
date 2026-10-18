@@ -8,8 +8,8 @@
 //     two moving averages of 39 and 26 samples in the linear gain domain, 64 samples of delay (identified from the
 //     gain around single-sample and block events on a DC carrier, error 0.05 dB); scaled with the latency at higher
 //     sample rates;
-//   * slow path: the instant gain smoothed by two cascaded one-pole stages with separate attack / release times;
-//     the applied gain is the smaller of the fast and the slow gain;
+//   * slow path: the level (dB) through a fast stage (rise / fall) and a slow stage with a small dead band, both
+//     identified from DC level steps; the applied gain is the smaller of the fast and the slow gain;
 //   * Gate: hard-knee 2:1 downward expander on a level that rises at once and falls toward the live level as a one-pole in linear amplitude
 //     with the GateRel time (130 ms by default; identified on a DC carrier); its gain is shaped by the same two moving
 //     averages, so it opens just ahead of a rise; the compressor sees the gated signal;
@@ -24,8 +24,9 @@ struct Tuning
 {
     // fast path, in samples at 44.1 / 48 kHz (scaled by latency / 64 above)
     int hold = 65, box1 = 39, box2 = 26;
-    // slow path (ms): stage 1 attack / release, stage 2 attack / release
-    float ta1 = 93.0f, tr1 = 15.0f, ta2 = 83.0f, tr2 = 439.0f;
+    // slow path (ms, dB): stage 1 rise / fall, dead band, stage 2 rise / fall
+    float slowWinMs = 16.349f;       // peak window in front of the slow path
+    float ta1 = 34.514f, tr1 = 0.75349f, band = 0.048f, ta2 = 67.961f, tr2 = 488.2f;
     // gate level release (ms): the reference's hidden GateRel parameter, 10 ... 250 ms, default 130
     float gateRelMs = 130.0f;
     float fixedGain = 0.99f;        // the reference's constant -0.0873 dB
@@ -77,25 +78,28 @@ private:
     int len = 1, pos = 0;
 };
 
-// two cascaded one-pole smoothers with separate attack (value falling) and release (value rising) times
-class Smoother
+// slow level path in dB: stage 1 one-pole with rise / fall times, stage 2 follows stage 1 outside a dead band
+class SlowLevel
 {
 public:
-    void prepare (double fs, float ta1, float tr1, float ta2, float tr2)
+    void prepare (double fs, const Tuning& t)
     {
         auto k = [fs] (float ms) { return 1.0f - std::exp (-1.0f / (std::max (ms, 0.01f) * 0.001f * (float) fs)); };
-        a1 = k (ta1); r1 = k (tr1); a2 = k (ta2); r2 = k (tr2);
-        reset (1.0f);
+        a1 = k (t.ta1); r1 = k (t.tr1); a2 = k (t.ta2); r2 = k (t.tr2); band = t.band;
+        reset();
     }
-    void reset (float v) { s1 = s2 = v; }
-    float process (float target)
+    void reset() { s1 = -120.0f; s2 = -120.0f; }
+    // v: live amplitude; returns the slow amplitude
+    float process (float v)
     {
-        s1 += (target - s1) * (target < s1 ? a1 : r1);
-        s2 += (s1 - s2) * (s1 < s2 ? a2 : r2);
-        return s2;
+        const float d = std::max (20.0f * std::log10 (std::max (v, 1.0e-6f)), -120.0f);
+        s1 += (d - s1) * (d > s1 ? a1 : r1);
+        const float up = s1 - band - s2, dn = s1 + band - s2;
+        if (up > 0.0f) s2 += up * a2; else if (dn < 0.0f) s2 += dn * r2;
+        return std::pow (10.0f, s2 / 20.0f);
     }
 private:
-    float a1 = 0.01f, r1 = 0.1f, a2 = 0.01f, r2 = 0.001f, s1 = 1.0f, s2 = 1.0f;
+    float a1 = 0.01f, r1 = 0.1f, a2 = 0.01f, r2 = 0.001f, band = 0.0f, s1 = -120.0f, s2 = -120.0f;
 };
 
 // Processes up to two channels with one shared (linked) gain. For independent channels run one Processor per channel.
@@ -115,7 +119,8 @@ public:
         box2.prepare (std::max (1, (int) std::lround (t.box2 * scale)), 1.0f);
         gbox1.prepare (std::max (1, (int) std::lround (t.box1 * scale)), 1.0f);
         gbox2.prepare (std::max (1, (int) std::lround (t.box2 * scale)), 1.0f);
-        slow.prepare (fs, t.ta1, t.tr1, t.ta2, t.tr2);
+        slow.prepare (fs, t);
+        slowWin.prepare (std::max (1, (int) std::lround (t.slowWinMs * 0.001 * fs)));
         gateRho = std::exp (-1.0f / (std::max (t.gateRelMs, 0.1f) * 0.001f * (float) fs));
         size = 1;
         while (size < latency + 8) size <<= 1;
@@ -131,7 +136,7 @@ public:
     void reset()
     {
         hold.reset(); box1.reset (1.0f); box2.reset (1.0f); gbox1.reset (1.0f); gbox2.reset (1.0f);
-        slow.reset (1.0f);
+        slow.reset(); slowWin.reset();
         gateLevel = 0.0f;
         for (auto& d : delay) std::fill (d.begin(), d.end(), 0.0f);
         for (auto& c : apX) c = 0.0f;
@@ -181,7 +186,7 @@ public:
 
             // compressor: instant ratio to the idle gain from the live level of the gated signal
             const float ratio = 1.0f / (1.0f + (M - 1.0f) * v * gateGain);
-            const float slowRatio = slow.process (ratio);
+            const float slowRatio = 1.0f / (1.0f + (M - 1.0f) * std::max (v * gateGain, slow.process (slowWin.push (v * gateGain))));
 
             // fast path: 65-sample hold of the minimum, then two moving averages (identified look-ahead shape)
             const float fastRatio = box2.push (box1.push (-hold.push (-ratio)));
@@ -200,7 +205,8 @@ private:
     Params params;
     SlidingMax hold;
     Box box1, box2, gbox1, gbox2;
-    Smoother slow;
+    SlowLevel slow;
+    SlidingMax slowWin;
     std::vector<float> delay[2];
     static constexpr float kA[3] = { 0.1607f, 0.3569f, 0.6308f };
     float apX[2] = {}, apY[2][3] = {};
