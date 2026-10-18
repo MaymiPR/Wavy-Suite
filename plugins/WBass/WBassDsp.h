@@ -28,15 +28,16 @@ inline constexpr double pi = 3.14159265358979323846;
 
 struct Tuning
 {
-    // fitted jointly to the reference renders at Freq 40, 80, 160 and 256 (nulltest/fit_multiF.py, MEASUREMENTS.md)
-    double C0 = 287.0496988923884, E0 = 0.0015273781643873486, p = 0.5908406602480677;                // gain law
-    double cA = 1.0068735445224746, QA = 1.3539974377418647, cB = 10.374984;                // level band (x Freq)
+    // fitted jointly to the reference renders at Freq 40, 80, 160 and 256 plus transients (kicks, bass notes, a riff)
+    // at Freq 80 / 160 / 256 (nulltest/fit_multiF2.py, MEASUREMENTS.md "WBass model")
+    double C0 = 311.3523526972685, E0 = 0.03342508848153219, p = 0.6271451724796594;                // gain law
+    double cA = 0.9915667368674228, QA = 1.3579371934947657, cB = 10.374984;                // level band (x Freq)
     double kr = 1.0;                                               // rectifier exponent
-    double att1 = 0.4837641317754706, rel1 = 0.00020431050592113843;                       // follower 1 (s) at Freq 80
-    double att2 = 0.0004719151170932211, rel2 = 0.010447301303243521;                       // follower 2 (s) at Freq 80
-    double s1 = 0.3432486125351782, s2 = 0.1882709219210759;                           // follower times scale with (80 / Freq)^s
-    double alpha = 0.046981939933763116;                                             // share of the gain ahead of the first high-pass
-    double k2 = -0.007058531827821184;                                                // harmonic product gain at Decay 1
+    double att1 = 0.002371992752992989, rel1 = 0.0045131990862175494;                       // follower 1 (s) at Freq 80
+    double att2 = 0.012092191831505063, rel2 = 0.0258940387278084;                       // follower 2 (s) at Freq 80
+    double s1 = 0.12125740125427971, s2 = 0.4220890600290935;                           // follower times scale with (80 / Freq)^s
+    double alpha = 0.17132345642706678;                                             // share of the gain ahead of the first high-pass
+    double k2 = -0.00819654425922447;                                                // harmonic product gain at Decay 1
     double limT = 0.70287, limRel = 0.02844;                       // generated-signal limiter: ceiling, gain release (s)
     double gainGlideMs = 25.0;                                     // Out Gain smoothing
     double ceiling = 32767.0 / 32768.0;                            // output clip: [-1, 32767/32768], hard (measured)

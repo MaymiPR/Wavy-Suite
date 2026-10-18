@@ -271,6 +271,10 @@ def generated7(x, F, P, fs=FS, parts=False):
     s1 = (80.0 / F) ** P.get("s1", 0.0); s2 = (80.0 / F) ** P.get("s2", 0.0)     # time constants vs Freq
     E1 = attrel(np.abs(d) ** kr, P["ta1"] * s1, P["tr1"] * s1, fs)
     E = ((1 - P.get("m1", 0.0)) * attrel(E1, P["ta2"] * s2, P["tr2"] * s2, fs) + P.get("m1", 0.0) * E1) ** (1.0 / kr)
+    if "kB" in P:      # a second, fast level path (attack / release) on the same band; the larger level wins
+        sB = (80.0 / F) ** P.get("sB", 0.0)
+        EB = attrel(attrel(np.abs(d), P["taB"] * sB, P["trB"] * sB, fs), P["taB2"] * sB, P["trB2"] * sB, fs)
+        E = np.maximum(E, P["kB"] * EB)
     CS = P["C0"] * (1 + E / P["E0"]) ** (-P["p"])
     pl = P.get("place", "post")
     if pl == "pre":
@@ -290,3 +294,10 @@ def generated7(x, F, P, fs=FS, parts=False):
     if parts:
         return w, dict(CS=CS, E=E, l=l, b=b)
     return w
+
+
+def limit(gen, P, fs=FS):
+    """generated-signal limiter of the reference: the gain drops at once to what each sample needs to stay under limT,
+    then recovers as a one-pole (limRel) in the gain domain"""
+    need = np.minimum(1.0, P.get("limT", 0.70287) / np.maximum(np.abs(gen), 1e-12))
+    return gen * -attrel(-need, 1e-7, P.get("limRel", 0.02844), fs, y0=-1.0)

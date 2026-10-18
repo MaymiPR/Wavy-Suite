@@ -142,13 +142,16 @@ Scripts: `nulltest/ident_rbass_linear.py`, `ident_rbass_nl.py`, `ident_rbass_swe
   signal (its Intensity −24 render scaled up, which never reaches the limiter) against its limited one: the gain
   drops at once to what each sample needs to stay under 0.703 and recovers as a one-pole in the gain domain with
   28.4 ms (median −42 dB, kicks −32 … −43 dB; a level-domain release gave only −22 dB).
-Fitted on 72 time-domain renders across the four Freq settings: median residual of the generated part −20.8 / −24.0 /
-−26.6 / −26.7 dB at Freq 40 / 80 / 160 / 256. The exact detector (why the followers have these odd time constants,
-the ~5 dB weak 3rd harmonic on low notes) is still not understood: this is a fitted model of the gain control, not
-an identified one.
+Fitted first on 72 time-domain renders across the four Freq settings (`nulltest/fit_multiF.py`), then again with
+transients added (kicks, bass notes and a riff at Freq 80 / 160 / 256, each against the reference's unlimited
+generated signal, `nulltest/render_transients.py`, `fit_multiF2.py`). The two fits pull in different directions:
+steady tones prefer a slow first follower that drops at once at each zero crossing, transients prefer an ordinary
+fast attack / release (2.4 / 4.5 ms, then 12 / 26 ms). A second, parallel fast level path does not resolve it. The
+plug-in uses the transient-weighted fit (better on the null test as a whole). Still not understood: the exact
+detector, the 3rd harmonic of low notes (about 5 dB weak), and kicks at Freq 160 / 256 (−10 / −7 dB on the
+unlimited generated signal). This is a fitted model of the gain control, not an identified one.
 
 **Null test** ([docs/NULL_RESULTS_WBASS.md](docs/NULL_RESULTS_WBASS.md), 12 signals × 8 settings, generated part split
-off the reference with a second Intensity render): median residual −28.1 dB on the whole output and −23.0 dB on the
-generated part alone (first round: −22.6 / −18.0 dB). Worst cases near 0 dB are very low notes at Freq 256 whose
-generated part is 38 dB under the output (−68 and −87 dBFS), so they do not show in the total; the worst audible
-cases are kick-like transients and low notes at Freq 160 (−4 … −1 dB on the generated part). This is not a null.
+off the reference with a second Intensity render): median residual −29.3 dB on the whole output and −22.8 dB on the
+generated part alone (first round: −22.6 / −18.0 dB); worst generated-part case −1.1 dB (a 30 Hz tone at Freq 160).
+This is not a null.

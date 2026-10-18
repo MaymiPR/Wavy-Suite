@@ -1,100 +1,100 @@
 | Freq | Intensity | Gain | Original Bass | Signal | Total residual (dB) | Generated part (dB) |
 |---|---|---|---|---|---|---|
-| 80 | +0 | +0 | Out | sine 30 Hz -20 dBFS | -17.6 | -17.8 |
-| 80 | +0 | +0 | Out | sine 50 Hz -12 dBFS | -18.4 | -21.3 |
-| 80 | +0 | +0 | Out | sine 80 Hz -20 dBFS | -32.1 | -31.5 |
-| 80 | +0 | +0 | Out | sine 120 Hz -12 dBFS | -42.8 | -38.1 |
-| 80 | +0 | +0 | Out | sine 40 Hz -40 dBFS | -27.7 | -28.6 |
-| 80 | +0 | +0 | Out | sine 60 Hz -3 dBFS | -18.3 | -21.4 |
-| 80 | +0 | +0 | Out | log sweep 20-2k -20 | -32.2 | -29.0 |
-| 80 | +0 | +0 | Out | bass steps -50/-10/-30 | -19.1 | -22.0 |
-| 80 | +0 | +0 | Out | pink-ish noise -20 rms | -25.6 | -23.2 |
-| 80 | +0 | +0 | Out | white noise -20 rms | -43.2 | -29.5 |
-| 80 | +0 | +0 | Out | bass notes | -24.4 | -23.4 |
-| 80 | +0 | +0 | Out | kick-like | -14.1 | -12.5 |
-| 80 | +0 | +0 | In | sine 30 Hz -20 dBFS | -27.4 | -17.8 |
-| 80 | +0 | +0 | In | sine 50 Hz -12 dBFS | -25.5 | -21.3 |
-| 80 | +0 | +0 | In | sine 80 Hz -20 dBFS | -34.0 | -31.5 |
-| 80 | +0 | +0 | In | sine 120 Hz -12 dBFS | -43.1 | -38.1 |
-| 80 | +0 | +0 | In | sine 40 Hz -40 dBFS | -28.0 | -28.6 |
-| 80 | +0 | +0 | In | sine 60 Hz -3 dBFS | -28.0 | -21.3 |
-| 80 | +0 | +0 | In | log sweep 20-2k -20 | -33.2 | -29.0 |
-| 80 | +0 | +0 | In | bass steps -50/-10/-30 | -26.3 | -22.0 |
-| 80 | +0 | +0 | In | pink-ish noise -20 rms | -26.6 | -23.2 |
-| 80 | +0 | +0 | In | white noise -20 rms | -43.2 | -29.5 |
-| 80 | +0 | +0 | In | bass notes | -27.9 | -23.5 |
-| 80 | +0 | +0 | In | kick-like | -19.5 | -13.3 |
-| 80 | +12 | +0 | Out | sine 30 Hz -20 dBFS | -17.7 | -17.8 |
-| 80 | +12 | +0 | Out | sine 50 Hz -12 dBFS | -17.7 | -17.7 |
-| 80 | +12 | +0 | Out | sine 80 Hz -20 dBFS | -28.1 | -23.9 |
-| 80 | +12 | +0 | Out | sine 120 Hz -12 dBFS | -43.8 | -24.5 |
-| 80 | +12 | +0 | Out | sine 40 Hz -40 dBFS | -28.4 | -28.6 |
-| 80 | +12 | +0 | Out | sine 60 Hz -3 dBFS | -18.9 | -18.0 |
-| 80 | +12 | +0 | Out | log sweep 20-2k -20 | -27.7 | -25.4 |
-| 80 | +12 | +0 | Out | bass steps -50/-10/-30 | -22.8 | -21.8 |
-| 80 | +12 | +0 | Out | pink-ish noise -20 rms | -23.6 | -23.1 |
-| 80 | +12 | +0 | Out | white noise -20 rms | -33.4 | -29.5 |
-| 80 | +12 | +0 | Out | bass notes | -22.8 | -19.2 |
-| 80 | +12 | +0 | Out | kick-like | -17.1 | -14.5 |
-| 80 | -12 | +0 | In | sine 30 Hz -20 dBFS | -40.9 | -17.8 |
-| 80 | -12 | +0 | In | sine 50 Hz -12 dBFS | -35.8 | -21.3 |
-| 80 | -12 | +0 | In | sine 80 Hz -20 dBFS | -39.4 | -31.5 |
-| 80 | -12 | +0 | In | sine 120 Hz -12 dBFS | -50.5 | -38.1 |
-| 80 | -12 | +0 | In | sine 40 Hz -40 dBFS | -38.6 | -28.6 |
-| 80 | -12 | +0 | In | sine 60 Hz -3 dBFS | -38.0 | -21.4 |
-| 80 | -12 | +0 | In | log sweep 20-2k -20 | -41.6 | -29.0 |
-| 80 | -12 | +0 | In | bass steps -50/-10/-30 | -35.8 | -22.0 |
-| 80 | -12 | +0 | In | pink-ish noise -20 rms | -34.2 | -23.2 |
-| 80 | -12 | +0 | In | white noise -20 rms | -55.0 | -29.5 |
-| 80 | -12 | +0 | In | bass notes | -35.9 | -23.2 |
-| 80 | -12 | +0 | In | kick-like | -27.2 | -14.9 |
-| 40 | +0 | +0 | Out | sine 30 Hz -20 dBFS | -24.7 | -26.1 |
-| 40 | +0 | +0 | Out | sine 50 Hz -12 dBFS | -32.7 | -29.3 |
-| 40 | +0 | +0 | Out | sine 80 Hz -20 dBFS | -30.7 | -25.0 |
-| 40 | +0 | +0 | Out | sine 120 Hz -12 dBFS | -31.2 | -19.6 |
-| 40 | +0 | +0 | Out | sine 40 Hz -40 dBFS | -26.8 | -26.5 |
-| 40 | +0 | +0 | Out | sine 60 Hz -3 dBFS | -39.1 | -29.9 |
-| 40 | +0 | +0 | Out | log sweep 20-2k -20 | -31.4 | -27.7 |
-| 40 | +0 | +0 | Out | bass steps -50/-10/-30 | -29.2 | -24.8 |
-| 40 | +0 | +0 | Out | pink-ish noise -20 rms | -26.0 | -22.9 |
-| 40 | +0 | +0 | Out | white noise -20 rms | -44.0 | -28.1 |
-| 40 | +0 | +0 | Out | bass notes | -26.6 | -21.9 |
-| 40 | +0 | +0 | Out | kick-like | -26.1 | -21.3 |
-| 160 | +0 | +0 | Out | sine 30 Hz -20 dBFS | -1.4 | -0.6 |
-| 160 | +0 | +0 | Out | sine 50 Hz -12 dBFS | -20.4 | -19.4 |
-| 160 | +0 | +0 | Out | sine 80 Hz -20 dBFS | -22.7 | -24.3 |
-| 160 | +0 | +0 | Out | sine 120 Hz -12 dBFS | -27.5 | -29.6 |
-| 160 | +0 | +0 | Out | sine 40 Hz -40 dBFS | -15.1 | -13.5 |
-| 160 | +0 | +0 | Out | sine 60 Hz -3 dBFS | -11.6 | -11.5 |
-| 160 | +0 | +0 | Out | log sweep 20-2k -20 | -34.6 | -31.8 |
-| 160 | +0 | +0 | Out | bass steps -50/-10/-30 | -15.8 | -15.5 |
-| 160 | +0 | +0 | Out | pink-ish noise -20 rms | -24.4 | -22.6 |
-| 160 | +0 | +0 | Out | white noise -20 rms | -42.1 | -31.1 |
-| 160 | +0 | +0 | Out | bass notes | -20.0 | -19.1 |
-| 160 | +0 | +0 | Out | kick-like | -3.9 | -4.1 |
-| 256 | +6 | -6 | In | sine 30 Hz -20 dBFS | -33.3 | 5.6 |
-| 256 | +6 | -6 | In | sine 50 Hz -12 dBFS | -31.6 | -1.4 |
-| 256 | +6 | -6 | In | sine 80 Hz -20 dBFS | -33.0 | -21.9 |
-| 256 | +6 | -6 | In | sine 120 Hz -12 dBFS | -21.8 | -20.8 |
-| 256 | +6 | -6 | In | sine 40 Hz -40 dBFS | -37.1 | 0.7 |
-| 256 | +6 | -6 | In | sine 60 Hz -3 dBFS | -37.1 | -8.3 |
-| 256 | +6 | -6 | In | log sweep 20-2k -20 | -33.4 | -31.4 |
-| 256 | +6 | -6 | In | bass steps -50/-10/-30 | -31.3 | -8.9 |
-| 256 | +6 | -6 | In | pink-ish noise -20 rms | -23.0 | -21.6 |
-| 256 | +6 | -6 | In | white noise -20 rms | -34.4 | -29.5 |
-| 256 | +6 | -6 | In | bass notes | -26.4 | -21.3 |
-| 256 | +6 | -6 | In | kick-like | -15.5 | -3.1 |
-| 32 | +0 | +0 | Out | sine 30 Hz -20 dBFS | -28.0 | -27.8 |
-| 32 | +0 | +0 | Out | sine 50 Hz -12 dBFS | -37.5 | -32.3 |
-| 32 | +0 | +0 | Out | sine 80 Hz -20 dBFS | -30.9 | -22.7 |
-| 32 | +0 | +0 | Out | sine 120 Hz -12 dBFS | -35.0 | -19.5 |
-| 32 | +0 | +0 | Out | sine 40 Hz -40 dBFS | -28.1 | -26.7 |
-| 32 | +0 | +0 | Out | sine 60 Hz -3 dBFS | -39.9 | -30.1 |
-| 32 | +0 | +0 | Out | log sweep 20-2k -20 | -31.6 | -27.3 |
-| 32 | +0 | +0 | Out | bass steps -50/-10/-30 | -30.4 | -24.4 |
-| 32 | +0 | +0 | Out | pink-ish noise -20 rms | -25.7 | -22.5 |
-| 32 | +0 | +0 | Out | white noise -20 rms | -44.1 | -27.6 |
-| 32 | +0 | +0 | Out | bass notes | -25.8 | -19.6 |
-| 32 | +0 | +0 | Out | kick-like | -26.2 | -20.0 |
+| 80 | +0 | +0 | Out | sine 30 Hz -20 dBFS | -13.5 | -13.7 |
+| 80 | +0 | +0 | Out | sine 50 Hz -12 dBFS | -16.0 | -18.9 |
+| 80 | +0 | +0 | Out | sine 80 Hz -20 dBFS | -31.5 | -31.0 |
+| 80 | +0 | +0 | Out | sine 120 Hz -12 dBFS | -41.1 | -36.4 |
+| 80 | +0 | +0 | Out | sine 40 Hz -40 dBFS | -24.7 | -25.6 |
+| 80 | +0 | +0 | Out | sine 60 Hz -3 dBFS | -16.5 | -19.6 |
+| 80 | +0 | +0 | Out | log sweep 20-2k -20 | -31.1 | -27.9 |
+| 80 | +0 | +0 | Out | bass steps -50/-10/-30 | -17.4 | -20.3 |
+| 80 | +0 | +0 | Out | pink-ish noise -20 rms | -25.1 | -22.7 |
+| 80 | +0 | +0 | Out | white noise -20 rms | -39.4 | -25.7 |
+| 80 | +0 | +0 | Out | bass notes | -22.8 | -21.8 |
+| 80 | +0 | +0 | Out | kick-like | -18.9 | -17.1 |
+| 80 | +0 | +0 | In | sine 30 Hz -20 dBFS | -23.3 | -13.7 |
+| 80 | +0 | +0 | In | sine 50 Hz -12 dBFS | -23.1 | -18.9 |
+| 80 | +0 | +0 | In | sine 80 Hz -20 dBFS | -33.5 | -31.0 |
+| 80 | +0 | +0 | In | sine 120 Hz -12 dBFS | -41.4 | -36.4 |
+| 80 | +0 | +0 | In | sine 40 Hz -40 dBFS | -25.0 | -25.6 |
+| 80 | +0 | +0 | In | sine 60 Hz -3 dBFS | -26.5 | -19.8 |
+| 80 | +0 | +0 | In | log sweep 20-2k -20 | -32.1 | -27.9 |
+| 80 | +0 | +0 | In | bass steps -50/-10/-30 | -24.6 | -20.3 |
+| 80 | +0 | +0 | In | pink-ish noise -20 rms | -26.1 | -22.7 |
+| 80 | +0 | +0 | In | white noise -20 rms | -39.4 | -25.7 |
+| 80 | +0 | +0 | In | bass notes | -26.2 | -21.8 |
+| 80 | +0 | +0 | In | kick-like | -23.4 | -17.0 |
+| 80 | +12 | +0 | Out | sine 30 Hz -20 dBFS | -13.6 | -13.7 |
+| 80 | +12 | +0 | Out | sine 50 Hz -12 dBFS | -18.4 | -19.2 |
+| 80 | +12 | +0 | Out | sine 80 Hz -20 dBFS | -34.5 | -29.9 |
+| 80 | +12 | +0 | Out | sine 120 Hz -12 dBFS | -37.1 | -26.9 |
+| 80 | +12 | +0 | Out | sine 40 Hz -40 dBFS | -25.4 | -25.6 |
+| 80 | +12 | +0 | Out | sine 60 Hz -3 dBFS | -17.7 | -18.3 |
+| 80 | +12 | +0 | Out | log sweep 20-2k -20 | -28.3 | -27.2 |
+| 80 | +12 | +0 | Out | bass steps -50/-10/-30 | -19.5 | -21.1 |
+| 80 | +12 | +0 | Out | pink-ish noise -20 rms | -23.5 | -23.0 |
+| 80 | +12 | +0 | Out | white noise -20 rms | -29.6 | -25.7 |
+| 80 | +12 | +0 | Out | bass notes | -24.2 | -20.5 |
+| 80 | +12 | +0 | Out | kick-like | -18.2 | -14.3 |
+| 80 | -12 | +0 | In | sine 30 Hz -20 dBFS | -36.8 | -13.7 |
+| 80 | -12 | +0 | In | sine 50 Hz -12 dBFS | -33.4 | -18.9 |
+| 80 | -12 | +0 | In | sine 80 Hz -20 dBFS | -38.9 | -31.0 |
+| 80 | -12 | +0 | In | sine 120 Hz -12 dBFS | -48.8 | -36.4 |
+| 80 | -12 | +0 | In | sine 40 Hz -40 dBFS | -35.5 | -25.6 |
+| 80 | -12 | +0 | In | sine 60 Hz -3 dBFS | -36.3 | -19.6 |
+| 80 | -12 | +0 | In | log sweep 20-2k -20 | -40.5 | -27.9 |
+| 80 | -12 | +0 | In | bass steps -50/-10/-30 | -34.1 | -20.3 |
+| 80 | -12 | +0 | In | pink-ish noise -20 rms | -33.7 | -22.7 |
+| 80 | -12 | +0 | In | white noise -20 rms | -51.1 | -25.7 |
+| 80 | -12 | +0 | In | bass notes | -34.4 | -21.7 |
+| 80 | -12 | +0 | In | kick-like | -29.9 | -17.5 |
+| 40 | +0 | +0 | Out | sine 30 Hz -20 dBFS | -22.3 | -23.7 |
+| 40 | +0 | +0 | Out | sine 50 Hz -12 dBFS | -31.8 | -28.4 |
+| 40 | +0 | +0 | Out | sine 80 Hz -20 dBFS | -43.8 | -38.1 |
+| 40 | +0 | +0 | Out | sine 120 Hz -12 dBFS | -35.7 | -24.1 |
+| 40 | +0 | +0 | Out | sine 40 Hz -40 dBFS | -36.1 | -36.0 |
+| 40 | +0 | +0 | Out | sine 60 Hz -3 dBFS | -37.1 | -28.3 |
+| 40 | +0 | +0 | Out | log sweep 20-2k -20 | -31.3 | -27.6 |
+| 40 | +0 | +0 | Out | bass steps -50/-10/-30 | -29.1 | -24.7 |
+| 40 | +0 | +0 | Out | pink-ish noise -20 rms | -24.1 | -21.1 |
+| 40 | +0 | +0 | Out | white noise -20 rms | -41.3 | -25.4 |
+| 40 | +0 | +0 | Out | bass notes | -26.3 | -21.5 |
+| 40 | +0 | +0 | Out | kick-like | -25.4 | -20.6 |
+| 160 | +0 | +0 | Out | sine 30 Hz -20 dBFS | -2.9 | -2.1 |
+| 160 | +0 | +0 | Out | sine 50 Hz -12 dBFS | -16.8 | -15.8 |
+| 160 | +0 | +0 | Out | sine 80 Hz -20 dBFS | -18.4 | -20.0 |
+| 160 | +0 | +0 | Out | sine 120 Hz -12 dBFS | -22.9 | -25.0 |
+| 160 | +0 | +0 | Out | sine 40 Hz -40 dBFS | -15.8 | -14.2 |
+| 160 | +0 | +0 | Out | sine 60 Hz -3 dBFS | -9.2 | -9.1 |
+| 160 | +0 | +0 | Out | log sweep 20-2k -20 | -33.4 | -30.6 |
+| 160 | +0 | +0 | Out | bass steps -50/-10/-30 | -13.0 | -12.7 |
+| 160 | +0 | +0 | Out | pink-ish noise -20 rms | -25.9 | -24.1 |
+| 160 | +0 | +0 | Out | white noise -20 rms | -36.6 | -25.7 |
+| 160 | +0 | +0 | Out | bass notes | -23.6 | -22.8 |
+| 160 | +0 | +0 | Out | kick-like | -8.1 | -8.2 |
+| 256 | +6 | -6 | In | sine 30 Hz -20 dBFS | -39.9 | -1.1 |
+| 256 | +6 | -6 | In | sine 50 Hz -12 dBFS | -32.9 | -2.7 |
+| 256 | +6 | -6 | In | sine 80 Hz -20 dBFS | -29.5 | -18.3 |
+| 256 | +6 | -6 | In | sine 120 Hz -12 dBFS | -18.6 | -17.6 |
+| 256 | +6 | -6 | In | sine 40 Hz -40 dBFS | -40.9 | -3.1 |
+| 256 | +6 | -6 | In | sine 60 Hz -3 dBFS | -37.0 | -8.2 |
+| 256 | +6 | -6 | In | log sweep 20-2k -20 | -34.0 | -32.0 |
+| 256 | +6 | -6 | In | bass steps -50/-10/-30 | -31.4 | -9.0 |
+| 256 | +6 | -6 | In | pink-ish noise -20 rms | -25.8 | -24.4 |
+| 256 | +6 | -6 | In | white noise -20 rms | -30.4 | -25.5 |
+| 256 | +6 | -6 | In | bass notes | -28.4 | -23.6 |
+| 256 | +6 | -6 | In | kick-like | -16.6 | -3.9 |
+| 32 | +0 | +0 | Out | sine 30 Hz -20 dBFS | -27.1 | -26.9 |
+| 32 | +0 | +0 | Out | sine 50 Hz -12 dBFS | -36.8 | -31.6 |
+| 32 | +0 | +0 | Out | sine 80 Hz -20 dBFS | -42.4 | -34.3 |
+| 32 | +0 | +0 | Out | sine 120 Hz -12 dBFS | -40.8 | -25.3 |
+| 32 | +0 | +0 | Out | sine 40 Hz -40 dBFS | -34.0 | -32.7 |
+| 32 | +0 | +0 | Out | sine 60 Hz -3 dBFS | -36.3 | -26.8 |
+| 32 | +0 | +0 | Out | log sweep 20-2k -20 | -32.1 | -27.8 |
+| 32 | +0 | +0 | Out | bass steps -50/-10/-30 | -30.2 | -24.2 |
+| 32 | +0 | +0 | Out | pink-ish noise -20 rms | -23.7 | -20.5 |
+| 32 | +0 | +0 | Out | white noise -20 rms | -41.7 | -25.4 |
+| 32 | +0 | +0 | Out | bass notes | -25.7 | -19.5 |
+| 32 | +0 | +0 | Out | kick-like | -25.8 | -19.6 |
 
-Median total -28.1 dB (worst -1.4); median generated part -23.0 dB (worst 5.6); 96 cases.
+Median total -29.3 dB (worst -2.9); median generated part -22.8 dB (worst -1.1); 96 cases.
