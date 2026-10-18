@@ -52,13 +52,23 @@ bool WBassProcessor::isBusesLayoutSupported (const BusesLayout& l) const
     return in == out && (in == AudioChannelSet::mono() || in == AudioChannelSet::stereo());
 }
 
-// Phase 2 (UI): audio passes through, scaled by Gain. The meters are live; the harmonic generator comes in Phase 4.
+void WBassProcessor::prepareToPlay (double sampleRate, int)
+{
+    dsp.prepare (sampleRate, getTotalNumInputChannels());
+}
+
 void WBassProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
 {
     ScopedNoDenormals nd;
-    const int n = b.getNumSamples(), ch = b.getNumChannels();
-    const float inPeak = b.getMagnitude (0, n);
-    b.applyGain (Decibels::decibelsToGain (apvts.getRawParameterValue (wbass::gain)->load()));
+    const int n = b.getNumSamples(), ch = jmin (2, b.getNumChannels());
+    auto get = [this] (const char* id) { return apvts.getRawParameterValue (id)->load(); };
+    dsp.setFreq (get (wbass::freq));
+    dsp.setIntensityDb (get (wbass::intensity));
+    dsp.setOriginalBass (get (wbass::origBass) > 0.5f);
+    dsp.setGainDb (get (wbass::gain));
+    dsp.setDecay (get (wbass::decay));
+    dsp.process (b.getArrayOfWritePointers(), ch, n);
+
     auto toDb = [] (float v) { return v > 1.0e-4f ? Decibels::gainToDecibels (v) : -80.0f; };
     const float peakL = b.getMagnitude (0, 0, n), peakR = ch > 1 ? b.getMagnitude (1, 0, n) : peakL;
     auto smooth = [] (std::atomic<float>& a, float v)
@@ -66,11 +76,11 @@ void WBassProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
         const float old = a.load();
         a.store (v > old ? v : old + (v - old) * 0.15f);   // quick rise, slow fall
     };
-    smooth (origDb, toDb (inPeak));
-    smooth (harmDb, -80.0f);
+    smooth (origDb, toDb (dsp.lastOrigPeak));
+    smooth (harmDb, toDb (dsp.lastHarmPeak));
     smooth (outLDb, toDb (peakL));
     smooth (outRDb, toDb (peakR));
-    if (jmax (peakL, peakR) >= 1.0f) clipped.store (true);
+    if (jmax (peakL, peakR) >= (float) dsp.t.ceiling) clipped.store (true);
 }
 
 AudioProcessorEditor* WBassProcessor::createEditor() { return new WBassEditor (*this); }

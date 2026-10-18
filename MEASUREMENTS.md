@@ -103,3 +103,39 @@ Reproduce with `python -I nulltest/measure_rbass.py`.
 ## What this means for Phase 4
 
 WBass needs: a high-pass at Freq for Original Bass Out (about 4th order); a band around Freq feeding a harmonic generator that makes a fundamental plus mostly 2nd and 3rd harmonics; a level control (ratio set by the hidden Ratio, 0.63 by default) with tens-of-milliseconds attack and release on the generated signal; Intensity as the gain of that path; the generated signal mono and added to both channels; a 0 dBFS safety clipper or limiter at the output; and the Out Gain trim. The exact filter shapes, the generator's transfer curve and phase, and the level detector are the identification work of Phase 4.
+
+## WBass model (Phase 4 identification)
+
+Scripts: `nulltest/ident_rbass_linear.py`, `ident_rbass_nl.py`, `ident_rbass_sweep.py`, `ident_rbass_k2.py`,
+`wbass_fitdata.py`, `wbass_model.py` (Python model), data in `measurements/rbass/` (`linear_paths.json`, `k2_grid6.json`,
+`levels_decay0.json`, `cs_vs_f0.json`, `am70.json`, `beat70.json`, ...). "F" is the Freq setting.
+
+**Identified exactly** (residual given):
+
+| Part | Finding |
+|---|---|
+| Original path | Original Bass Out: 3rd-order Butterworth high-pass at F; In: LP3(F) + HP3(F), i.e. a 2nd-order all-pass. Within −60 … −75 dB of a bilinear HP3 on the renders (a small extra low-frequency gain difference, below −57 dB, is not explained yet) |
+| Generated path, low level | −C0 · LP3(F/3) · HP3(F) · HP3(F), C0 ≈ 290–300 (≈ +49.5 dB): log-magnitude error 0.0044 rms over F = 40…256 Hz |
+| Harmonic product | a 2nd-order term (u · b) followed by HP3(F/3) and HP3(F), with u = LP3(F/3) HP3(F) x and b = LP3(F) x. Found from 190 two-tone kernels on a grid where many pairs share the sum frequency (free post-filter, free factors: 0.04 dB / 0.05° rms, then the closed form: 0.085 dB / 0.3° rms) |
+| Hidden **Decay** | the gain of that product: Decay 0 removes the even harmonics completely (2nd harmonic −166 dB) and leaves the rest unchanged; it reads back only 0 or 1 |
+| Intensity | an exact gain on the generated path; it is used to split the generated part off the reference in all null tests |
+| Output stage | a hard clip to the 16-bit range, −1 … 32767/32768, no knee and no time constant (loud 1 kHz tones, where nothing is generated: the gain drops instantly on a +26 dB step and returns instantly) |
+| Hidden **Ratio** | 1.0 and 0.63 give identical output; below about 0.5 the compression gets stronger (0.25: −5.95 dB at 0 dBFS). WBass keeps the parameter (presets use 0.63) but does not use it yet |
+
+**Gain control of the generated path — fitted, not identified.** The generated path is upward-compressed: the gain
+falls from C0 at low level following about (1 + A/A0)^−0.5. Measurements that pin it down partly:
+- the 3rd and 5th harmonics come from the ripple of this gain (with Decay 0 their phase relative to the fundamental is
+  constant over 72 dB of level), not from a rectifier in the generator;
+- AM tones and two-tone beats show the envelope follows a smoother of about 6.6 Hz corner (one-pole, ≈ 24 ms) at slow
+  rates, with the gain applied ahead of the last high-pass; a small part also acts after it (intermodulation at 6 Hz);
+- the mean compression detects a band flat up to about F with a 4 dB rise near 0.8 F and less above F, while the
+  ripple at 2 f0 / 4 f0 is locked to the phase of LP3(F/3) x (4 f0 component at −90° for every f0 and level);
+- on note onsets the reference settles within about one cycle, much faster than a single smoother explains.
+None of the detector forms tried (rectifier + one-pole or attack / release, law-before-smoothing, a Hilbert-pair
+envelope, one or two gain stages) reproduces all of these at once. The implemented model (two stages: CS1 on the LP3(F)
+band with a 178 ms one-pole ahead of the high-passes, and a fast 1.8 ms stage on the generated output) is the best of
+those on the fitting set (`nulltest/wbass_fitdata.py`).
+
+**Null test** ([docs/NULL_RESULTS_WBASS.md](docs/NULL_RESULTS_WBASS.md), 12 signals × 8 settings, generated part split
+off the reference with a second Intensity render): median residual −22.6 dB on the whole output and −18.0 dB on the
+generated part alone; worst cases near 0 dB (kick-like transients, Intensity +12, Freq 160 / 256). This is not a null.

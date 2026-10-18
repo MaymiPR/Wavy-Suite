@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <atomic>
+#include "WBassDsp.h"
 
 // Parameters follow the reference's parameter list (ParamXML order, ranges and defaults; see RESEARCH.md, WBass).
 namespace wbass
@@ -25,7 +26,7 @@ class WBassProcessor : public juce::AudioProcessor
 public:
     WBassProcessor();
 
-    void prepareToPlay (double, int) override {}
+    void prepareToPlay (double sampleRate, int) override;
     void releaseResources() override {}
     bool isBusesLayoutSupported (const BusesLayout&) const override;
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
@@ -53,4 +54,5 @@ public:
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout layout();
+    wbass::Processor dsp;
 };

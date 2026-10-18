@@ -1,0 +1,866 @@
+[
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 30 Hz -20 dBFS",
+  "total_db": -9.9,
+  "generated_db": -10.1
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 50 Hz -12 dBFS",
+  "total_db": -17.8,
+  "generated_db": -20.8
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 80 Hz -20 dBFS",
+  "total_db": -20.7,
+  "generated_db": -20.2
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 120 Hz -12 dBFS",
+  "total_db": -24.5,
+  "generated_db": -19.8
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 40 Hz -40 dBFS",
+  "total_db": -25.1,
+  "generated_db": -26.0
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 60 Hz -3 dBFS",
+  "total_db": -18.2,
+  "generated_db": -21.4
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "log sweep 20-2k -20",
+  "total_db": -19.6,
+  "generated_db": -16.5
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "bass steps -50/-10/-30",
+  "total_db": -12.8,
+  "generated_db": -15.7
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "pink-ish noise -20 rms",
+  "total_db": -22.6,
+  "generated_db": -20.1
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "white noise -20 rms",
+  "total_db": -38.8,
+  "generated_db": -25.1
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "bass notes",
+  "total_db": -17.6,
+  "generated_db": -16.6
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "kick-like",
+  "total_db": -6.4,
+  "generated_db": -5.2
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "sine 30 Hz -20 dBFS",
+  "total_db": -19.7,
+  "generated_db": -10.1
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "sine 50 Hz -12 dBFS",
+  "total_db": -24.9,
+  "generated_db": -20.8
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "sine 80 Hz -20 dBFS",
+  "total_db": -22.7,
+  "generated_db": -20.2
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "sine 120 Hz -12 dBFS",
+  "total_db": -24.8,
+  "generated_db": -19.8
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "sine 40 Hz -40 dBFS",
+  "total_db": -25.4,
+  "generated_db": -26.0
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "sine 60 Hz -3 dBFS",
+  "total_db": -28.5,
+  "generated_db": -21.9
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "log sweep 20-2k -20",
+  "total_db": -20.6,
+  "generated_db": -16.5
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "bass steps -50/-10/-30",
+  "total_db": -20.0,
+  "generated_db": -15.7
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "pink-ish noise -20 rms",
+  "total_db": -23.5,
+  "generated_db": -20.1
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "white noise -20 rms",
+  "total_db": -38.8,
+  "generated_db": -25.1
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "bass notes",
+  "total_db": -20.9,
+  "generated_db": -16.6
+ },
+ {
+  "freq": 80,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "kick-like",
+  "total_db": -12.0,
+  "generated_db": -6.3
+ },
+ {
+  "freq": 80,
+  "intensity": 12,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 30 Hz -20 dBFS",
+  "total_db": -10.0,
+  "generated_db": -10.1
+ },
+ {
+  "freq": 80,
+  "intensity": 12,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 50 Hz -12 dBFS",
+  "total_db": -12.4,
+  "generated_db": -12.7
+ },
+ {
+  "freq": 80,
+  "intensity": 12,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 80 Hz -20 dBFS",
+  "total_db": -11.4,
+  "generated_db": -10.2
+ },
+ {
+  "freq": 80,
+  "intensity": 12,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 120 Hz -12 dBFS",
+  "total_db": -11.8,
+  "generated_db": -7.9
+ },
+ {
+  "freq": 80,
+  "intensity": 12,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 40 Hz -40 dBFS",
+  "total_db": -25.8,
+  "generated_db": -26.0
+ },
+ {
+  "freq": 80,
+  "intensity": 12,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 60 Hz -3 dBFS",
+  "total_db": 1.6,
+  "generated_db": 0.8
+ },
+ {
+  "freq": 80,
+  "intensity": 12,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "log sweep 20-2k -20",
+  "total_db": -17.3,
+  "generated_db": -15.9
+ },
+ {
+  "freq": 80,
+  "intensity": 12,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "bass steps -50/-10/-30",
+  "total_db": -5.1,
+  "generated_db": -5.3
+ },
+ {
+  "freq": 80,
+  "intensity": 12,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "pink-ish noise -20 rms",
+  "total_db": -20.6,
+  "generated_db": -20.2
+ },
+ {
+  "freq": 80,
+  "intensity": 12,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "white noise -20 rms",
+  "total_db": -29.0,
+  "generated_db": -25.1
+ },
+ {
+  "freq": 80,
+  "intensity": 12,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "bass notes",
+  "total_db": -5.0,
+  "generated_db": -3.6
+ },
+ {
+  "freq": 80,
+  "intensity": 12,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "kick-like",
+  "total_db": -2.1,
+  "generated_db": -0.7
+ },
+ {
+  "freq": 80,
+  "intensity": -12,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "sine 30 Hz -20 dBFS",
+  "total_db": -33.2,
+  "generated_db": -10.1
+ },
+ {
+  "freq": 80,
+  "intensity": -12,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "sine 50 Hz -12 dBFS",
+  "total_db": -35.2,
+  "generated_db": -20.8
+ },
+ {
+  "freq": 80,
+  "intensity": -12,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "sine 80 Hz -20 dBFS",
+  "total_db": -28.0,
+  "generated_db": -20.2
+ },
+ {
+  "freq": 80,
+  "intensity": -12,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "sine 120 Hz -12 dBFS",
+  "total_db": -32.1,
+  "generated_db": -19.8
+ },
+ {
+  "freq": 80,
+  "intensity": -12,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "sine 40 Hz -40 dBFS",
+  "total_db": -36.0,
+  "generated_db": -26.0
+ },
+ {
+  "freq": 80,
+  "intensity": -12,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "sine 60 Hz -3 dBFS",
+  "total_db": -38.0,
+  "generated_db": -21.4
+ },
+ {
+  "freq": 80,
+  "intensity": -12,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "log sweep 20-2k -20",
+  "total_db": -29.0,
+  "generated_db": -16.5
+ },
+ {
+  "freq": 80,
+  "intensity": -12,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "bass steps -50/-10/-30",
+  "total_db": -29.4,
+  "generated_db": -15.7
+ },
+ {
+  "freq": 80,
+  "intensity": -12,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "pink-ish noise -20 rms",
+  "total_db": -31.2,
+  "generated_db": -20.1
+ },
+ {
+  "freq": 80,
+  "intensity": -12,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "white noise -20 rms",
+  "total_db": -50.6,
+  "generated_db": -25.1
+ },
+ {
+  "freq": 80,
+  "intensity": -12,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "bass notes",
+  "total_db": -29.2,
+  "generated_db": -16.6
+ },
+ {
+  "freq": 80,
+  "intensity": -12,
+  "gain": 0,
+  "orig_in": true,
+  "signal": "kick-like",
+  "total_db": -20.8,
+  "generated_db": -8.4
+ },
+ {
+  "freq": 40,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 30 Hz -20 dBFS",
+  "total_db": -18.9,
+  "generated_db": -20.3
+ },
+ {
+  "freq": 40,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 50 Hz -12 dBFS",
+  "total_db": -22.3,
+  "generated_db": -19.0
+ },
+ {
+  "freq": 40,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 80 Hz -20 dBFS",
+  "total_db": -26.4,
+  "generated_db": -20.7
+ },
+ {
+  "freq": 40,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 120 Hz -12 dBFS",
+  "total_db": -33.4,
+  "generated_db": -21.8
+ },
+ {
+  "freq": 40,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 40 Hz -40 dBFS",
+  "total_db": -23.0,
+  "generated_db": -22.7
+ },
+ {
+  "freq": 40,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 60 Hz -3 dBFS",
+  "total_db": -33.6,
+  "generated_db": -25.5
+ },
+ {
+  "freq": 40,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "log sweep 20-2k -20",
+  "total_db": -19.9,
+  "generated_db": -16.2
+ },
+ {
+  "freq": 40,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "bass steps -50/-10/-30",
+  "total_db": -23.5,
+  "generated_db": -19.2
+ },
+ {
+  "freq": 40,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "pink-ish noise -20 rms",
+  "total_db": -22.1,
+  "generated_db": -19.0
+ },
+ {
+  "freq": 40,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "white noise -20 rms",
+  "total_db": -40.7,
+  "generated_db": -24.7
+ },
+ {
+  "freq": 40,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "bass notes",
+  "total_db": -20.8,
+  "generated_db": -16.1
+ },
+ {
+  "freq": 40,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "kick-like",
+  "total_db": -21.4,
+  "generated_db": -16.6
+ },
+ {
+  "freq": 160,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 30 Hz -20 dBFS",
+  "total_db": -0.7,
+  "generated_db": 0.1
+ },
+ {
+  "freq": 160,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 50 Hz -12 dBFS",
+  "total_db": -15.2,
+  "generated_db": -14.2
+ },
+ {
+  "freq": 160,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 80 Hz -20 dBFS",
+  "total_db": -17.8,
+  "generated_db": -19.4
+ },
+ {
+  "freq": 160,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 120 Hz -12 dBFS",
+  "total_db": -23.4,
+  "generated_db": -25.5
+ },
+ {
+  "freq": 160,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 40 Hz -40 dBFS",
+  "total_db": -12.7,
+  "generated_db": -11.1
+ },
+ {
+  "freq": 160,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 60 Hz -3 dBFS",
+  "total_db": -8.4,
+  "generated_db": -8.4
+ },
+ {
+  "freq": 160,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "log sweep 20-2k -20",
+  "total_db": -19.8,
+  "generated_db": -17.0
+ },
+ {
+  "freq": 160,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "bass steps -50/-10/-30",
+  "total_db": -5.6,
+  "generated_db": -5.3
+ },
+ {
+  "freq": 160,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "pink-ish noise -20 rms",
+  "total_db": -23.1,
+  "generated_db": -21.3
+ },
+ {
+  "freq": 160,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "white noise -20 rms",
+  "total_db": -36.3,
+  "generated_db": -25.3
+ },
+ {
+  "freq": 160,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "bass notes",
+  "total_db": -14.6,
+  "generated_db": -13.7
+ },
+ {
+  "freq": 160,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "kick-like",
+  "total_db": 1.6,
+  "generated_db": 1.0
+ },
+ {
+  "freq": 256,
+  "intensity": 6,
+  "gain": -6,
+  "orig_in": true,
+  "signal": "sine 30 Hz -20 dBFS",
+  "total_db": -39.2,
+  "generated_db": -0.4
+ },
+ {
+  "freq": 256,
+  "intensity": 6,
+  "gain": -6,
+  "orig_in": true,
+  "signal": "sine 50 Hz -12 dBFS",
+  "total_db": -30.9,
+  "generated_db": -0.7
+ },
+ {
+  "freq": 256,
+  "intensity": 6,
+  "gain": -6,
+  "orig_in": true,
+  "signal": "sine 80 Hz -20 dBFS",
+  "total_db": -28.4,
+  "generated_db": -17.3
+ },
+ {
+  "freq": 256,
+  "intensity": 6,
+  "gain": -6,
+  "orig_in": true,
+  "signal": "sine 120 Hz -12 dBFS",
+  "total_db": -17.5,
+  "generated_db": -16.5
+ },
+ {
+  "freq": 256,
+  "intensity": 6,
+  "gain": -6,
+  "orig_in": true,
+  "signal": "sine 40 Hz -40 dBFS",
+  "total_db": -38.5,
+  "generated_db": -0.6
+ },
+ {
+  "freq": 256,
+  "intensity": 6,
+  "gain": -6,
+  "orig_in": true,
+  "signal": "sine 60 Hz -3 dBFS",
+  "total_db": -35.0,
+  "generated_db": -6.2
+ },
+ {
+  "freq": 256,
+  "intensity": 6,
+  "gain": -6,
+  "orig_in": true,
+  "signal": "log sweep 20-2k -20",
+  "total_db": -19.2,
+  "generated_db": -17.1
+ },
+ {
+  "freq": 256,
+  "intensity": 6,
+  "gain": -6,
+  "orig_in": true,
+  "signal": "bass steps -50/-10/-30",
+  "total_db": -25.5,
+  "generated_db": -3.1
+ },
+ {
+  "freq": 256,
+  "intensity": 6,
+  "gain": -6,
+  "orig_in": true,
+  "signal": "pink-ish noise -20 rms",
+  "total_db": -23.9,
+  "generated_db": -22.5
+ },
+ {
+  "freq": 256,
+  "intensity": 6,
+  "gain": -6,
+  "orig_in": true,
+  "signal": "white noise -20 rms",
+  "total_db": -30.8,
+  "generated_db": -25.9
+ },
+ {
+  "freq": 256,
+  "intensity": 6,
+  "gain": -6,
+  "orig_in": true,
+  "signal": "bass notes",
+  "total_db": -16.9,
+  "generated_db": -12.1
+ },
+ {
+  "freq": 256,
+  "intensity": 6,
+  "gain": -6,
+  "orig_in": true,
+  "signal": "kick-like",
+  "total_db": -6.5,
+  "generated_db": 5.5
+ },
+ {
+  "freq": 32,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 30 Hz -20 dBFS",
+  "total_db": -17.8,
+  "generated_db": -17.7
+ },
+ {
+  "freq": 32,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 50 Hz -12 dBFS",
+  "total_db": -23.4,
+  "generated_db": -18.3
+ },
+ {
+  "freq": 32,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 80 Hz -20 dBFS",
+  "total_db": -30.6,
+  "generated_db": -22.5
+ },
+ {
+  "freq": 32,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 120 Hz -12 dBFS",
+  "total_db": -39.1,
+  "generated_db": -23.5
+ },
+ {
+  "freq": 32,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 40 Hz -40 dBFS",
+  "total_db": -24.4,
+  "generated_db": -23.1
+ },
+ {
+  "freq": 32,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "sine 60 Hz -3 dBFS",
+  "total_db": -30.3,
+  "generated_db": -21.0
+ },
+ {
+  "freq": 32,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "log sweep 20-2k -20",
+  "total_db": -20.3,
+  "generated_db": -16.2
+ },
+ {
+  "freq": 32,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "bass steps -50/-10/-30",
+  "total_db": -25.0,
+  "generated_db": -19.0
+ },
+ {
+  "freq": 32,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "pink-ish noise -20 rms",
+  "total_db": -22.1,
+  "generated_db": -18.9
+ },
+ {
+  "freq": 32,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "white noise -20 rms",
+  "total_db": -41.3,
+  "generated_db": -24.8
+ },
+ {
+  "freq": 32,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "bass notes",
+  "total_db": -22.1,
+  "generated_db": -15.9
+ },
+ {
+  "freq": 32,
+  "intensity": 0,
+  "gain": 0,
+  "orig_in": false,
+  "signal": "kick-like",
+  "total_db": -24.8,
+  "generated_db": -18.6
+ }
+]

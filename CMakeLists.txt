@@ -73,6 +73,7 @@ function(wavy_add_plugin target product code clapid)
             "${CMAKE_BINARY_DIR}/plugins/${product}.vst3")
 endfunction()
 
+enable_testing()
 add_subdirectory(plugins/WVox)
 add_subdirectory(plugins/WBass)
 
@@ -81,7 +82,6 @@ add_executable(WVoxRender tools/WVoxRender.cpp)
 target_include_directories(WVoxRender PRIVATE plugins/WVox)
 
 # Unit tests (DSP + processor):  cmake --build build --target WVoxTests, then ctest --test-dir build -C Release
-enable_testing()
 juce_add_console_app(WVoxTests PRODUCT_NAME "WVoxTests")
 target_sources(WVoxTests PRIVATE
     tests/WVoxTests.cpp
