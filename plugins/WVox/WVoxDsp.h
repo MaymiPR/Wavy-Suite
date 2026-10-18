@@ -12,7 +12,8 @@
 //     identified from DC level steps; the applied gain is the smaller of the fast and the slow gain;
 //   * Gate: hard-knee 2:1 downward expander on a level that rises at once and falls toward the live level as a one-pole in linear amplitude
 //     with the GateRel time (130 ms by default; identified on a DC carrier); its gain is shaped by the same two moving
-//     averages, so it opens just ahead of a rise; the compressor sees the gated signal;
+//     averages, so it opens just ahead of a rise; gate and compressor detect the input in parallel and their gains
+//     multiply (checked on steady tones to 0.01 dB);
 //   * one gain for both channels (linked) or one Processor per channel.
 #include <algorithm>
 #include <cmath>
@@ -25,8 +26,11 @@ struct Tuning
     // fast path, in samples at 44.1 / 48 kHz (scaled by latency / 64 above)
     int hold = 65, box1 = 39, box2 = 26;
     // slow path (ms, dB): stage 1 rise / fall, dead band, stage 2 rise / fall
-    float slowWinMs = 16.349f;       // peak window in front of the slow path
-    float ta1 = 34.514f, tr1 = 0.75349f, band = 0.048f, ta2 = 67.961f, tr2 = 488.2f;
+    int slowMode = 2;               // 0: two dB stages with dead band; 1: amplitude charge stage + dB/s peak decay;
+                                    // 2: amplitude stage (ta1 / tr1), then the gain ratio through a one-pole (ta2 / tr2)
+    float decayDbS = 20.0f;         // slowMode 1: fall rate of the held level (dB per second)
+    float slowWinMs = 2.1754f;       // peak window in front of the slow path
+    float ta1 = 1.5704f, tr1 = 0.67043f, band = 0.048f, ta2 = 249.5f, tr2 = 498.49f;
     // gate level release (ms): the reference's hidden GateRel parameter, 10 ... 250 ms, default 130
     float gateRelMs = 130.0f;
     float fixedGain = 0.99f;        // the reference's constant -0.0873 dB
@@ -86,12 +90,27 @@ public:
     {
         auto k = [fs] (float ms) { return 1.0f - std::exp (-1.0f / (std::max (ms, 0.01f) * 0.001f * (float) fs)); };
         a1 = k (t.ta1); r1 = k (t.tr1); a2 = k (t.ta2); r2 = k (t.tr2); band = t.band;
+        mode = t.slowMode; decay = std::pow (10.0f, -t.decayDbS / (20.0f * (float) fs));
         reset();
     }
-    void reset() { s1 = -120.0f; s2 = -120.0f; }
+    void reset() { s1 = -120.0f; s2 = -120.0f; c1 = 0.0f; h = 0.0f; q = 1.0f; }
+    // mode 2: v = live amplitude, M = compression factor; returns the slow gain ratio
+    float processRatio (float v, float M)
+    {
+        c1 += (v - c1) * (v > c1 ? a1 : r1);              // level stage (amplitude)
+        const float r = 1.0f / (1.0f + (M - 1.0f) * c1);
+        q += (r - q) * (r < q ? a2 : r2);                  // gain-ratio stage: attack when the ratio falls
+        return q;
+    }
     // v: live amplitude; returns the slow amplitude
     float process (float v)
     {
+        if (mode == 1)
+        {
+            c1 += (v - c1) * (v > c1 ? a1 : r1);          // charge stage in amplitude
+            h = std::max (c1, h * decay);                  // held level, falling at decayDbS
+            return h;
+        }
         const float d = std::max (20.0f * std::log10 (std::max (v, 1.0e-6f)), -120.0f);
         s1 += (d - s1) * (d > s1 ? a1 : r1);
         const float up = s1 - band - s2, dn = s1 + band - s2;
@@ -99,7 +118,8 @@ public:
         return std::pow (10.0f, s2 / 20.0f);
     }
 private:
-    float a1 = 0.01f, r1 = 0.1f, a2 = 0.01f, r2 = 0.001f, band = 0.0f, s1 = -120.0f, s2 = -120.0f;
+    float a1 = 0.01f, r1 = 0.1f, a2 = 0.01f, r2 = 0.001f, band = 0.0f, s1 = -120.0f, s2 = -120.0f, c1 = 0.0f, h = 0.0f, decay = 1.0f, q = 1.0f;
+    int mode = 0;
 };
 
 // Processes up to two channels with one shared (linked) gain. For independent channels run one Processor per channel.
@@ -184,9 +204,11 @@ public:
             }
             const float gateShaped = gbox2.push (gbox1.push (gateGain));
 
-            // compressor: instant ratio to the idle gain from the live level of the gated signal
-            const float ratio = 1.0f / (1.0f + (M - 1.0f) * v * gateGain);
-            const float slowRatio = 1.0f / (1.0f + (M - 1.0f) * std::max (v * gateGain, slow.process (slowWin.push (v * gateGain))));
+            // compressor: instant ratio to the idle gain from the live level of the input (detected in parallel with the gate)
+            const float ratio = 1.0f / (1.0f + (M - 1.0f) * v);
+            const float vw = slowWin.push (v);
+            const float slowRatio = tune.slowMode == 2 ? slow.processRatio (vw, M)
+                                                       : 1.0f / (1.0f + (M - 1.0f) * std::max (v, slow.process (vw)));
 
             // fast path: 65-sample hold of the minimum, then two moving averages (identified look-ahead shape)
             const float fastRatio = box2.push (box1.push (-hold.push (-ratio)));

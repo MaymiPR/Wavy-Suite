@@ -90,6 +90,15 @@ static void testGate()
     CHECK_NEAR (steadyGainDb (0.0, -70.0, -40.0), -30.0 + fixedDb, 0.3);
     CHECK_NEAR (steadyGainDb (0.0, -30.0, -40.0), fixedDb, 0.05);
     CHECK_NEAR (steadyGainDb (0.0, -20.0, -80.0), fixedDb, 0.05);               // -80 = gate off
+
+    // gate and compressor detect the input in parallel; their gains multiply (measured on the reference to 0.01 dB)
+    for (double comp : { -12.0, -36.0 })
+        for (double level : { -50.0, -32.0, -22.0 })
+        {
+            const double M = std::pow (10.0, -comp / 20.0), x = std::pow (10.0, level / 20.0);
+            const double expect = std::min (0.0, level + 20.0) + 20.0 * std::log10 (0.99 * M / (1.0 + (M - 1.0) * x));
+            CHECK_NEAR (steadyGainDb (comp, level, -20.0), expect, 0.05);
+        }
 }
 
 static void testBehaviour()

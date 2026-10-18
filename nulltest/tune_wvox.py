@@ -17,8 +17,8 @@ S['bursts -10 dB of 5/20/50/200 ms'] = np.concatenate(parts)
 S["sine 8 kHz -20"] = R.tone(FS, 8000, 3.0, -20)
 # signals that cross the gate threshold
 S["gate sweep tones"] = np.concatenate([R.tone(FS, 1000, 0.6, L) for L in (-60, -45, -35, -25, -45)])
-plain = [(-12, None, 0), (-24, None, 0), (-36, None, 0)]
-gated = [(-24, -40, 0), (-12, -30, -3)]
+plain = [(-6, None, 0), (-12, None, 0), (-24, None, 0), (-36, None, 0)]
+gated = [(-24, -40, 0), (-12, -30, -3), (-30, -60, -12), (-18, -20, 0)]
 cases = []
 for nme in ["tone steps -50/-10/-30", "AM 5 Hz 3 kHz", "white noise -20 rms", "pink noise -20 rms", "noise bursts", "voice-like", "log sweep -20",
             "step -10/-30", "step -20/-50", "step -5/-15", "bursts -10 dB of 5/20/50/200 ms", "sine 100 Hz -20"]:
