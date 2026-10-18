@@ -8,11 +8,11 @@
 
 namespace wavy::ren
 {
-// colours measured from the reference's dark skin
+// colours measured from the reference's dark skin as the real plugins render it (reference/shots)
 inline const juce::Colour kFrameLine (52, 71, 86), kPanel (5, 29, 48), kOuterFill (4, 34, 55), kOuterLine (29, 55, 74),
     kInnerLine (51, 84, 108), kInnerFill (7, 20, 31), kWindow (9, 47, 78), kGrid (44, 76, 103),
-    kLabel (111, 146, 173), kScale (60, 90, 114), kMeterBg (10, 61, 102), kMeterFg (248, 150, 0),
-    kGrRed (120, 34, 35), kGrRedLine (139, 65, 66), kValue (211, 213, 215), kReadout (90, 90, 90),
+    kLabel (129, 166, 195), kScale (56, 89, 113), kScaleInner (73, 105, 129), kMeterBg (10, 61, 102), kMeterFg (248, 150, 0),
+    kGrRed (120, 34, 35), kGrRedLine (139, 65, 66), kValue (211, 213, 215), kReadout (130, 166, 195),
     kRing (244, 134, 2), kRingActive (255, 255, 0), kTrack (73, 102, 124);
 
 juce::Font arial (float h, bool bold = false);
@@ -89,7 +89,8 @@ protected:
     static void paintWindow (juce::Graphics&, float fillFromTop, juce::Colour fill, juce::Colour fillLine,
                              int lines, float firstLineY, float lineStep, bool fromBottom = false);
     static void paintCapsule (juce::Graphics&, juce::Rectangle<float>, float frac);
-    static void paintTitle (juce::Graphics&, const juce::String& name);   // script W + red name, centred
+    static void paintTitle (juce::Graphics&, const juce::String& name, juce::Colour nameColour);   // script W + name, centred
+    static void paintClipLight (juce::Graphics&, juce::Rectangle<float>, bool lit);
 
     juce::AudioProcessorValueTreeState& apvts;
     juce::UndoManager& undo;

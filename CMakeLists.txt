@@ -57,6 +57,7 @@ function(wavy_add_plugin target product code clapid)
         NEEDS_MIDI_INPUT FALSE
         NEEDS_MIDI_OUTPUT FALSE
         COPY_PLUGIN_AFTER_BUILD FALSE
+        EDITOR_WANTS_KEYBOARD_FOCUS FALSE   # the host keeps its transport shortcuts
         VST3_CATEGORIES Fx Dynamics
         AU_MAIN_TYPE kAudioUnitType_Effect)
     target_sources(${target} PRIVATE ${P_SOURCES})

@@ -5,7 +5,7 @@ using namespace wavy::ren;
 
 namespace
 {
-const Colour kHarm (222, 92, 64), kHarmLine (232, 130, 108), kClipOff (119, 119, 119), kClipOn (242, 109, 125);
+const Colour kHarm (222, 92, 64), kHarmLine (232, 130, 108);
 const Rectangle<int> kClip (302, 103, 23, 13), kHarmText (143, 287, 82, 25), kOrigText (39, 303, 33, 14);
 }
 
@@ -57,14 +57,14 @@ void WBassEditor::contentMouseDown (const MouseEvent& e)
 void WBassEditor::paintContent (Graphics& g)
 {
     paintPanel (g);
-    paintTitle (g, "BASS");
+    paintTitle (g, "BASS", Colour (226, 85, 56));
     paintHousing (g);
 
     // created-harmonics window: orange-red from the bottom, 0 dB at the top, 30 dB over the window
     paintWindow (g, (harm + 30.0f) / 30.0f, kHarm, kHarmLine, 5, 136.5f, 31.0f, true);
 
     // labels
-    g.setFont (arial (13.5f));
+    g.setFont (arial (15.0f));
     g.setColour (kLabel);
     g.drawText ("Intensity", Rectangle<int> (145, 87, 82, 18), Justification::centred);
     g.drawText ("Gain", Rectangle<int> (282, 69, 60, 18), Justification::centred);
@@ -73,8 +73,8 @@ void WBassEditor::paintContent (Graphics& g)
     g.drawText ("Freq", Rectangle<int> (88, 342, 40, 18), Justification::centred);
 
     // centre scale (dB below 0)
-    g.setFont (arial (11.0f, true));
-    g.setColour (kScale);
+    g.setFont (arial (12.5f));
+    g.setColour (kScaleInner);
     for (int i = 0; i < 5; ++i)
     {
         const float y = 136.5f + 31.0f * (float) i;
@@ -87,13 +87,7 @@ void WBassEditor::paintContent (Graphics& g)
     g.fillRect (137.0f, 351.0f, 98.0f, 1.0f);
 
     // clip light
-    {
-        const auto r = kClip.toFloat().reduced (2.0f, 1.0f);
-        g.setColour (Colours::black.withAlpha (0.4f));
-        g.fillRoundedRectangle (r.expanded (1.0f), 6.0f);
-        g.setColour (clip ? kClipOn : kClipOff);
-        g.fillRoundedRectangle (r, 5.5f);
-    }
+    paintClipLight (g, kClip.toFloat(), clip);
 
     // meters
     paintCapsule (g, { 50.0f, 121.0f, 15.0f, 156.0f }, (orig + 30.0f) / 30.0f);
@@ -102,10 +96,10 @@ void WBassEditor::paintContent (Graphics& g)
 
     // peak-hold readouts
     g.setColour (kReadout);
-    g.setFont (arial (11.0f));
+    g.setFont (arial (12.5f));
     g.drawText (dbText (origHold, true), kOrigText, Justification::centred);
     g.drawText (dbText (outLHold, true), vuTextRect (false), Justification::centred);
     if (! isMono()) g.drawText (dbText (outRHold, true), vuTextRect (true), Justification::centred);
-    g.setFont (arial (13.0f));
+    g.setFont (arial (16.0f));
     g.drawText (dbText (harmHold, true), kHarmText, Justification::centred);
 }

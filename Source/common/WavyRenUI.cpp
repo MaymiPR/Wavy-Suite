@@ -103,7 +103,7 @@ Label* Look::createSliderTextBox (Slider& s)
 {
     auto* l = LookAndFeel_V4::createSliderTextBox (s);
     const bool big = static_cast<Fader&> (s).kind == Fader::Big;
-    l->setFont (arial (13.5f));
+    l->setFont (arial (big ? 15.5f : 16.0f));
     l->setColour (Label::textColourId, big ? kValue : kReadout);
     l->setColour (Label::textWhenEditingColourId, Colours::white);
     l->setColour (Label::backgroundColourId, Colours::transparentBlack);
@@ -154,21 +154,22 @@ void Look::drawLinearSlider (Graphics& g, int, int, int, int, float pos, float, 
 void InSwitch::paintButton (Graphics& g, bool hot, bool down)
 {
     // pill measured from the reference: 27 x 21 at (3, 1); light grey when on, dark grey when off
+    // as the real plugin renders it: a steel-blue pill (darker when out) with a dark rim and a dark "IN"
     const Rectangle<float> pill (3.0f, 1.0f, 27.0f, 21.0f);
     const bool on = getToggleState();
     g.setColour (Colours::black.withAlpha (0.35f));
     g.fillRoundedRectangle (pill.translated (0.0f, 1.5f), 9.0f);
-    g.setColour (on ? Colour (230, 230, 230) : Colour (138, 138, 136));
+    g.setColour (Colour (55, 71, 84));
     g.fillRoundedRectangle (pill, 9.0f);
-    g.setColour (Colour (90, 90, 90));
-    g.drawRoundedRectangle (pill.reduced (0.5f), 9.0f, 1.0f);
+    g.setColour (on ? Colour (129, 166, 195) : Colour (77, 100, 117));
+    g.fillRoundedRectangle (pill.reduced (1.5f), 7.5f);
     if (hot || down)
     {
         g.setColour (down ? kRingActive : Colour (0, 174, 239));
         g.drawRoundedRectangle (pill.expanded (1.0f), 10.0f, 1.5f);
     }
-    g.setColour (on ? Colour (110, 110, 110) : Colour (70, 70, 70));
-    g.setFont (arial (12.0f));
+    g.setColour (on ? Colour (55, 75, 92) : Colour (40, 52, 62));
+    g.setFont (arial (12.0f, true));
     g.drawText ("IN", pill, Justification::centred);
 }
 
@@ -189,8 +190,13 @@ Editor::Editor (AudioProcessor& p, AudioProcessorValueTreeState& state, UndoMana
       toolbar (std::make_unique<wavy::Toolbar> (u, state, StringArray { "Stereo", "Mono" }, mode, product, version)),
       modeParam (mode)
 {
+    // never take the keyboard focus: the host keeps its shortcuts (space = play / pause) while the window is open
+    setWantsKeyboardFocus (false);
+    contentComp->setWantsKeyboardFocus (false);
     addAndMakeVisible (*contentComp);
     contentComp->setBounds (0, 0, W, H);
+    toolbar->setWantsKeyboardFocus (false);
+    toolbar->setMouseClickGrabsKeyboardFocus (false);
     contentComp->addAndMakeVisible (*toolbar);
     toolbar->setTopLeftPosition (0, 0);
     toolbar->getWindowScale = [this] { return (float) getWidth() / (float) W; };
@@ -240,6 +246,8 @@ bool Editor::isMono() const { return modeParam != nullptr && modeParam->getValue
 void Editor::attach (Fader& f, const char* paramID, Rectangle<int> bounds, double resetValue)
 {
     f.setLookAndFeel (&look);
+    f.setWantsKeyboardFocus (false);
+    f.setMouseClickGrabsKeyboardFocus (false);
     contentComp->addAndMakeVisible (f);
     f.setBounds (bounds);
     sliderAtts.push_back (std::make_unique<SliderParameterAttachment> (*apvts.getParameter (paramID), f, &undo));
@@ -250,6 +258,8 @@ void Editor::attach (Fader& f, const char* paramID, Rectangle<int> bounds, doubl
 
 void Editor::attach (Button& b, const char* paramID, Rectangle<int> bounds)
 {
+    b.setWantsKeyboardFocus (false);
+    b.setMouseClickGrabsKeyboardFocus (false);
     contentComp->addAndMakeVisible (b);
     b.setBounds (bounds);
     buttonAtts.push_back (std::make_unique<ButtonParameterAttachment> (*apvts.getParameter (paramID), b, &undo));
@@ -313,7 +323,7 @@ void Editor::paintCapsule (Graphics& g, Rectangle<float> r, float frac)
     g.fillRect (r.withTop (r.getBottom() - h));
 }
 
-void Editor::paintTitle (Graphics& g, const String& name)
+void Editor::paintTitle (Graphics& g, const String& name, Colour nameColour)
 {
     // script W + the plugin's name in red, centred on the panel like the reference's logo
     const auto nameFont = arial (22.0f);
@@ -322,8 +332,20 @@ void Editor::paintTitle (Graphics& g, const String& name)
     g.setColour (Colour (170, 176, 182));
     g.setFont (Font (FontOptions ("Georgia", 26.0f, Font::italic)));
     g.drawText ("W", Rectangle<float> (x0 - 2.0f, 46.0f, 34.0f, 30.0f), Justification::centred);
-    g.setColour (Colour (166, 28, 45));
+    g.setColour (nameColour);
     g.setFont (nameFont);
     g.drawText (name, Rectangle<float> (x0 + 32.0f, 49.0f, nameW + 4.0f, 26.0f), Justification::centredLeft);
+}
+
+// the reference's clip light (23 x 13): grey rim, dark inner ring, core grey when off and pink-red when lit
+void Editor::paintClipLight (Graphics& g, Rectangle<float> r, bool lit)
+{
+    const auto outer = Rectangle<float> (r.getX() + 2.0f, r.getY() + 1.0f, 19.0f, 11.0f);
+    g.setColour (Colour (119, 119, 119));
+    g.fillRoundedRectangle (outer, 5.5f);
+    g.setColour (lit ? Colour (67, 67, 67) : Colour (89, 89, 89));
+    g.fillRoundedRectangle (outer.reduced (2.0f, 1.0f), 4.0f);
+    g.setColour (lit ? Colour (242, 109, 125) : Colour (119, 119, 119));
+    g.fillRoundedRectangle (outer.reduced (4.0f, 3.0f), 2.5f);
 }
 }

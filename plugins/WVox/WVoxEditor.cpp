@@ -49,7 +49,7 @@ void WVoxEditor::paintContent (Graphics& g)
     g.setColour (Colour (170, 176, 182));
     g.setFont (Font (FontOptions ("Georgia", 26.0f, Font::italic)));
     g.drawText ("W", Rectangle<int> (146, 46, 34, 30), Justification::centred);
-    g.setColour (Colour (166, 28, 45));
+    g.setColour (Colour (159, 26, 42));
     g.setFont (arial (22.0f));
     g.drawText ("VOX", Rectangle<int> (178, 49, 48, 26), Justification::centredLeft);
 
@@ -58,7 +58,7 @@ void WVoxEditor::paintContent (Graphics& g)
     paintWindow (g, -attn / 36.0f, kGrRed, kGrRedLine, 5, 146.0f, 26.0f);
 
     // labels
-    g.setFont (arial (13.5f));
+    g.setFont (arial (15.0f));
     g.setColour (kLabel);
     g.drawText ("Gate", Rectangle<int> (28, 74, 60, 18), Justification::centred);
     g.drawText ("Gain", Rectangle<int> (282, 74, 60, 18), Justification::centred);
@@ -67,13 +67,15 @@ void WVoxEditor::paintContent (Graphics& g)
     g.drawText ("Output", Rectangle<int> (282, 283, 60, 18), Justification::centred);
 
     // scales
-    g.setFont (arial (11.0f, true));
+    g.setFont (arial (12.5f));
     g.setColour (kScale);
     for (int i = 0; i < 6; ++i)
     {
         const float y = 145.5f + 23.0f * (float) i;
+        g.setColour (kScale);
         g.drawText (String (12 * (i + 1)), Rectangle<float> (20.0f, y - 7.0f, 20.0f, 14.0f), Justification::centredRight);
         g.fillRect (43.0f, y, 4.0f, 1.0f);
+        g.setColour (kScaleInner);
         const float cy = 146.0f + 25.8f * (float) i;
         g.drawText (String (6 * (i + 1)), Rectangle<float> (104.0f, cy - 7.0f, 20.0f, 14.0f), Justification::centredRight);
         g.fillRect (126.0f, cy, 4.0f, 1.0f);
@@ -86,10 +88,10 @@ void WVoxEditor::paintContent (Graphics& g)
 
     // peak-hold readouts
     g.setColour (kReadout);
-    g.setFont (arial (11.0f));
+    g.setFont (arial (12.5f));
     g.drawText (dbText (energyHold, true), Rectangle<int> (39, 303, 33, 14), Justification::centred);
     g.drawText (dbText (outLHold, true), vuTextRect (false), Justification::centred);
     if (! isMono()) g.drawText (dbText (outRHold, true), vuTextRect (true), Justification::centred);
-    g.setFont (arial (13.5f));
+    g.setFont (arial (16.0f));
     g.drawText (attnHold > -0.05f ? String ("-Inf") : dbText (attnHold), Rectangle<int> (148, 287, 74, 23), Justification::centred);
 }

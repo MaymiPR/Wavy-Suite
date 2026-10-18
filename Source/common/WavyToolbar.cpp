@@ -112,7 +112,7 @@ void Toolbar::loadDefault()
         p->setValueNotifyingHost (p->getDefaultValue());
         p->endChangeGesture();
     }
-    presetName = "Default";
+    presetName = "Default Preset";
     presetFile = juce::File();
     loadedValues = currentValues();
     repaint();
@@ -175,7 +175,7 @@ void Toolbar::showPresetMenu()
     juce::PopupMenu m;
     m.setLookAndFeel (&menuLook);
     m.addSectionHeader ("Factory Presets");
-    m.addItem (1, "Default", true, ! presetFile.exists());
+    m.addItem (1, "Default Preset", true, ! presetFile.exists());
     const auto users = userPresets();
     if (! users.isEmpty())
     {
@@ -338,7 +338,13 @@ void Toolbar::paint (juce::Graphics& g)
                 break;
             case Preset:
                 box (r, hot);
-                label (r, presetName + (isModified() ? "*" : ""));
+                label (r, juce::String (active == 0 ? "A: " : "B: ") + presetName + (isModified() ? "*" : ""));
+                // menu box at the right end, as in the reference
+                g.setColour (juce::Colour (128, 128, 128));
+                g.fillRect (r.getRight() - 16, r.getY() + 2, 1, r.getHeight() - 4);
+                g.setColour (kInk);
+                g.setFont (tbFont (9.0f));
+                g.drawText (juce::String::fromUTF8 ("\xe2\x96\xbc"), r.withTrimmedLeft (r.getWidth() - 16), juce::Justification::centred);
                 break;
             default: break;
         }

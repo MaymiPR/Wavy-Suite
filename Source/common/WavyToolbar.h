@@ -58,7 +58,7 @@ private:
     int active = 0;
     int hot = -1;
 
-    juce::String presetName { "Default" };
+    juce::String presetName { "Default Preset" };
     juce::File presetFile;                 // empty for the factory default
     std::vector<float> loadedValues;
     MenuLook menuLook;
