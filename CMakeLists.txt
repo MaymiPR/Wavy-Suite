@@ -28,7 +28,8 @@ endif()
 
 # Shared code (toolbar, look) used by every plugin.
 add_library(WavyCommon STATIC
-    Source/common/WavyToolbar.cpp)
+    Source/common/WavyToolbar.cpp
+    Source/common/WavyRenUI.cpp)
 target_include_directories(WavyCommon PUBLIC Source/common)
 set_target_properties(WavyCommon PROPERTIES POSITION_INDEPENDENT_CODE ON)   # linked into shared plugins (Linux)
 target_compile_definitions(WavyCommon PUBLIC
@@ -72,6 +73,7 @@ function(wavy_add_plugin target product code clapid)
 endfunction()
 
 add_subdirectory(plugins/WVox)
+add_subdirectory(plugins/WBass)
 
 # Offline renderer of the WVox DSP (null test, tuning). No JUCE needed.
 add_executable(WVoxRender tools/WVoxRender.cpp)
