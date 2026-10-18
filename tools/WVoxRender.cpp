@@ -1,7 +1,7 @@
 // Offline renderer for the WVox DSP (used by the null test and the tuning scripts).
 //   WVoxRender in.f32 out.f32 channels sampleRate comp gate gain [key=value ...]
 // Files are raw interleaved 32-bit floats. The output is shifted back by the latency, so it lines up with the input
-// (the reference host does the same).  Keys: windowMs ta1 tr1 ta2 tr2 gta1 gtr1 gta2 gtr2 rampFraction fixedGain  tail=<seconds>
+// (the reference host does the same).  Keys: hold box1 box2 ta1 tr1 ta2 tr2 gateRelMs fixedGain  tail=<seconds>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -26,11 +26,10 @@ int main (int argc, char** argv)
         const auto eq = a.find ('=');
         if (eq == std::string::npos) continue;
         const std::string k = a.substr (0, eq); const float v = (float) std::atof (a.c_str() + eq + 1);
-        if (k == "domain") t.domain = (int) v;
-        else if (k == "windowMs") t.windowMs = v;
+        if (k == "hold") t.hold = (int) v; else if (k == "box1") t.box1 = (int) v; else if (k == "box2") t.box2 = (int) v;
         else if (k == "ta1") t.ta1 = v; else if (k == "tr1") t.tr1 = v; else if (k == "ta2") t.ta2 = v; else if (k == "tr2") t.tr2 = v;
-        else if (k == "gta1") t.gta1 = v; else if (k == "gtr1") t.gtr1 = v; else if (k == "gta2") t.gta2 = v; else if (k == "gtr2") t.gtr2 = v;
-        else if (k == "rampFraction") t.rampFraction = v; else if (k == "fixedGain") t.fixedGain = v;
+        else if (k == "gateRelMs") t.gateRelMs = v;
+        else if (k == "fixedGain") t.fixedGain = v;
         else if (k == "compensate") compensate = v != 0.0f;
     }
     FILE* f = std::fopen (argv[1], "rb");

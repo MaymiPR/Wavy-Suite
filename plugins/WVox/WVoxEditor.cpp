@@ -10,13 +10,13 @@ namespace
 const Colour kFrameLine (52, 71, 86), kPanel (5, 29, 48), kOuterFill (4, 34, 55), kOuterLine (29, 55, 74),
              kInnerLine (51, 84, 108), kInnerFill (7, 20, 31), kWindow (9, 47, 78), kGrid (44, 76, 103),
              kLabel (111, 146, 173), kScale (60, 90, 114), kMeterBg (10, 61, 102), kMeterFg (248, 150, 0),
-             kGrSlate (33, 54, 71), kValue (211, 213, 215), kReadout (90, 90, 90);
+             kGrRed (120, 34, 35), kGrRedLine (139, 65, 66), kValue (211, 213, 215), kReadout (90, 90, 90);
 
 Font arial (float h, bool bold = false) { return Font (FontOptions ("Arial", h, bold ? Font::bold : Font::plain)); }
 
 String dbText (float v, bool inf80 = false)
 {
-    if (inf80 && v <= -79.95f) return "-inf";
+    if (inf80 && v <= -79.95f) return "-Inf";
     return String (v, 1);
 }
 }
@@ -41,6 +41,22 @@ public:
         valueFromTextFunction = [] (const String& s) { return (double) -std::abs (s.trim().getFloatValue()); };
     }
     void valueChanged() override { Slider::valueChanged(); if (kind == Comp) resized(); }
+
+    // like the reference: click the value (without dragging) or double-click to type a value; Alt-click resets
+    void mouseUp (const MouseEvent& e) override
+    {
+        Slider::mouseUp (e);
+        if (e.mouseWasClicked() && ! e.mods.isAltDown() && valueTextBounds().contains (e.getPosition()))
+            showTextBox();
+    }
+    void mouseDoubleClick (const MouseEvent&) override { showTextBox(); }
+
+    Rectangle<int> valueTextBounds() const
+    {
+        for (auto* c : getChildren())
+            if (dynamic_cast<Label*> (c) != nullptr) return c->getBounds();
+        return {};
+    }
     const Kind kind;
 };
 
@@ -204,11 +220,18 @@ void WVoxEditor::timerCallback()
 
 void WVoxEditor::contentMouseDown (const MouseEvent& e)
 {
-    const auto p = e.getPosition();   // click a readout to reset its peak hold
-    if (Rectangle<int> (39, 303, 33, 14).contains (p)) energyHold = -80.0f;
-    if (Rectangle<int> (148, 287, 74, 23).contains (p)) attnHold = 0.0f;
-    if (vuTextRect (false).contains (p)) outLHold = -80.0f;
-    if (! isMono() && vuTextRect (true).contains (p)) outRHold = -80.0f;
+    // as in the reference: a click on any meter or readout restarts all the peak holds (they then read -Inf)
+    const auto p = e.getPosition();
+    const Rectangle<int> areas[] = { { 39, 303, 33, 14 }, { 148, 287, 74, 23 }, vuTextRect (false), vuTextRect (true),
+                                     { 50, 121, 15, 156 }, { 145, 121, 82, 155 }, vuRect (false), vuRect (true) };
+    for (auto& a : areas)
+        if (a.expanded (2).contains (p))
+        {
+            energyHold = outLHold = outRHold = -80.0f;
+            attnHold = 0.0f;
+            content->repaint();
+            break;
+        }
 }
 
 void WVoxEditor::paintContent (Graphics& g)
@@ -257,10 +280,14 @@ void WVoxEditor::paintContent (Graphics& g)
         Graphics::ScopedSaveState ss (g);
         g.reduceClipRegion (winPath);
         const float h = jlimit (0.0f, 1.0f, -attn / 36.0f) * 155.0f;
-        g.setColour (kGrSlate);
+        g.setColour (kGrRed);                                     // reduction shows red, as in the reference
         g.fillRect (win.withHeight (h));
-        g.setColour (kGrid);
-        for (int i = 0; i < 5; ++i) g.fillRect (145.0f, 146.0f + 26.0f * (float) i, 82.0f, 1.0f);
+        for (int i = 0; i < 5; ++i)
+        {
+            const float y = 146.0f + 26.0f * (float) i;
+            g.setColour (y < 121.0f + h ? kGrRedLine : kGrid);
+            g.fillRect (145.0f, y, 82.0f, 1.0f);
+        }
     }
 
     // labels
@@ -308,5 +335,5 @@ void WVoxEditor::paintContent (Graphics& g)
     g.drawText (dbText (outLHold, true), vuTextRect (false), Justification::centred);
     if (! isMono()) g.drawText (dbText (outRHold, true), vuTextRect (true), Justification::centred);
     g.setFont (arial (13.5f));
-    g.drawText (dbText (attnHold), Rectangle<int> (148, 287, 74, 23), Justification::centred);
+    g.drawText (attnHold > -0.05f ? String ("-Inf") : dbText (attnHold), Rectangle<int> (148, 287, 74, 23), Justification::centred);
 }

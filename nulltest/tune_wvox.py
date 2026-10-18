@@ -30,10 +30,10 @@ for nme, (c, g, gn) in cases:
     REF[(nme, c, g, gn)] = R.render(S[nme], FS, comp=c, gate=g, gain=gn)[0]
 print('reference renders cached', len(REF), R.STATS, flush=True)
 DOMAIN = os.environ.get('WVOX_DOMAIN', '0')
-KEYS = ['windowMs', 'ta1', 'tr1', 'ta2', 'tr2', 'gta1', 'gtr1', 'gta2', 'gtr2']
+KEYS = os.environ.get('WVOX_KEYS', 'ta1 tr1 ta2 tr2').split()
 def score(p, verbose=False):
-    if p[0] < 0.1 or p[0] > 12 or min(p[1:]) < 0.5 or max(p[1:]) > 3000: return 100.0
-    tune = tuple(f'{k}={v:.5g}' for k, v in zip(KEYS, p)) + (f'domain={DOMAIN}',)
+    if min(p) < 0.3 or max(p) > 5000: return 100.0
+    tune = tuple(f'{k}={v:.5g}' for k, v in zip(KEYS, p)) + tuple(e for e in os.environ.get('WVOX_EXTRA', '').split() if e)
     tot = []
     for nme, (c, g, gn) in cases:
         mine = N.ours(S[nme], FS, c, g, gn, tune)[0]
@@ -42,7 +42,7 @@ def score(p, verbose=False):
         if verbose: print('%-34s %4d %5s %7.1f' % (nme, c, 'off' if g is None else g, r))
     return float(np.mean(tot))
 if __name__ == '__main__':
-    p0 = {'0': [1.782, 69.5, 7.57, 128.0, 487.0, 288.0, 10.2, 93.6, 0.5], '1': [1.0, 190.7, 5.0, 207.8, 170.8, 190.7, 5.0, 207.8, 170.8], '2': [1.0, 5.0, 5.0, 148.6, 625.0, 5.0, 5.0, 148.6, 625.0]}[DOMAIN]
+    p0 = [93.0, 15.0, 83.0, 439.0]
     if len(sys.argv) > 2: p0 = [float(v) for v in sys.argv[2].split(',')]
     print('start', score(p0), flush=True)
     r = minimize(score, p0, method='Nelder-Mead', options={'xatol': 1e-2, 'fatol': 0.01, 'maxiter': int(sys.argv[1]) if len(sys.argv) > 1 else 500, 'adaptive': True})
