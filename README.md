@@ -55,7 +55,7 @@ ctest --test-dir build -C Release
 ```
 
 JUCE and the CLAP extensions are fetched by CMake. Plugins land in `build/plugins/<Name>/<Name>_artefacts/Release`.
-The installers are made by [.github/workflows/release.yml](.github/workflows/release.yml) on every push; tagging `v<version>` publishes them.
+The installers are made by [.github/workflows/release.yml](.github/workflows/release.yml) when a `v<version>` tag is pushed (which publishes them) or when the workflow is started by hand; ordinary pushes do not run it.
 To add a plugin to the installers, add it to [packaging/plugins.txt](packaging/plugins.txt).
 
 ## License
