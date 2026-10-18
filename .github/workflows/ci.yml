@@ -1,0 +1,120 @@
+# Builds every Wavy plugin on Windows (VST3 + CLAP), macOS (universal AU + VST3 + CLAP) and Linux (VST3 + CLAP),
+# runs the unit tests and validates the VST3 / AU with pluginval at the strictest level.
+# Runs on every push and pull request; start it by hand from the Actions tab as well.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure
+        run: cmake -B build -A x64
+
+      - name: Build
+        run: cmake --build build --config Release --target WVox_VST3 WVox_CLAP WVoxTests --parallel
+
+      - name: Unit tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Validate the VST3 (pluginval, strictest level)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip -OutFile pluginval.zip
+          Expand-Archive pluginval.zip -DestinationPath pluginval
+          $plug = Resolve-Path "build/plugins/WVox.vst3"
+          # pluginval is a GUI-subsystem program: wait for it and read its real exit code
+          $p = Start-Process -FilePath "pluginval/pluginval.exe" -NoNewWindow -Wait -PassThru `
+                 -ArgumentList @("--strictness-level", "10", "--skip-gui-tests", "--timeout-ms", "900000", "--validate", "`"$plug`"")
+          Write-Host "pluginval exit code: $($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { exit 1 }
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Wavy-Windows
+          path: |
+            build/plugins/*.vst3
+            build/plugins/WVox/WVox_artefacts/Release/CLAP/*.clap
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: "Configure (universal: Apple Silicon + Intel)"
+        run: cmake -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
+
+      - name: Build
+        run: cmake --build build --config Release --target WVox_AU WVox_VST3 WVox_CLAP WVoxTests -- -quiet
+
+      - name: Unit tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Check universal binaries and sign (ad hoc)
+        run: |
+          set -e
+          A=build/plugins/WVox/WVox_artefacts/Release
+          lipo -info "$A/AU/WVox.component/Contents/MacOS/WVox"
+          lipo -info "$A/VST3/WVox.vst3/Contents/MacOS/WVox"
+          lipo -info "$A/CLAP/WVox.clap/Contents/MacOS/WVox"
+          for b in "$A/AU/WVox.component" "$A/VST3/WVox.vst3" "$A/CLAP/WVox.clap"; do codesign --force --deep --sign - "$b"; done
+
+      - name: Validate the AU (auval + pluginval)
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R "build/plugins/WVox/WVox_artefacts/Release/AU/WVox.component" ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar || true
+          auval -v aufx Wvx1 Wavy
+          curl -sL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip
+          unzip -q pluginval.zip
+          P=pluginval.app/Contents/MacOS/pluginval
+          $P --strictness-level 10 --skip-gui-tests --timeout-ms 900000 --validate ~/Library/Audio/Plug-Ins/Components/WVox.component
+          $P --strictness-level 10 --skip-gui-tests --timeout-ms 900000 --validate "build/plugins/WVox/WVox_artefacts/Release/VST3/WVox.vst3"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Wavy-macOS
+          path: |
+            build/plugins/WVox/WVox_artefacts/Release/AU/*.component
+            build/plugins/WVox/WVox_artefacts/Release/VST3/*.vst3
+            build/plugins/WVox/WVox_artefacts/Release/CLAP/*.clap
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libjack-jackd2-dev libfreetype-dev libfontconfig1-dev \
+            libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxext-dev libgl1-mesa-dev xvfb
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --target WVox_VST3 WVox_CLAP WVoxTests --parallel
+
+      - name: Unit tests
+        run: xvfb-run -a ctest --test-dir build --output-on-failure
+
+      - name: Validate the VST3 (pluginval, strictest level)
+        run: |
+          curl -sL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Linux.zip
+          unzip -q pluginval.zip
+          xvfb-run -a ./pluginval --strictness-level 10 --skip-gui-tests --timeout-ms 900000 --validate "build/plugins/WVox.vst3"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Wavy-Linux
+          path: |
+            build/plugins/*.vst3
+            build/plugins/WVox/WVox_artefacts/CLAP/*.clap

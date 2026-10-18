@@ -71,3 +71,21 @@ function(wavy_add_plugin target product code clapid)
 endfunction()
 
 add_subdirectory(plugins/WVox)
+
+# Offline renderer of the WVox DSP (null test, tuning). No JUCE needed.
+add_executable(WVoxRender tools/WVoxRender.cpp)
+target_include_directories(WVoxRender PRIVATE plugins/WVox)
+
+# Unit tests (DSP + processor):  cmake --build build --target WVoxTests, then ctest --test-dir build -C Release
+enable_testing()
+juce_add_console_app(WVoxTests PRODUCT_NAME "WVoxTests")
+target_sources(WVoxTests PRIVATE
+    tests/WVoxTests.cpp
+    plugins/WVox/WVoxProcessor.cpp
+    plugins/WVox/WVoxEditor.cpp)
+target_include_directories(WVoxTests PRIVATE plugins/WVox)
+target_compile_definitions(WVoxTests PRIVATE
+    JucePlugin_Name="WVox" JucePlugin_IsSynth=0 JucePlugin_WantsMidiInput=0
+    JucePlugin_ProducesMidiOutput=0 JucePlugin_IsMidiEffect=0 JucePlugin_VersionString="0.1.0")
+target_link_libraries(WVoxTests PRIVATE WavyCommon juce::juce_recommended_config_flags)
+add_test(NAME WVoxTests COMMAND WVoxTests)

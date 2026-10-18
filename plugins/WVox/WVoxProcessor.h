@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <atomic>
+#include "WVoxDsp.h"
 
 // Parameters follow the reference plugin's parameter list (ranges and defaults from its ParamXML).
 namespace wvox
@@ -17,7 +18,7 @@ class WVoxProcessor : public juce::AudioProcessor
 public:
     WVoxProcessor();
 
-    void prepareToPlay (double, int) override {}
+    void prepareToPlay (double, int) override;
     void releaseResources() override {}
     bool isBusesLayoutSupported (const BusesLayout&) const override;
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
@@ -44,4 +45,10 @@ public:
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout layout();
+    void configure();
+
+    wvox::Processor procs[2];
+    std::atomic<float>* pComp = nullptr; std::atomic<float>* pGate = nullptr; std::atomic<float>* pGain = nullptr; std::atomic<float>* pMode = nullptr;
+    double sr = 48000.0;
+    bool prepared = false, layoutDual = false;
 };
