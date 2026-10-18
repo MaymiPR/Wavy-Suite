@@ -30,7 +30,7 @@ The installers are not code-signed or notarized; see [packaging/](packaging) for
 | Wavy plugin | Modelled on | Status |
 |---|---|---|
 | **WVox** | vocal compressor / gate / limiter (three-control) | released: steady material nulls, dynamic material is close (see below) |
-| **WBass** | psychoacoustic bass enhancer (harmonic generator) | in progress: UI done, DSP working; null test median −36.8 dB (generated part −31.5 dB); the gain control is a small network trained on renders of the reference |
+| **WBass** | psychoacoustic bass enhancer (harmonic generator) | ready for the next release: close, not a null (median −36.8 dB, see below) |
 | WMaxxBass, WComp, WDelay, WBass Ride, WVox Ride, WVox Chain, WVox Bend | | planned, one at a time |
 
 ### WVox null test (honest numbers)
@@ -42,6 +42,20 @@ Residual of WVox against the reference, `20 log10(rms(difference) / rms(referenc
 - **Level steps, sweeps, speech-like material:** −35 to −65 dB, worse at heavy compression.
 - **Dense noise at heavy compression:** −10 to −25 dB (audibly different gain movement).
 - Over a 672-case grid of settings: median −71 dB. Details: [docs/NULL_GRID.md](docs/NULL_GRID.md), [docs/NULL_RESULTS.md](docs/NULL_RESULTS.md).
+
+### WBass null test (honest numbers)
+
+Residual of WBass against the reference over 12 signals × 8 settings (Freq, Intensity, Gain, Original Bass In / Out),
+lower is better: **median −36.8 dB** on the whole output and **−31.5 dB** on the created harmonics alone.
+
+- Per signal (median over the settings): tones at or above Freq, sweeps, white noise −43 to −49 dB; bass notes,
+  level steps, pink noise and tones below Freq −31 to −40 dB; kick-like transients −28 dB.
+- Worst cases: Freq 160 with Original Bass Out on very low input (30 Hz tone −4 dB, kicks −9 dB, 60 Hz tone −16 dB):
+  the output is then only the created bass, and its level is off there.
+- How: the filters and the harmonic generator were identified exactly; the gain control of the created bass is a small
+  recurrent network (32 units, ~6 % of one core) trained on renders of the reference, so it is a learned model of that
+  part, not its algorithm. Meters move like the reference's (measured from its editor).
+  Details: [docs/NULL_RESULTS_WBASS.md](docs/NULL_RESULTS_WBASS.md), [MEASUREMENTS.md](MEASUREMENTS.md#wbass-model-phase-4-identification).
 
 How it was worked out: [RESEARCH.md](RESEARCH.md) (documented behaviour), [MEASUREMENTS.md](MEASUREMENTS.md) (what was measured and identified),
 [docs/VALIDATION.md](docs/VALIDATION.md) (unit tests, pluginval, CI).
