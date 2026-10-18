@@ -66,3 +66,41 @@ Phase 4 needed more than the Phase 3 numbers, so further experiments (`nulltest/
 - **Noise and speech-like material.** The reference reads Gaussian noise as about 3.5 - 3.8 times its RMS (a peak-like level over a window of several milliseconds), and the best window length for noise (about 10 ms at -20 dB, 4 ms at -30 dB) disagrees with the one that suits tone steps (about 1 - 3 ms). Three smoothing structures were fitted (smoothing the gain, the amplitude level, the dB level) and all stop at about the same score, so the missing piece is not which domain is smoothed; it is probably how the live level is formed from the signal over a few milliseconds, or an extra stage that has not been found.
 - The exact time constants: the fitted values are the best fit over the signals in `tune_wvox.py`, not measurements.
 - The unexposed meters and the hidden GateRel parameter.
+
+---
+
+# WBass: measurements of the reference (Phase 3)
+
+Measured on the user's own install for private analysis; raw data and plots are in the git-ignored `measurements/rbass/`.
+Reproduce with `python -I nulltest/measure_rbass.py`.
+
+## Method
+
+- **Host:** pedalboard loading *RBass Stereo* / *RBass Mono* from the WaveShell (`nulltest/refhost.py`, `render_rbass`), 512-sample buffers, 48 kHz.
+- **Parameters the VST3 does not expose** (Original Bass In/Out, Response, Ratio, Decay, ...) are written into the plugin's own state: the IComponent chunk is a JUCE base64 block holding the Waves preset XML with the 18-value parameter array (`nulltest/wavesstate.py`). The shell ignores some otherwise valid states depending on the payload size, so every write is padded and verified by reading it back. Freq, Intensity and Gain are set as normal parameters. The Input parameter (index 0) could not be set this way (the shell kept 0), so it is not measured.
+- **Signals:** sine tones (component amplitudes and phases by synchronous detection over whole periods), level steps, DC-free sweeps of the parameters.
+
+## Results
+
+| Item | Measured |
+|---|---|
+| Latency | 0 samples at 44.1, 48, 96 and 192 kHz (reported and measured), matching the product page |
+| Gain | a pure output trim, exact to 0.01 dB (0 / −6 / −12 / −30 dB) |
+| Above about 2 kHz | untouched (0.00 dB at 10 kHz); 0.17 dB at 1 kHz with Freq 160 |
+| Original Bass **out** | the input below Freq is removed by a steep high-pass at Freq: with Freq 80 it is −24.5 dB at 20 Hz, −10 dB at 30 Hz, −2.2 dB at 40 Hz (Intensity 0; −34.8 / −25.9 / −22.3 dB with Intensity −24, i.e. about 24 dB/octave below Freq once the generated signal is turned down) |
+| Original Bass **in** | the low end passes; a small dip just below Freq (−3 dB at 30 Hz with Freq 80) where the generated band and the original overlap |
+| Generated band | a resonant boost just above Freq added to the signal: +13.4 dB at 82 Hz (Freq 80, Intensity 0, −30 dBFS tone), +12.2 dB at 168 Hz (Freq 160); with Intensity −24 it shrinks to +1.6 dB, so it is the generated path, not a fixed EQ |
+| Intensity | close to a plain gain on the generated path: for a 50 Hz tone the generated fundamental is −23.2 / −1.0 / +12.5 dB re input at Intensity −12 / 0 / +12 |
+| Harmonic content | mainly 2nd and 3rd harmonics, 4th and 5th 20–30 dB lower; for −20 dBFS tones with Freq 80 the 2nd harmonic is −14.8 dB re input at 50 Hz and −29.6 dB at 120 Hz; the generated path also carries a strong component at the input frequency itself (e.g. +8.4 dB at 80 Hz); content falls away above about 2 × Freq |
+| Level dependence | strongly non-linear: the generated harmonics grow about 2 dB per dB at low level (−99.8 dB at −60 dBFS, −76.7 at −48, −55.8 at −36) and level off towards 1 dB per dB at high level (−25.6 at −12, −14.9 at 0 dBFS); the generated fundamental is compressed (−52.8 dB at −60 dBFS but −18.0 dB at −12 and −19.0 at 0 dBFS), so a level control acts on the generated signal |
+| Dynamics | the generated part follows a level step within about 50–100 ms (attack) and after a step down overshoots briefly (the generated signal decays more slowly than the input), settling within about 100 ms |
+| Hidden Ratio | sets how strongly the generated level follows the input: steady gain −24.4 / −6.6 / −5.1 dB for Ratio 0.25 / 0.63 / 1.0 (−10 dBFS step) |
+| Hidden Decay | small effect (−7.4 vs −6.6 dB for 0 / 1); reads back only 0 or 1 |
+| Hidden Response | no measurable effect on these tests (all within 0.001 dB for 0 / 5 / 15 / 30 ms) |
+| Clipping | the output never exceeds 0 dBFS: inputs of 0 to +6 dBFS and Intensity +24 all peak at 0.0 dBFS (the "clip-free" stage of the product page) |
+| Stereo | the generated bass is mono, from the sum of both channels: with signal only on the left the right output carries the generated part at −29 dB; a loud left channel also lowers the generated level of a quiet right channel (−74.6 → −92.7 dB 2nd harmonic), so the level control is shared |
+| Smoothing | an Out Gain change glides in over about 25 ms (50 % at 14 ms, 90 % at 25 ms) |
+
+## What this means for Phase 4
+
+WBass needs: a high-pass at Freq for Original Bass Out (about 4th order); a band around Freq feeding a harmonic generator that makes a fundamental plus mostly 2nd and 3rd harmonics; a level control (ratio set by the hidden Ratio, 0.63 by default) with tens-of-milliseconds attack and release on the generated signal; Intensity as the gain of that path; the generated signal mono and added to both channels; a 0 dBFS safety clipper or limiter at the output; and the Out Gain trim. The exact filter shapes, the generator's transfer curve and phase, and the level detector are the identification work of Phase 4.

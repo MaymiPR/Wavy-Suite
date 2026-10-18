@@ -50,3 +50,36 @@ def tone(fs, f, secs, db):
 def rms_db(x):
     x = np.asarray(x, np.float64)
     return 10 * np.log10(max(float(np.mean(x * x)), 1e-30))
+
+
+# ---- RBass ----------------------------------------------------------------------------------------------------
+# preset-array indices (ParamXML order): 0 Input, 1 Freq, 2 Response, 3 Ratio, 4 Clip, 5 Intensity (MB gain),
+# 6 Hi Pass (Original Bass switch), 7 Out gain, 8 Decay, 13 SmoothTc, 14 Tc, 15 XFadeTc, 16 Smooth
+_rbass_base = {}
+
+def render_rbass(x, fs, freq=80.0, intensity=0.0, gain=0.0, hp=0, extra=None, name="RBass Stereo", buffer=512):
+    """Render through RBass with every parameter (also the non-automatable ones) set through the plugin state."""
+    import wavesstate as W
+    p = load(name)
+    if name not in _rbass_base:
+        _rbass_base[name] = p.raw_state
+    base = _rbass_base[name]
+    # hidden values (Original Bass switch, Response, Ratio, ...) through the state, visible ones as parameters
+    want_hidden = {6: hp, **(extra or {})}
+    cur = W.get_values(p.raw_state)
+    if any(abs(float(cur[k]) - float(val)) > 1e-6 for k, val in want_hidden.items()):
+        v = W.get_values(base)
+        for k, val in want_hidden.items(): v[k] = '%g' % val
+        W.apply_values(p, v, base)
+    p.frequency = float(freq); p.intensity = float(intensity); p.out_gain = float(gain)
+    got = W.get_values(p.raw_state)
+    assert all(abs(float(got[k]) - float(val)) < 1e-6 for k, val in want_hidden.items()), (want_hidden, got)
+    x = np.asarray(x, np.float32)
+    if x.ndim == 1: x = x[None, :]
+    if name.endswith('Stereo') and x.shape[0] == 1: x = np.concatenate([x, x])
+    for attempt in range(8):
+        y = p(x, fs, buffer_size=buffer, reset=True)
+        if not _dropout(x, y, fs):
+            break
+        STATS["silent_retries"] += 1
+    return y
