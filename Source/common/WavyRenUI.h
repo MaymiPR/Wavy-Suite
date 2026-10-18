@@ -68,6 +68,7 @@ public:
             int designW, int designH);
     ~Editor() override;
     void resized() override;
+    void parentHierarchyChanged() override;
 
 protected:
     // subclasses draw and react in design coordinates

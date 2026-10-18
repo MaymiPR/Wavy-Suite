@@ -52,6 +52,19 @@ jobs:
           }
           if ($failed -ne 0) { exit 1 }
 
+      - name: Plugins leave the keyboard to the host (space = play / pause)
+        shell: pwsh
+        run: |
+          $fc = (Get-ChildItem -Recurse build -Filter FocusCheck.exe | Select-Object -First 1).FullName
+          $failed = 0
+          foreach ($line in Get-Content packaging/plugins.txt) {
+            if (-not $line.Trim() -or $line.StartsWith('#')) { continue }
+            $t, $p, $code = $line.Split([char]0x7C)
+            & $fc (Resolve-Path "build/plugins/$t/${t}_artefacts/Release/VST3/$p.vst3")
+            if ($LASTEXITCODE -ne 0) { $failed++ }
+          }
+          if ($failed -ne 0) { exit 1 }
+
       - name: Installer (Inno Setup, all plugins)
         shell: pwsh
         run: |

@@ -194,7 +194,9 @@ Editor::Editor (AudioProcessor& p, AudioProcessorValueTreeState& state, UndoMana
 {
     // never take the keyboard focus: the host keeps its shortcuts (space = play / pause) while the window is open
     setWantsKeyboardFocus (false);
+    setMouseClickGrabsKeyboardFocus (false);
     contentComp->setWantsKeyboardFocus (false);
+    contentComp->setMouseClickGrabsKeyboardFocus (false);
     addAndMakeVisible (*contentComp);
     contentComp->setBounds (0, 0, W, H);
     toolbar->setWantsKeyboardFocus (false);
@@ -242,6 +244,18 @@ void Editor::resized()
 }
 
 Component& Editor::content() { return *contentComp; }
+
+// The plugin wrapper's top-level component decides whether a click activates the plugin window (and so takes the
+// keyboard from the host). Switch that off once we are attached, so the host keeps its transport keys (space = play).
+void Editor::parentHierarchyChanged()
+{
+    AudioProcessorEditor::parentHierarchyChanged();
+    for (Component* c = this; c != nullptr; c = c->getParentComponent())
+    {
+        c->setMouseClickGrabsKeyboardFocus (false);
+        c->setWantsKeyboardFocus (false);
+    }
+}
 
 bool Editor::isMono() const { return modeParam != nullptr && modeParam->getValue() > 0.5f; }
 

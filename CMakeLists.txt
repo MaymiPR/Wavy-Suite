@@ -93,3 +93,11 @@ target_compile_definitions(WVoxTests PRIVATE
     JucePlugin_ProducesMidiOutput=0 JucePlugin_IsMidiEffect=0 JucePlugin_VersionString="0.1.0")
 target_link_libraries(WVoxTests PRIVATE WavyCommon juce::juce_recommended_config_flags)
 add_test(NAME WVoxTests COMMAND WVoxTests)
+
+# Windows-only check that the plugins leave the keyboard to the host (tools/FocusCheck.cpp)
+if(WIN32)
+    juce_add_console_app(FocusCheck PRODUCT_NAME "FocusCheck")
+    target_sources(FocusCheck PRIVATE tools/FocusCheck.cpp)
+    target_compile_definitions(FocusCheck PRIVATE JUCE_PLUGINHOST_VST3=1 JUCE_MODAL_LOOPS_PERMITTED=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+    target_link_libraries(FocusCheck PRIVATE juce::juce_audio_processors juce::juce_gui_basics juce::juce_recommended_config_flags)
+endif()
