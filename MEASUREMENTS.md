@@ -122,20 +122,31 @@ Scripts: `nulltest/ident_rbass_linear.py`, `ident_rbass_nl.py`, `ident_rbass_swe
 | Output stage | a hard clip to the 16-bit range, −1 … 32767/32768, no knee and no time constant (loud 1 kHz tones, where nothing is generated: the gain drops instantly on a +26 dB step and returns instantly) |
 | Hidden **Ratio** | 1.0 and 0.63 give identical output; below about 0.5 the compression gets stronger (0.25: −5.95 dB at 0 dBFS). WBass keeps the parameter (presets use 0.63) but does not use it yet |
 
-**Gain control of the generated path — fitted, not identified.** The generated path is upward-compressed: the gain
-falls from C0 at low level following about (1 + A/A0)^−0.5. Measurements that pin it down partly:
-- the 3rd and 5th harmonics come from the ripple of this gain (with Decay 0 their phase relative to the fundamental is
-  constant over 72 dB of level), not from a rectifier in the generator;
-- AM tones and two-tone beats show the envelope follows a smoother of about 6.6 Hz corner (one-pole, ≈ 24 ms) at slow
-  rates, with the gain applied ahead of the last high-pass; a small part also acts after it (intermodulation at 6 Hz);
-- the mean compression detects a band flat up to about F with a 4 dB rise near 0.8 F and less above F, while the
-  ripple at 2 f0 / 4 f0 is locked to the phase of LP3(F/3) x (4 f0 component at −90° for every f0 and level);
-- on note onsets the reference settles within about one cycle, much faster than a single smoother explains.
-None of the detector forms tried (rectifier + one-pole or attack / release, law-before-smoothing, a Hilbert-pair
-envelope, one or two gain stages) reproduces all of these at once. The implemented model (two stages: CS1 on the LP3(F)
-band with a 178 ms one-pole ahead of the high-passes, and a fast 1.8 ms stage on the generated output) is the best of
-those on the fitting set (`nulltest/wbass_fitdata.py`).
+**Gain control of the generated path (second round of probing).** Measured directly, then fitted:
+- *Where the gain acts:* solving for a free gain trajectory under each placement hypothesis (`nulltest/extract_cs.py`)
+  and fitting complete models show it acts mostly after the first HP3(F), with about 5 % of it (in dB) ahead of it
+  (`alpha`); a gain fully ahead of the high-passes gives the right 3rd harmonic on low notes but the wrong one near F,
+  and the reverse when fully after.
+- *Dynamics:* the gain trajectory through level steps of a 70 Hz tone (ratio of Hilbert envelopes, `dyn_env70.json`)
+  shows a second-order, asymmetric response: about 10 ms of delay, then the gain settles within 30–40 ms after a rise
+  and more slowly after a fall, without overshoot. Modelled as two attack / release followers in cascade.
+- *Ripple:* the recovered gain over one period is a sawtooth locked to the zero crossings of LP3(F/3) x (it jumps at
+  each zero crossing and slides down through the half-cycle); the first follower reproduces it by falling almost at
+  once and rising slowly.
+- *Level band:* a resonant low-pass near F (LP2 at 1.0 F with Q 1.35, times LP1 at 10 F): compression is strongest
+  for notes just below F and lighter above it.
+- *Freq dependence:* fitting the four Freq settings 40 / 80 / 160 / 256 together, the follower times scale as
+  (80/F)^0.34 and (80/F)^0.19.
+- *Generated-signal limiter ("clip-free"):* Intensity is an exact gain on the generated part (−147 dB) until it peaks
+  near 0.7; above that a peak limiter (instant attack, 18.6 ms release, ceiling 0.709) on the generated signal alone
+  holds it (fitted −17 … −40 dB on Intensity +12 / +18 / +24 renders).
+Fitted on 72 time-domain renders across the four Freq settings: median residual of the generated part −20.8 / −24.0 /
+−26.6 / −26.7 dB at Freq 40 / 80 / 160 / 256. The exact detector (why the followers have these odd time constants,
+the ~5 dB weak 3rd harmonic on low notes) is still not understood: this is a fitted model of the gain control, not
+an identified one.
 
 **Null test** ([docs/NULL_RESULTS_WBASS.md](docs/NULL_RESULTS_WBASS.md), 12 signals × 8 settings, generated part split
-off the reference with a second Intensity render): median residual −22.6 dB on the whole output and −18.0 dB on the
-generated part alone; worst cases near 0 dB (kick-like transients, Intensity +12, Freq 160 / 256). This is not a null.
+off the reference with a second Intensity render): median residual −28.1 dB on the whole output and −23.0 dB on the
+generated part alone (first round: −22.6 / −18.0 dB). Worst cases near 0 dB are very low notes at Freq 256 whose
+generated part is 38 dB under the output (−68 and −87 dBFS), so they do not show in the total; the worst audible
+cases are kick-like transients and low notes at Freq 160 (−4 … −1 dB on the generated part). This is not a null.

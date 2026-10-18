@@ -5,12 +5,15 @@
 //     when it is in; 3rd-order Butterworths, bilinear with pre-warping (latency 0);
 //   * generated path, from the mono sum of the channels:
 //       l = LP3(Freq/3) x,  b = LP3(Freq) x
-//       stage 1, upward compressor on l: CS1 = C0 (1 + E1 / E01)^-p1, E1 = follower(|b|) (attack / release one-pole)
-//       n = HP3(Freq) (CS1 l)                                  the fundamental band of the generated bass
-//       q = HP3(Freq/3) (n * CS1 b)                            the harmonic product, scaled by Decay (0 removes it)
-//       w = HP3(Freq) (-n + k2 Decay q)
-//       stage 2, output level control: G2 = (1 + E2 / E02)^-p2, E2 = follower(|w|)
-//       generated = G2 w, times Intensity, added to both channels;
+//       level: d = LP2(cA Freq, QA) LP1(cB Freq) x (a resonant band peaking near Freq),
+//              E = (F2(F1(|d|^kr)))^(1/kr), F1 and F2 attack / release one-pole followers in cascade (a second-order,
+//              asymmetric smoother: the measured gain settles in about 30 ms after a rise, more slowly after a fall)
+//       gain:  CS = C0 (1 + E / E0)^-p, an upward compressor (about 300x at low level)
+//       n = C0 c^(1-alpha) HP3(Freq) (c^alpha l), c = CS / C0  (most of the gain after the first high-pass)
+//       q = HP3(Freq/3) (n * CS b)                            the harmonic product, scaled by Decay (0 removes it)
+//       generated = HP3(Freq) (-n + k2 Decay q), times Intensity, then a peak limiter on the generated signal alone
+//       (instant attack, 18.6 ms release, ceiling 0.709: the "clip-free" stage; Intensity is an exact gain below it),
+//       added to both channels;
 //   * Gain: output trim with a short glide, then a hard clip to the 16-bit range [-1, 32767/32768] (no knee, no time
 //     constant: measured with loud 1 kHz tones, where nothing is generated).
 #include <algorithm>
@@ -23,13 +26,16 @@ inline constexpr double pi = 3.14159265358979323846;
 
 struct Tuning
 {
-    // fitted to the reference renders at Freq 80 (nulltest/wbass_fitdata.py), see MEASUREMENTS.md
-    double C0 = 290.52, E01 = 0.015872, p1 = 0.37264, tau1 = 0.17791;  // stage 1 (tau1: release)
-    double att1 = 0.17791;                                         // stage 1 attack (s); = tau1 for a plain one-pole
-    bool detectorOnL = false;                                      // stage 1 detector: the LP3(Freq) band, or l
-    double E02 = 0.13229, p2 = 0.37777, tau2 = 0.0018317;          // stage 2 (tau2: release)
-    double att2 = 0.0018317;                                       // stage 2 attack (s)
-    double k2 = -0.0042310;                                        // harmonic product gain at Decay 1
+    // fitted jointly to the reference renders at Freq 40, 80, 160 and 256 (nulltest/fit_multiF.py, MEASUREMENTS.md)
+    double C0 = 287.0496988923884, E0 = 0.0015273781643873486, p = 0.5908406602480677;                // gain law
+    double cA = 1.0068735445224746, QA = 1.3539974377418647, cB = 10.374984;                // level band (x Freq)
+    double kr = 1.0;                                               // rectifier exponent
+    double att1 = 0.4837641317754706, rel1 = 0.00020431050592113843;                       // follower 1 (s) at Freq 80
+    double att2 = 0.0004719151170932211, rel2 = 0.010447301303243521;                       // follower 2 (s) at Freq 80
+    double s1 = 0.3432486125351782, s2 = 0.1882709219210759;                           // follower times scale with (80 / Freq)^s
+    double alpha = 0.046981939933763116;                                             // share of the gain ahead of the first high-pass
+    double k2 = -0.007058531827821184;                                                // harmonic product gain at Decay 1
+    double limT = 0.708922, limRel = 0.018581;                     // generated-signal limiter: ceiling, release (s)
     double gainGlideMs = 25.0;                                     // Out Gain smoothing
     double ceiling = 32767.0 / 32768.0;                            // output clip: [-1, 32767/32768], hard (measured)
 };
@@ -88,8 +94,7 @@ public:
     {
         fs = sampleRate;
         nCh = std::clamp (channels, 1, 2);
-        a1 = onePoleCoef (t.tau1, fs); a1a = onePoleCoef (t.att1, fs);
-        a2 = onePoleCoef (t.tau2, fs); a2a = onePoleCoef (t.att2, fs);
+        aLim = onePoleCoef (t.limRel, fs);
         glide = onePoleCoef (t.gainGlideMs * 0.001 / 4.6, fs);   // ~99 % of a step in gainGlideMs
         designFor (freq);
         reset();
@@ -98,8 +103,8 @@ public:
     void reset()
     {
         for (auto& c : orig) { c.lp.reset(); c.hp.reset(); }
-        lpThird.reset(); lpFreq.reset(); hpN.reset(); hpQ.reset(); hpW.reset();
-        e1 = e2 = 0.0;
+        lpThird.reset(); lpFreq.reset(); hpN.reset(); hpQ.reset(); hpW.reset(); detLp1.reset(); detLp2.reset();
+        e1 = e2 = eLim = 0.0;
         gainNow = gainTarget;
     }
 
@@ -127,17 +132,21 @@ public:
             // generated path
             const double l = lpThird.run (xm);
             const double b = lpFreq.run (xm);
-            const double d1 = std::abs (t.detectorOnL ? l : b);
-            const double k1 = d1 > e1 ? a1a : a1;
-            e1 = k1 * e1 + (1.0 - k1) * d1;
-            const double cs1 = t.C0 * std::pow (1.0 + e1 / t.E01, -t.p1);
-            const double nn = hpN.run (cs1 * l);
-            const double q = hpQ.run (nn * cs1 * b);
-            const double w = hpW.run (-nn + t.k2 * decay * q);
-            const double d2 = std::abs (w);
-            const double k2c = d2 > e2 ? a2a : a2;
-            e2 = k2c * e2 + (1.0 - k2c) * d2;
-            const double gen = std::pow (1.0 + e2 / t.E02, -t.p2) * w * intensity;
+            const double d = detLp2.run (detLp1.run (xm));
+            const double r = t.kr == 1.0 ? std::abs (d) : std::pow (std::abs (d), t.kr);
+            const double k1 = r > e1 ? a1a : a1;
+            e1 = k1 * e1 + (1.0 - k1) * r;
+            const double k2c = e1 > e2 ? a2a : a2;
+            e2 = k2c * e2 + (1.0 - k2c) * e1;
+            const double level = t.kr == 1.0 ? e2 : std::pow (e2, 1.0 / t.kr);
+            const double g = std::pow (1.0 + level / t.E0, -t.p);              // CS / C0
+            const double cs = t.C0 * g;
+            const double nn = t.C0 * std::pow (g, 1.0 - t.alpha) * hpN.run (std::pow (g, t.alpha) * l);
+            const double q = hpQ.run (nn * cs * b);
+            double gen = hpW.run (-nn + t.k2 * decay * q) * intensity;
+            const double ag = std::abs (gen);
+            eLim = ag > eLim ? ag : aLim * eLim + (1.0 - aLim) * ag;
+            if (eLim > t.limT) gen *= t.limT / eLim;
             harmPeak = std::max (harmPeak, (float) std::abs (gen));
             origPeak = std::max (origPeak, (float) std::abs (b));
 
@@ -159,8 +168,9 @@ private:
     struct Orig { Butter3 lp, hp; };
     Orig orig[2];
     Butter3 lpThird, lpFreq, hpN, hpQ, hpW;
+    Biquad detLp1, detLp2;
     double fs = 48000, freq = 80, intensity = 1, decay = 1, gainTarget = 1, gainNow = 1, glide = 0;
-    double a1 = 0, a2 = 0, a1a = 0, a2a = 0, e1 = 0, e2 = 0;
+    double a1 = 0, a2 = 0, a1a = 0, a2a = 0, e1 = 0, e2 = 0, aLim = 0, eLim = 0;
     bool origIn = true;
     int nCh = 2;
 
@@ -172,6 +182,11 @@ private:
         hpN.design (true, f, fs);
         hpQ.design (true, f / 3.0, fs);
         hpW.design (true, f, fs);
+        const double sc1 = std::pow (80.0 / f, t.s1), sc2 = std::pow (80.0 / f, t.s2);
+        a1 = onePoleCoef (t.rel1 * sc1, fs); a1a = onePoleCoef (t.att1 * sc1, fs);
+        a2 = onePoleCoef (t.rel2 * sc2, fs); a2a = onePoleCoef (t.att2 * sc2, fs);
+        designFirst (detLp1, false, f * t.cB, fs);
+        designSecond (detLp2, false, f * t.cA, fs, t.QA);
     }
 };
 } // namespace wbass

@@ -33,7 +33,26 @@ def onepole(x, tau, fs=FS):
     return lfilter([1 - a], [1, -a], x)
 
 
-def attrel(x, ta, tr, fs=FS):
+try:
+    import ctypes, os as _os
+    _lib = ctypes.CDLL(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "fastdsp.dll"))
+    _lib.ar_follow.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_double, ctypes.c_double, ctypes.c_double]
+except OSError:
+    _lib = None
+
+
+def attrel(x, ta, tr, fs=FS, y0=0.0):
+    """attack / release one-pole follower (compiled helper when available)"""
+    aa = np.exp(-1.0 / (ta * fs)) if ta > 0 else 0.0
+    ar = np.exp(-1.0 / (tr * fs)) if tr > 0 else 0.0
+    if _lib is not None:
+        xin = np.ascontiguousarray(x, np.float64); y = np.empty_like(xin)
+        _lib.ar_follow(xin.ctypes.data, y.ctypes.data, len(xin), aa, ar, y0)
+        return y
+    return _attrel_py(x, ta, tr, fs)
+
+
+def _attrel_py(x, ta, tr, fs=FS):
     """Peak-style follower: one-pole towards the input with attack ta when rising, release tr when falling."""
     aa = np.exp(-1.0 / (ta * fs)) if ta > 0 else 0.0
     ar = np.exp(-1.0 / (tr * fs))
@@ -133,4 +152,141 @@ def generated(x, F, prm=None, fs=FS, parts=False):
     w = sosfilt(sos(3, 'high', F, fs), P["k1"] * n + P["k2"] * q)
     if parts:
         return w, dict(b=b, u=u, l=l, E=E, CS=CS, q=q)
+    return w
+
+
+def lp2(x, fc, q, fs=FS):
+    """second-order low-pass smoother (bilinear, pre-warped), unity DC gain"""
+    from scipy.signal import bilinear_zpk, zpk2sos
+    w = 2 * fs * np.tan(np.pi * fc / fs)
+    p = np.roots([1, w / q, w * w])
+    zd, pd, kd = bilinear_zpk([], p, w * w, fs)
+    return sosfilt(zpk2sos(zd, pd, kd), x)
+
+
+def generated3(x, F, P, fs=FS, parts=False):
+    """One gain stage with a second-order smoother:
+       E = LP2(fs_c, Q)(|d|), d = LPn(det_c F) x;  CS = C0 (1 + E/E0)^-p
+       placement 'pre': n = HP3(F)(CS l); 'post': n = CS HP3(F) l
+       q = HP3(F/3)(n * CS b);  w = HP3(F)(-n + k2 q)"""
+    x = np.asarray(x, np.float64)
+    b = sosfilt(sos(3, 'low', F, fs), x)
+    l = sosfilt(sos(3, 'low', F / 3, fs), x)
+    d = sosfilt(sos(int(P.get("det_order", 3)), 'low', F * P.get("det_c", 1.0), fs), x)
+    r = np.abs(d) if P.get("rect", "abs") == "abs" else d * d
+    E = lp2(r, P["sm_f"], P["sm_q"], fs)
+    if P.get("rect", "abs") != "abs":
+        E = np.sqrt(np.maximum(E, 0))
+    CS = P["C0"] * (1 + np.maximum(E, 0) / P["E0"]) ** (-P["p"])
+    if P.get("place", "pre") == "pre":
+        n = sosfilt(sos(3, 'high', F, fs), CS * l)
+    else:
+        n = CS * sosfilt(sos(3, 'high', F, fs), l)
+    beta = P.get("beta", 1.0)
+    q = sosfilt(sos(3, 'high', F / 3, fs), n * CS * (CS / P["C0"]) ** (beta - 1.0) * b)
+    w = sosfilt(sos(3, 'high', F, fs), -n + P["k2"] * q)
+    if parts:
+        return w, dict(CS=CS, E=E, l=l, b=b)
+    return w
+
+
+def generated4(x, F, P, fs=FS, parts=False):
+    """Two gains on l (both ahead of the high-passes):
+       G_A = (1 + E_A / EA0)^-pA, E_A = one-pole(|b|, tauA)                (slow level, LP3(F) band)
+       G_B = one-pole( (1 + (l / LB0)^2)^(-pB/2), tauB )                  (instantaneous law on l, then smoothed;
+                                                                            MaxxBass patent: a rational function of
+                                                                            the squared input, no rectifier)
+       CS = C0 G_A G_B;  n = HP3(F)(CS l);  q = HP3(F/3)(n * CS b);  w = HP3(F)(-n + k2 q)"""
+    x = np.asarray(x, np.float64)
+    b = sosfilt(sos(3, 'low', F, fs), x)
+    l = sosfilt(sos(3, 'low', F / 3, fs), x)
+    EA = onepole(np.abs(b), P["tauA"], fs)
+    GA = (1 + EA / P["EA0"]) ** (-P["pA"])
+    GB = onepole((1 + (l / P["LB0"]) ** 2) ** (-P["pB"] / 2), P["tauB"], fs)
+    CS = P["C0"] * GA * GB
+    n = sosfilt(sos(3, 'high', F, fs), CS * l)
+    q = sosfilt(sos(3, 'high', F / 3, fs), n * CS * b)
+    w = sosfilt(sos(3, 'high', F, fs), -n + P["k2"] * q)
+    if parts:
+        return w, dict(CS=CS, GA=GA, GB=GB, l=l, b=b)
+    return w
+
+
+def generated5(x, F, P, fs=FS, parts=False):
+    """generated4 with free shapes: slow stage detects LP3(cA F) x; the instantaneous stage uses the patent's rational
+    law of u = (l / LB0)^2: (1 + b1 u + b2 u^2) / (1 + a1 u + a2 u^2), smoothed by a one-pole with a direct share mB."""
+    x = np.asarray(x, np.float64)
+    b = sosfilt(sos(3, 'low', F, fs), x)
+    l = sosfilt(sos(3, 'low', F / 3, fs), x)
+    dA = sosfilt(sos(3, 'low', F * P["cA"], fs), x)
+    EA = onepole(np.abs(dA), P["tauA"], fs)
+    GA = (1 + EA / P["EA0"]) ** (-P["pA"])
+    u = (l / P["LB0"]) ** 2
+    ci = (1 + P["b1"] * u + P["b2"] * u * u) / (1 + P["a1"] * u + P["a2"] * u * u)
+    GB = (1 - P["mB"]) * onepole(ci, P["tauB"], fs) + P["mB"] * ci
+    CS = P["C0"] * GA * GB
+    n = sosfilt(sos(3, 'high', F, fs), CS * l)
+    q = sosfilt(sos(3, 'high', F / 3, fs), n * CS * b)
+    w = sosfilt(sos(3, 'high', F, fs), -n + P["k2"] * q)
+    if parts:
+        return w, dict(CS=CS, GA=GA, GB=GB, l=l, b=b)
+    return w
+
+
+def generated6(x, F, P, fs=FS, parts=False):
+    """generated5 plus a gain driven by the high-passed band u = HP3(F) l (the patent's detector after the output
+    high-pass): GC = (1 + EC / EC0)^-pC, EC = one-pole(|u|, tauC)."""
+    x = np.asarray(x, np.float64)
+    b = sosfilt(sos(3, 'low', F, fs), x)
+    l = sosfilt(sos(3, 'low', F / 3, fs), x)
+    u = sosfilt(sos(3, 'high', F, fs), l)
+    dA = sosfilt(sos(3, 'low', F * P["cA"], fs), x)
+    EA = onepole(np.abs(dA), P["tauA"], fs)
+    GA = (1 + EA / P["EA0"]) ** (-P["pA"])
+    uu = (l / P["LB0"]) ** 2
+    ci = (1 + P["b1"] * uu + P["b2"] * uu * uu) / (1 + P["a1"] * uu + P["a2"] * uu * uu)
+    GB = (1 - P["mB"]) * onepole(ci, P["tauB"], fs) + P["mB"] * ci
+    EC = onepole(np.abs(u), P["tauC"], fs)
+    GC = (1 + EC / P["EC0"]) ** (-P["pC"])
+    CS = P["C0"] * GA * GB * GC
+    n = sosfilt(sos(3, 'high', F, fs), CS * l)
+    q = sosfilt(sos(3, 'high', F / 3, fs), n * CS * b)
+    w = sosfilt(sos(3, 'high', F, fs), -n + P["k2"] * q)
+    if parts:
+        return w, dict(CS=CS, GA=GA, GB=GB, GC=GC, l=l, b=b)
+    return w
+
+
+def generated7(x, F, P, fs=FS, parts=False):
+    """Gain from a level detector with a second-order, asymmetric smoother: two attack / release followers in cascade
+    on |LP3(cA F) x|; CS = C0 (1 + E/E0)^-p applied to l ('pre') or to HP3(F) l ('post')."""
+    x = np.asarray(x, np.float64)
+    b = sosfilt(sos(3, 'low', F, fs), x)
+    l = sosfilt(sos(3, 'low', F / 3, fs), x)
+    if "QA" in P:     # detector band: LP2(cA F, QA) * LP1(cB F) (Butterworth when QA = 1 and cB = cA)
+        d = lp2(sosfilt(sos(1, 'low', F * P["cB"], fs), x), F * P["cA"], P["QA"], fs)
+    else:
+        d = sosfilt(sos(3, 'low', F * P["cA"], fs), x)
+    kr = P.get("kr", 1.0)
+    s1 = (80.0 / F) ** P.get("s1", 0.0); s2 = (80.0 / F) ** P.get("s2", 0.0)     # time constants vs Freq
+    E1 = attrel(np.abs(d) ** kr, P["ta1"] * s1, P["tr1"] * s1, fs)
+    E = ((1 - P.get("m1", 0.0)) * attrel(E1, P["ta2"] * s2, P["tr2"] * s2, fs) + P.get("m1", 0.0) * E1) ** (1.0 / kr)
+    CS = P["C0"] * (1 + E / P["E0"]) ** (-P["p"])
+    pl = P.get("place", "post")
+    if pl == "pre":
+        n = sosfilt(sos(3, 'high', F, fs), CS * l)
+    elif pl == "mid1":
+        n = sosfilt(sec('high', 2, F, fs), CS * sosfilt(sec('high', 1, F, fs), l))
+    elif pl == "mid2":
+        n = sosfilt(sec('high', 1, F, fs), CS * sosfilt(sec('high', 2, F, fs), l))
+    elif pl == "split":           # CS^a ahead of the first HP3, CS^(1-a) after it
+        a = P["alpha"]; C = CS / P["C0"]
+        n = P["C0"] * C ** (1 - a) * sosfilt(sos(3, 'high', F, fs), C ** a * l)
+    else:
+        n = CS * sosfilt(sos(3, 'high', F, fs), l)
+    beta = P.get("beta", 1.0)
+    q = sosfilt(sos(3, 'high', F / 3, fs), n * CS * (CS / P["C0"]) ** (beta - 1.0) * b)
+    w = sosfilt(sos(3, 'high', F, fs), -n + P["k2"] * q)
+    if parts:
+        return w, dict(CS=CS, E=E, l=l, b=b)
     return w

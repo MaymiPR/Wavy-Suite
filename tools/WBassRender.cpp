@@ -1,6 +1,6 @@
 // Offline renderer for the WBass DSP (used by the null test and the fitting scripts).
 //   WBassRender in.f32 out.f32 channels sampleRate freq intensityDb gainDb originalBassIn [key=value ...]
-// Files are raw interleaved 32-bit floats. Keys: C0 E01 p1 tau1 ta1 E02 p2 tau2 ta2 k2 decay ceiling
+// Files are raw interleaved 32-bit floats. Keys: C0 E0 p cA QA cB kr ta1 tr1 ta2 tr2 alpha k2 decay ceiling
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -21,8 +21,10 @@ int main (int argc, char** argv)
         if (eq == std::string::npos) continue;
         const std::string k = a.substr (0, eq); const double v = std::atof (a.c_str() + eq + 1);
         auto& t = proc.t;
-        if (k == "C0") t.C0 = v; else if (k == "E01") t.E01 = v; else if (k == "p1") t.p1 = v; else if (k == "tau1") t.tau1 = v; else if (k == "ta1") t.att1 = v; else if (k == "ta2") t.att2 = v;
-        else if (k == "E02") t.E02 = v; else if (k == "p2") t.p2 = v; else if (k == "tau2") t.tau2 = v; else if (k == "k2") t.k2 = v;
+        if (k == "C0") t.C0 = v; else if (k == "E0") t.E0 = v; else if (k == "p") t.p = v;
+        else if (k == "cA") t.cA = v; else if (k == "QA") t.QA = v; else if (k == "cB") t.cB = v; else if (k == "kr") t.kr = v;
+        else if (k == "ta1") t.att1 = v; else if (k == "tr1") t.rel1 = v; else if (k == "ta2") t.att2 = v; else if (k == "tr2") t.rel2 = v;
+        else if (k == "alpha") t.alpha = v; else if (k == "k2") t.k2 = v; else if (k == "limT") t.limT = v; else if (k == "limRel") t.limRel = v; else if (k == "s1") t.s1 = v; else if (k == "s2") t.s2 = v;
         else if (k == "ceiling") t.ceiling = v; else if (k == "decay") decay = v;
     }
     FILE* f = std::fopen (argv[1], "rb");
