@@ -1,0 +1,673 @@
+voice-like   comp    0 gate  off gain    0 input  -24  residual  -195.6
+voice-like   comp    0 gate  off gain    0 input  -12  residual  -207.6
+voice-like   comp    0 gate  off gain    0 input   +0  residual  -219.6
+voice-like   comp    0 gate  off gain  -12 input  -24  residual  -142.8
+voice-like   comp    0 gate  off gain  -12 input  -12  residual  -142.8
+voice-like   comp    0 gate  off gain  -12 input   +0  residual  -142.8
+voice-like   comp    0 gate  -60 gain    0 input  -24  residual  -195.6
+voice-like   comp    0 gate  -60 gain    0 input  -12  residual  -207.6
+voice-like   comp    0 gate  -60 gain    0 input   +0  residual  -219.6
+voice-like   comp    0 gate  -60 gain  -12 input  -24  residual  -142.8
+voice-like   comp    0 gate  -60 gain  -12 input  -12  residual  -142.8
+voice-like   comp    0 gate  -60 gain  -12 input   +0  residual  -142.8
+voice-like   comp    0 gate  -40 gain    0 input  -24  residual   -91.2
+voice-like   comp    0 gate  -40 gain    0 input  -12  residual  -207.6
+voice-like   comp    0 gate  -40 gain    0 input   +0  residual  -219.6
+voice-like   comp    0 gate  -40 gain  -12 input  -24  residual   -91.2
+voice-like   comp    0 gate  -40 gain  -12 input  -12  residual  -142.8
+voice-like   comp    0 gate  -40 gain  -12 input   +0  residual  -142.8
+voice-like   comp    0 gate  -20 gain    0 input  -24  residual   -80.5
+voice-like   comp    0 gate  -20 gain    0 input  -12  residual   -81.2
+voice-like   comp    0 gate  -20 gain    0 input   +0  residual   -99.4
+voice-like   comp    0 gate  -20 gain  -12 input  -24  residual   -80.5
+voice-like   comp    0 gate  -20 gain  -12 input  -12  residual   -81.2
+voice-like   comp    0 gate  -20 gain  -12 input   +0  residual   -99.4
+voice-like   comp   -6 gate  off gain    0 input  -24  residual   -85.5
+voice-like   comp   -6 gate  off gain    0 input  -12  residual   -73.8
+voice-like   comp   -6 gate  off gain    0 input   +0  residual   -62.5
+voice-like   comp   -6 gate  off gain  -12 input  -24  residual   -85.5
+voice-like   comp   -6 gate  off gain  -12 input  -12  residual   -73.8
+voice-like   comp   -6 gate  off gain  -12 input   +0  residual   -62.5
+voice-like   comp   -6 gate  -60 gain    0 input  -24  residual   -85.5
+voice-like   comp   -6 gate  -60 gain    0 input  -12  residual   -73.8
+voice-like   comp   -6 gate  -60 gain    0 input   +0  residual   -62.5
+voice-like   comp   -6 gate  -60 gain  -12 input  -24  residual   -85.5
+voice-like   comp   -6 gate  -60 gain  -12 input  -12  residual   -73.8
+voice-like   comp   -6 gate  -60 gain  -12 input   +0  residual   -62.5
+voice-like   comp   -6 gate  -40 gain    0 input  -24  residual   -84.5
+voice-like   comp   -6 gate  -40 gain    0 input  -12  residual   -73.8
+voice-like   comp   -6 gate  -40 gain    0 input   +0  residual   -62.5
+voice-like   comp   -6 gate  -40 gain  -12 input  -24  residual   -84.5
+voice-like   comp   -6 gate  -40 gain  -12 input  -12  residual   -73.8
+voice-like   comp   -6 gate  -40 gain  -12 input   +0  residual   -62.5
+voice-like   comp   -6 gate  -20 gain    0 input  -24  residual   -79.3
+voice-like   comp   -6 gate  -20 gain    0 input  -12  residual   -72.3
+voice-like   comp   -6 gate  -20 gain    0 input   +0  residual   -62.6
+voice-like   comp   -6 gate  -20 gain  -12 input  -24  residual   -79.3
+voice-like   comp   -6 gate  -20 gain  -12 input  -12  residual   -72.3
+voice-like   comp   -6 gate  -20 gain  -12 input   +0  residual   -62.6
+voice-like   comp  -12 gate  off gain    0 input  -24  residual   -76.2
+voice-like   comp  -12 gate  off gain    0 input  -12  residual   -64.8
+voice-like   comp  -12 gate  off gain    0 input   +0  residual   -51.5
+voice-like   comp  -12 gate  off gain  -12 input  -24  residual   -76.2
+voice-like   comp  -12 gate  off gain  -12 input  -12  residual   -64.8
+voice-like   comp  -12 gate  off gain  -12 input   +0  residual   -51.5
+voice-like   comp  -12 gate  -60 gain    0 input  -24  residual   -76.2
+voice-like   comp  -12 gate  -60 gain    0 input  -12  residual   -64.8
+voice-like   comp  -12 gate  -60 gain    0 input   +0  residual   -51.5
+voice-like   comp  -12 gate  -60 gain  -12 input  -24  residual   -76.2
+voice-like   comp  -12 gate  -60 gain  -12 input  -12  residual   -64.8
+voice-like   comp  -12 gate  -60 gain  -12 input   +0  residual   -51.5
+voice-like   comp  -12 gate  -40 gain    0 input  -24  residual   -76.1
+voice-like   comp  -12 gate  -40 gain    0 input  -12  residual   -64.8
+voice-like   comp  -12 gate  -40 gain    0 input   +0  residual   -51.5
+voice-like   comp  -12 gate  -40 gain  -12 input  -24  residual   -76.1
+voice-like   comp  -12 gate  -40 gain  -12 input  -12  residual   -64.8
+voice-like   comp  -12 gate  -40 gain  -12 input   +0  residual   -51.5
+voice-like   comp  -12 gate  -20 gain    0 input  -24  residual   -74.1
+voice-like   comp  -12 gate  -20 gain    0 input  -12  residual   -63.9
+voice-like   comp  -12 gate  -20 gain    0 input   +0  residual   -51.5
+voice-like   comp  -12 gate  -20 gain  -12 input  -24  residual   -74.1
+voice-like   comp  -12 gate  -20 gain  -12 input  -12  residual   -63.9
+voice-like   comp  -12 gate  -20 gain  -12 input   +0  residual   -51.5
+voice-like   comp  -18 gate  off gain    0 input  -24  residual   -69.2
+voice-like   comp  -18 gate  off gain    0 input  -12  residual   -57.6
+voice-like   comp  -18 gate  off gain    0 input   +0  residual   -38.7
+voice-like   comp  -18 gate  off gain  -12 input  -24  residual   -69.2
+voice-like   comp  -18 gate  off gain  -12 input  -12  residual   -57.6
+voice-like   comp  -18 gate  off gain  -12 input   +0  residual   -38.7
+voice-like   comp  -18 gate  -60 gain    0 input  -24  residual   -69.2
+voice-like   comp  -18 gate  -60 gain    0 input  -12  residual   -57.6
+voice-like   comp  -18 gate  -60 gain    0 input   +0  residual   -38.7
+voice-like   comp  -18 gate  -60 gain  -12 input  -24  residual   -69.2
+voice-like   comp  -18 gate  -60 gain  -12 input  -12  residual   -57.6
+voice-like   comp  -18 gate  -60 gain  -12 input   +0  residual   -38.7
+voice-like   comp  -18 gate  -40 gain    0 input  -24  residual   -69.2
+voice-like   comp  -18 gate  -40 gain    0 input  -12  residual   -57.6
+voice-like   comp  -18 gate  -40 gain    0 input   +0  residual   -38.7
+voice-like   comp  -18 gate  -40 gain  -12 input  -24  residual   -69.2
+voice-like   comp  -18 gate  -40 gain  -12 input  -12  residual   -57.6
+voice-like   comp  -18 gate  -40 gain  -12 input   +0  residual   -38.7
+voice-like   comp  -18 gate  -20 gain    0 input  -24  residual   -67.9
+voice-like   comp  -18 gate  -20 gain    0 input  -12  residual   -57.1
+voice-like   comp  -18 gate  -20 gain    0 input   +0  residual   -38.7
+voice-like   comp  -18 gate  -20 gain  -12 input  -24  residual   -67.9
+voice-like   comp  -18 gate  -20 gain  -12 input  -12  residual   -57.1
+voice-like   comp  -18 gate  -20 gain  -12 input   +0  residual   -38.7
+voice-like   comp  -24 gate  off gain    0 input  -24  residual   -63.0
+voice-like   comp  -24 gate  off gain    0 input  -12  residual   -48.3
+voice-like   comp  -24 gate  off gain    0 input   +0  residual   -30.7
+voice-like   comp  -24 gate  off gain  -12 input  -24  residual   -63.0
+voice-like   comp  -24 gate  off gain  -12 input  -12  residual   -48.3
+voice-like   comp  -24 gate  off gain  -12 input   +0  residual   -30.7
+voice-like   comp  -24 gate  -60 gain    0 input  -24  residual   -63.0
+voice-like   comp  -24 gate  -60 gain    0 input  -12  residual   -48.3
+voice-like   comp  -24 gate  -60 gain    0 input   +0  residual   -30.7
+voice-like   comp  -24 gate  -60 gain  -12 input  -24  residual   -63.0
+voice-like   comp  -24 gate  -60 gain  -12 input  -12  residual   -48.3
+voice-like   comp  -24 gate  -60 gain  -12 input   +0  residual   -30.7
+voice-like   comp  -24 gate  -40 gain    0 input  -24  residual   -63.1
+voice-like   comp  -24 gate  -40 gain    0 input  -12  residual   -48.3
+voice-like   comp  -24 gate  -40 gain    0 input   +0  residual   -30.7
+voice-like   comp  -24 gate  -40 gain  -12 input  -24  residual   -63.1
+voice-like   comp  -24 gate  -40 gain  -12 input  -12  residual   -48.3
+voice-like   comp  -24 gate  -40 gain  -12 input   +0  residual   -30.7
+voice-like   comp  -24 gate  -20 gain    0 input  -24  residual   -62.1
+voice-like   comp  -24 gate  -20 gain    0 input  -12  residual   -48.2
+voice-like   comp  -24 gate  -20 gain    0 input   +0  residual   -30.6
+voice-like   comp  -24 gate  -20 gain  -12 input  -24  residual   -62.1
+voice-like   comp  -24 gate  -20 gain  -12 input  -12  residual   -48.2
+voice-like   comp  -24 gate  -20 gain  -12 input   +0  residual   -30.6
+voice-like   comp  -30 gate  off gain    0 input  -24  residual   -56.6
+voice-like   comp  -30 gate  off gain    0 input  -12  residual   -37.5
+voice-like   comp  -30 gate  off gain    0 input   +0  residual   -24.7
+voice-like   comp  -30 gate  off gain  -12 input  -24  residual   -56.6
+voice-like   comp  -30 gate  off gain  -12 input  -12  residual   -37.5
+voice-like   comp  -30 gate  off gain  -12 input   +0  residual   -24.7
+voice-like   comp  -30 gate  -60 gain    0 input  -24  residual   -56.6
+voice-like   comp  -30 gate  -60 gain    0 input  -12  residual   -37.5
+voice-like   comp  -30 gate  -60 gain    0 input   +0  residual   -24.7
+voice-like   comp  -30 gate  -60 gain  -12 input  -24  residual   -56.6
+voice-like   comp  -30 gate  -60 gain  -12 input  -12  residual   -37.5
+voice-like   comp  -30 gate  -60 gain  -12 input   +0  residual   -24.7
+voice-like   comp  -30 gate  -40 gain    0 input  -24  residual   -56.6
+voice-like   comp  -30 gate  -40 gain    0 input  -12  residual   -37.5
+voice-like   comp  -30 gate  -40 gain    0 input   +0  residual   -24.7
+voice-like   comp  -30 gate  -40 gain  -12 input  -24  residual   -56.6
+voice-like   comp  -30 gate  -40 gain  -12 input  -12  residual   -37.5
+voice-like   comp  -30 gate  -40 gain  -12 input   +0  residual   -24.7
+voice-like   comp  -30 gate  -20 gain    0 input  -24  residual   -56.2
+voice-like   comp  -30 gate  -20 gain    0 input  -12  residual   -37.4
+voice-like   comp  -30 gate  -20 gain    0 input   +0  residual   -24.7
+voice-like   comp  -30 gate  -20 gain  -12 input  -24  residual   -56.2
+voice-like   comp  -30 gate  -20 gain  -12 input  -12  residual   -37.4
+voice-like   comp  -30 gate  -20 gain  -12 input   +0  residual   -24.7
+voice-like   comp  -36 gate  off gain    0 input  -24  residual   -47.6
+voice-like   comp  -36 gate  off gain    0 input  -12  residual   -30.2
+voice-like   comp  -36 gate  off gain    0 input   +0  residual   -20.6
+voice-like   comp  -36 gate  off gain  -12 input  -24  residual   -47.6
+voice-like   comp  -36 gate  off gain  -12 input  -12  residual   -30.2
+voice-like   comp  -36 gate  off gain  -12 input   +0  residual   -20.6
+voice-like   comp  -36 gate  -60 gain    0 input  -24  residual   -47.6
+voice-like   comp  -36 gate  -60 gain    0 input  -12  residual   -30.2
+voice-like   comp  -36 gate  -60 gain    0 input   +0  residual   -20.6
+voice-like   comp  -36 gate  -60 gain  -12 input  -24  residual   -47.6
+voice-like   comp  -36 gate  -60 gain  -12 input  -12  residual   -30.2
+voice-like   comp  -36 gate  -60 gain  -12 input   +0  residual   -20.6
+voice-like   comp  -36 gate  -40 gain    0 input  -24  residual   -47.6
+voice-like   comp  -36 gate  -40 gain    0 input  -12  residual   -30.2
+voice-like   comp  -36 gate  -40 gain    0 input   +0  residual   -20.6
+voice-like   comp  -36 gate  -40 gain  -12 input  -24  residual   -47.6
+voice-like   comp  -36 gate  -40 gain  -12 input  -12  residual   -30.2
+voice-like   comp  -36 gate  -40 gain  -12 input   +0  residual   -20.6
+voice-like   comp  -36 gate  -20 gain    0 input  -24  residual   -47.6
+voice-like   comp  -36 gate  -20 gain    0 input  -12  residual   -30.2
+voice-like   comp  -36 gate  -20 gain    0 input   +0  residual   -20.5
+voice-like   comp  -36 gate  -20 gain  -12 input  -24  residual   -47.6
+voice-like   comp  -36 gate  -20 gain  -12 input  -12  residual   -30.2
+voice-like   comp  -36 gate  -20 gain  -12 input   +0  residual   -20.5
+white noise  comp    0 gate  off gain    0 input  -24  residual  -195.9
+white noise  comp    0 gate  off gain    0 input  -12  residual  -207.9
+white noise  comp    0 gate  off gain    0 input   +0  residual  -219.9
+white noise  comp    0 gate  off gain  -12 input  -24  residual  -142.9
+white noise  comp    0 gate  off gain  -12 input  -12  residual  -142.9
+white noise  comp    0 gate  off gain  -12 input   +0  residual  -142.9
+white noise  comp    0 gate  -60 gain    0 input  -24  residual  -195.9
+white noise  comp    0 gate  -60 gain    0 input  -12  residual  -207.9
+white noise  comp    0 gate  -60 gain    0 input   +0  residual  -219.9
+white noise  comp    0 gate  -60 gain  -12 input  -24  residual  -142.9
+white noise  comp    0 gate  -60 gain  -12 input  -12  residual  -142.9
+white noise  comp    0 gate  -60 gain  -12 input   +0  residual  -142.9
+white noise  comp    0 gate  -40 gain    0 input  -24  residual  -195.9
+white noise  comp    0 gate  -40 gain    0 input  -12  residual  -207.9
+white noise  comp    0 gate  -40 gain    0 input   +0  residual  -219.9
+white noise  comp    0 gate  -40 gain  -12 input  -24  residual  -142.9
+white noise  comp    0 gate  -40 gain  -12 input  -12  residual  -142.9
+white noise  comp    0 gate  -40 gain  -12 input   +0  residual  -142.9
+white noise  comp    0 gate  -20 gain    0 input  -24  residual   -75.3
+white noise  comp    0 gate  -20 gain    0 input  -12  residual   -75.5
+white noise  comp    0 gate  -20 gain    0 input   +0  residual  -219.9
+white noise  comp    0 gate  -20 gain  -12 input  -24  residual   -75.3
+white noise  comp    0 gate  -20 gain  -12 input  -12  residual   -75.5
+white noise  comp    0 gate  -20 gain  -12 input   +0  residual  -142.9
+white noise  comp   -6 gate  off gain    0 input  -24  residual   -70.5
+white noise  comp   -6 gate  off gain    0 input  -12  residual   -59.0
+white noise  comp   -6 gate  off gain    0 input   +0  residual   -43.7
+white noise  comp   -6 gate  off gain  -12 input  -24  residual   -70.5
+white noise  comp   -6 gate  off gain  -12 input  -12  residual   -59.0
+white noise  comp   -6 gate  off gain  -12 input   +0  residual   -43.7
+white noise  comp   -6 gate  -60 gain    0 input  -24  residual   -70.5
+white noise  comp   -6 gate  -60 gain    0 input  -12  residual   -59.0
+white noise  comp   -6 gate  -60 gain    0 input   +0  residual   -43.7
+white noise  comp   -6 gate  -60 gain  -12 input  -24  residual   -70.5
+white noise  comp   -6 gate  -60 gain  -12 input  -12  residual   -59.0
+white noise  comp   -6 gate  -60 gain  -12 input   +0  residual   -43.7
+white noise  comp   -6 gate  -40 gain    0 input  -24  residual   -70.5
+white noise  comp   -6 gate  -40 gain    0 input  -12  residual   -59.0
+white noise  comp   -6 gate  -40 gain    0 input   +0  residual   -43.7
+white noise  comp   -6 gate  -40 gain  -12 input  -24  residual   -70.5
+white noise  comp   -6 gate  -40 gain  -12 input  -12  residual   -59.0
+white noise  comp   -6 gate  -40 gain  -12 input   +0  residual   -43.7
+white noise  comp   -6 gate  -20 gain    0 input  -24  residual   -69.0
+white noise  comp   -6 gate  -20 gain    0 input  -12  residual   -58.6
+white noise  comp   -6 gate  -20 gain    0 input   +0  residual   -43.7
+white noise  comp   -6 gate  -20 gain  -12 input  -24  residual   -69.0
+white noise  comp   -6 gate  -20 gain  -12 input  -12  residual   -58.6
+white noise  comp   -6 gate  -20 gain  -12 input   +0  residual   -43.7
+white noise  comp  -12 gate  off gain    0 input  -24  residual   -61.3
+white noise  comp  -12 gate  off gain    0 input  -12  residual   -47.9
+white noise  comp  -12 gate  off gain    0 input   +0  residual   -25.0
+white noise  comp  -12 gate  off gain  -12 input  -24  residual   -61.3
+white noise  comp  -12 gate  off gain  -12 input  -12  residual   -47.9
+white noise  comp  -12 gate  off gain  -12 input   +0  residual   -25.0
+white noise  comp  -12 gate  -60 gain    0 input  -24  residual   -61.3
+white noise  comp  -12 gate  -60 gain    0 input  -12  residual   -47.9
+white noise  comp  -12 gate  -60 gain    0 input   +0  residual   -25.0
+white noise  comp  -12 gate  -60 gain  -12 input  -24  residual   -61.3
+white noise  comp  -12 gate  -60 gain  -12 input  -12  residual   -47.9
+white noise  comp  -12 gate  -60 gain  -12 input   +0  residual   -25.0
+white noise  comp  -12 gate  -40 gain    0 input  -24  residual   -61.3
+white noise  comp  -12 gate  -40 gain    0 input  -12  residual   -47.9
+white noise  comp  -12 gate  -40 gain    0 input   +0  residual   -25.0
+white noise  comp  -12 gate  -40 gain  -12 input  -24  residual   -61.3
+white noise  comp  -12 gate  -40 gain  -12 input  -12  residual   -47.9
+white noise  comp  -12 gate  -40 gain  -12 input   +0  residual   -25.0
+white noise  comp  -12 gate  -20 gain    0 input  -24  residual   -60.8
+white noise  comp  -12 gate  -20 gain    0 input  -12  residual   -47.6
+white noise  comp  -12 gate  -20 gain    0 input   +0  residual   -25.0
+white noise  comp  -12 gate  -20 gain  -12 input  -24  residual   -60.8
+white noise  comp  -12 gate  -20 gain  -12 input  -12  residual   -47.6
+white noise  comp  -12 gate  -20 gain  -12 input   +0  residual   -25.0
+white noise  comp  -18 gate  off gain    0 input  -24  residual   -54.1
+white noise  comp  -18 gate  off gain    0 input  -12  residual   -32.2
+white noise  comp  -18 gate  off gain    0 input   +0  residual   -17.4
+white noise  comp  -18 gate  off gain  -12 input  -24  residual   -54.1
+white noise  comp  -18 gate  off gain  -12 input  -12  residual   -32.2
+white noise  comp  -18 gate  off gain  -12 input   +0  residual   -17.4
+white noise  comp  -18 gate  -60 gain    0 input  -24  residual   -54.1
+white noise  comp  -18 gate  -60 gain    0 input  -12  residual   -32.2
+white noise  comp  -18 gate  -60 gain    0 input   +0  residual   -17.4
+white noise  comp  -18 gate  -60 gain  -12 input  -24  residual   -54.1
+white noise  comp  -18 gate  -60 gain  -12 input  -12  residual   -32.2
+white noise  comp  -18 gate  -60 gain  -12 input   +0  residual   -17.4
+white noise  comp  -18 gate  -40 gain    0 input  -24  residual   -54.1
+white noise  comp  -18 gate  -40 gain    0 input  -12  residual   -32.2
+white noise  comp  -18 gate  -40 gain    0 input   +0  residual   -17.4
+white noise  comp  -18 gate  -40 gain  -12 input  -24  residual   -54.1
+white noise  comp  -18 gate  -40 gain  -12 input  -12  residual   -32.2
+white noise  comp  -18 gate  -40 gain  -12 input   +0  residual   -17.4
+white noise  comp  -18 gate  -20 gain    0 input  -24  residual   -53.7
+white noise  comp  -18 gate  -20 gain    0 input  -12  residual   -31.8
+white noise  comp  -18 gate  -20 gain    0 input   +0  residual   -17.4
+white noise  comp  -18 gate  -20 gain  -12 input  -24  residual   -53.7
+white noise  comp  -18 gate  -20 gain  -12 input  -12  residual   -31.8
+white noise  comp  -18 gate  -20 gain  -12 input   +0  residual   -17.4
+white noise  comp  -24 gate  off gain    0 input  -24  residual   -44.7
+white noise  comp  -24 gate  off gain    0 input  -12  residual   -22.5
+white noise  comp  -24 gate  off gain    0 input   +0  residual   -13.2
+white noise  comp  -24 gate  off gain  -12 input  -24  residual   -44.7
+white noise  comp  -24 gate  off gain  -12 input  -12  residual   -22.5
+white noise  comp  -24 gate  off gain  -12 input   +0  residual   -13.2
+white noise  comp  -24 gate  -60 gain    0 input  -24  residual   -44.7
+white noise  comp  -24 gate  -60 gain    0 input  -12  residual   -22.5
+white noise  comp  -24 gate  -60 gain    0 input   +0  residual   -13.2
+white noise  comp  -24 gate  -60 gain  -12 input  -24  residual   -44.7
+white noise  comp  -24 gate  -60 gain  -12 input  -12  residual   -22.5
+white noise  comp  -24 gate  -60 gain  -12 input   +0  residual   -13.2
+white noise  comp  -24 gate  -40 gain    0 input  -24  residual   -44.7
+white noise  comp  -24 gate  -40 gain    0 input  -12  residual   -22.5
+white noise  comp  -24 gate  -40 gain    0 input   +0  residual   -13.2
+white noise  comp  -24 gate  -40 gain  -12 input  -24  residual   -44.7
+white noise  comp  -24 gate  -40 gain  -12 input  -12  residual   -22.5
+white noise  comp  -24 gate  -40 gain  -12 input   +0  residual   -13.2
+white noise  comp  -24 gate  -20 gain    0 input  -24  residual   -44.2
+white noise  comp  -24 gate  -20 gain    0 input  -12  residual   -22.1
+white noise  comp  -24 gate  -20 gain    0 input   +0  residual   -13.2
+white noise  comp  -24 gate  -20 gain  -12 input  -24  residual   -44.2
+white noise  comp  -24 gate  -20 gain  -12 input  -12  residual   -22.1
+white noise  comp  -24 gate  -20 gain  -12 input   +0  residual   -13.2
+white noise  comp  -30 gate  off gain    0 input  -24  residual   -30.7
+white noise  comp  -30 gate  off gain    0 input  -12  residual   -16.8
+white noise  comp  -30 gate  off gain    0 input   +0  residual   -11.2
+white noise  comp  -30 gate  off gain  -12 input  -24  residual   -30.7
+white noise  comp  -30 gate  off gain  -12 input  -12  residual   -16.8
+white noise  comp  -30 gate  off gain  -12 input   +0  residual   -11.2
+white noise  comp  -30 gate  -60 gain    0 input  -24  residual   -30.7
+white noise  comp  -30 gate  -60 gain    0 input  -12  residual   -16.8
+white noise  comp  -30 gate  -60 gain    0 input   +0  residual   -11.2
+white noise  comp  -30 gate  -60 gain  -12 input  -24  residual   -30.7
+white noise  comp  -30 gate  -60 gain  -12 input  -12  residual   -16.8
+white noise  comp  -30 gate  -60 gain  -12 input   +0  residual   -11.2
+white noise  comp  -30 gate  -40 gain    0 input  -24  residual   -30.7
+white noise  comp  -30 gate  -40 gain    0 input  -12  residual   -16.8
+white noise  comp  -30 gate  -40 gain    0 input   +0  residual   -11.2
+white noise  comp  -30 gate  -40 gain  -12 input  -24  residual   -30.7
+white noise  comp  -30 gate  -40 gain  -12 input  -12  residual   -16.8
+white noise  comp  -30 gate  -40 gain  -12 input   +0  residual   -11.2
+white noise  comp  -30 gate  -20 gain    0 input  -24  residual   -30.1
+white noise  comp  -30 gate  -20 gain    0 input  -12  residual   -16.4
+white noise  comp  -30 gate  -20 gain    0 input   +0  residual   -11.2
+white noise  comp  -30 gate  -20 gain  -12 input  -24  residual   -30.1
+white noise  comp  -30 gate  -20 gain  -12 input  -12  residual   -16.4
+white noise  comp  -30 gate  -20 gain  -12 input   +0  residual   -11.2
+white noise  comp  -36 gate  off gain    0 input  -24  residual   -22.0
+white noise  comp  -36 gate  off gain    0 input  -12  residual   -13.1
+white noise  comp  -36 gate  off gain    0 input   +0  residual   -10.1
+white noise  comp  -36 gate  off gain  -12 input  -24  residual   -22.0
+white noise  comp  -36 gate  off gain  -12 input  -12  residual   -13.1
+white noise  comp  -36 gate  off gain  -12 input   +0  residual   -10.1
+white noise  comp  -36 gate  -60 gain    0 input  -24  residual   -22.0
+white noise  comp  -36 gate  -60 gain    0 input  -12  residual   -13.1
+white noise  comp  -36 gate  -60 gain    0 input   +0  residual   -10.1
+white noise  comp  -36 gate  -60 gain  -12 input  -24  residual   -22.0
+white noise  comp  -36 gate  -60 gain  -12 input  -12  residual   -13.1
+white noise  comp  -36 gate  -60 gain  -12 input   +0  residual   -10.1
+white noise  comp  -36 gate  -40 gain    0 input  -24  residual   -22.0
+white noise  comp  -36 gate  -40 gain    0 input  -12  residual   -13.1
+white noise  comp  -36 gate  -40 gain    0 input   +0  residual   -10.1
+white noise  comp  -36 gate  -40 gain  -12 input  -24  residual   -22.0
+white noise  comp  -36 gate  -40 gain  -12 input  -12  residual   -13.1
+white noise  comp  -36 gate  -40 gain  -12 input   +0  residual   -10.1
+white noise  comp  -36 gate  -20 gain    0 input  -24  residual   -21.5
+white noise  comp  -36 gate  -20 gain    0 input  -12  residual   -12.8
+white noise  comp  -36 gate  -20 gain    0 input   +0  residual   -10.1
+white noise  comp  -36 gate  -20 gain  -12 input  -24  residual   -21.5
+white noise  comp  -36 gate  -20 gain  -12 input  -12  residual   -12.8
+white noise  comp  -36 gate  -20 gain  -12 input   +0  residual   -10.1
+tone steps   comp    0 gate  off gain    0 input  -24  residual  -198.5
+tone steps   comp    0 gate  off gain    0 input  -12  residual  -210.5
+tone steps   comp    0 gate  off gain    0 input   +0  residual  -222.5
+tone steps   comp    0 gate  off gain  -12 input  -24  residual  -141.9
+tone steps   comp    0 gate  off gain  -12 input  -12  residual  -142.7
+tone steps   comp    0 gate  off gain  -12 input   +0  residual  -142.4
+tone steps   comp    0 gate  -60 gain    0 input  -24  residual  -125.7
+tone steps   comp    0 gate  -60 gain    0 input  -12  residual  -137.3
+tone steps   comp    0 gate  -60 gain    0 input   +0  residual  -222.5
+tone steps   comp    0 gate  -60 gain  -12 input  -24  residual  -125.6
+tone steps   comp    0 gate  -60 gain  -12 input  -12  residual  -136.2
+tone steps   comp    0 gate  -60 gain  -12 input   +0  residual  -142.4
+tone steps   comp    0 gate  -40 gain    0 input  -24  residual  -123.2
+tone steps   comp    0 gate  -40 gain    0 input  -12  residual  -123.1
+tone steps   comp    0 gate  -40 gain    0 input   +0  residual  -127.0
+tone steps   comp    0 gate  -40 gain  -12 input  -24  residual  -123.1
+tone steps   comp    0 gate  -40 gain  -12 input  -12  residual  -123.1
+tone steps   comp    0 gate  -40 gain  -12 input   +0  residual  -126.9
+tone steps   comp    0 gate  -20 gain    0 input  -24  residual  -106.5
+tone steps   comp    0 gate  -20 gain    0 input  -12  residual  -108.5
+tone steps   comp    0 gate  -20 gain    0 input   +0  residual  -123.6
+tone steps   comp    0 gate  -20 gain  -12 input  -24  residual  -106.4
+tone steps   comp    0 gate  -20 gain  -12 input  -12  residual  -108.4
+tone steps   comp    0 gate  -20 gain  -12 input   +0  residual  -123.5
+tone steps   comp   -6 gate  off gain    0 input  -24  residual  -117.4
+tone steps   comp   -6 gate  off gain    0 input  -12  residual  -105.5
+tone steps   comp   -6 gate  off gain    0 input   +0  residual   -94.1
+tone steps   comp   -6 gate  off gain  -12 input  -24  residual  -117.3
+tone steps   comp   -6 gate  off gain  -12 input  -12  residual  -105.4
+tone steps   comp   -6 gate  off gain  -12 input   +0  residual   -94.1
+tone steps   comp   -6 gate  -60 gain    0 input  -24  residual  -115.5
+tone steps   comp   -6 gate  -60 gain    0 input  -12  residual  -105.4
+tone steps   comp   -6 gate  -60 gain    0 input   +0  residual   -94.1
+tone steps   comp   -6 gate  -60 gain  -12 input  -24  residual  -115.5
+tone steps   comp   -6 gate  -60 gain  -12 input  -12  residual  -105.4
+tone steps   comp   -6 gate  -60 gain  -12 input   +0  residual   -94.1
+tone steps   comp   -6 gate  -40 gain    0 input  -24  residual  -115.2
+tone steps   comp   -6 gate  -40 gain    0 input  -12  residual  -104.3
+tone steps   comp   -6 gate  -40 gain    0 input   +0  residual   -93.2
+tone steps   comp   -6 gate  -40 gain  -12 input  -24  residual  -115.2
+tone steps   comp   -6 gate  -40 gain  -12 input  -12  residual  -104.3
+tone steps   comp   -6 gate  -40 gain  -12 input   +0  residual   -93.2
+tone steps   comp   -6 gate  -20 gain    0 input  -24  residual  -105.7
+tone steps   comp   -6 gate  -20 gain    0 input  -12  residual  -103.4
+tone steps   comp   -6 gate  -20 gain    0 input   +0  residual   -93.0
+tone steps   comp   -6 gate  -20 gain  -12 input  -24  residual  -105.6
+tone steps   comp   -6 gate  -20 gain  -12 input  -12  residual  -103.4
+tone steps   comp   -6 gate  -20 gain  -12 input   +0  residual   -93.0
+tone steps   comp  -12 gate  off gain    0 input  -24  residual  -108.2
+tone steps   comp  -12 gate  off gain    0 input  -12  residual   -96.4
+tone steps   comp  -12 gate  off gain    0 input   +0  residual   -64.6
+tone steps   comp  -12 gate  off gain  -12 input  -24  residual  -108.2
+tone steps   comp  -12 gate  off gain  -12 input  -12  residual   -96.4
+tone steps   comp  -12 gate  off gain  -12 input   +0  residual   -64.6
+tone steps   comp  -12 gate  -60 gain    0 input  -24  residual  -107.0
+tone steps   comp  -12 gate  -60 gain    0 input  -12  residual   -96.4
+tone steps   comp  -12 gate  -60 gain    0 input   +0  residual   -64.6
+tone steps   comp  -12 gate  -60 gain  -12 input  -24  residual  -107.0
+tone steps   comp  -12 gate  -60 gain  -12 input  -12  residual   -96.4
+tone steps   comp  -12 gate  -60 gain  -12 input   +0  residual   -64.6
+tone steps   comp  -12 gate  -40 gain    0 input  -24  residual  -107.2
+tone steps   comp  -12 gate  -40 gain    0 input  -12  residual   -95.2
+tone steps   comp  -12 gate  -40 gain    0 input   +0  residual   -64.5
+tone steps   comp  -12 gate  -40 gain  -12 input  -24  residual  -107.2
+tone steps   comp  -12 gate  -40 gain  -12 input  -12  residual   -95.2
+tone steps   comp  -12 gate  -40 gain  -12 input   +0  residual   -64.5
+tone steps   comp  -12 gate  -20 gain    0 input  -24  residual  -104.0
+tone steps   comp  -12 gate  -20 gain    0 input  -12  residual   -95.8
+tone steps   comp  -12 gate  -20 gain    0 input   +0  residual   -64.6
+tone steps   comp  -12 gate  -20 gain  -12 input  -24  residual  -104.0
+tone steps   comp  -12 gate  -20 gain  -12 input  -12  residual   -95.8
+tone steps   comp  -12 gate  -20 gain  -12 input   +0  residual   -64.6
+tone steps   comp  -18 gate  off gain    0 input  -24  residual  -100.7
+tone steps   comp  -18 gate  off gain    0 input  -12  residual   -79.1
+tone steps   comp  -18 gate  off gain    0 input   +0  residual   -47.7
+tone steps   comp  -18 gate  off gain  -12 input  -24  residual  -100.7
+tone steps   comp  -18 gate  off gain  -12 input  -12  residual   -79.1
+tone steps   comp  -18 gate  off gain  -12 input   +0  residual   -47.7
+tone steps   comp  -18 gate  -60 gain    0 input  -24  residual   -99.6
+tone steps   comp  -18 gate  -60 gain    0 input  -12  residual   -79.1
+tone steps   comp  -18 gate  -60 gain    0 input   +0  residual   -47.7
+tone steps   comp  -18 gate  -60 gain  -12 input  -24  residual   -99.6
+tone steps   comp  -18 gate  -60 gain  -12 input  -12  residual   -79.1
+tone steps   comp  -18 gate  -60 gain  -12 input   +0  residual   -47.7
+tone steps   comp  -18 gate  -40 gain    0 input  -24  residual   -99.8
+tone steps   comp  -18 gate  -40 gain    0 input  -12  residual   -78.9
+tone steps   comp  -18 gate  -40 gain    0 input   +0  residual   -47.7
+tone steps   comp  -18 gate  -40 gain  -12 input  -24  residual   -99.8
+tone steps   comp  -18 gate  -40 gain  -12 input  -12  residual   -78.9
+tone steps   comp  -18 gate  -40 gain  -12 input   +0  residual   -47.7
+tone steps   comp  -18 gate  -20 gain    0 input  -24  residual   -99.7
+tone steps   comp  -18 gate  -20 gain    0 input  -12  residual   -80.4
+tone steps   comp  -18 gate  -20 gain    0 input   +0  residual   -47.9
+tone steps   comp  -18 gate  -20 gain  -12 input  -24  residual   -99.7
+tone steps   comp  -18 gate  -20 gain  -12 input  -12  residual   -80.4
+tone steps   comp  -18 gate  -20 gain  -12 input   +0  residual   -47.9
+tone steps   comp  -24 gate  off gain    0 input  -24  residual   -94.7
+tone steps   comp  -24 gate  off gain    0 input  -12  residual   -59.3
+tone steps   comp  -24 gate  off gain    0 input   +0  residual   -36.9
+tone steps   comp  -24 gate  off gain  -12 input  -24  residual   -94.7
+tone steps   comp  -24 gate  off gain  -12 input  -12  residual   -59.3
+tone steps   comp  -24 gate  off gain  -12 input   +0  residual   -36.9
+tone steps   comp  -24 gate  -60 gain    0 input  -24  residual   -93.5
+tone steps   comp  -24 gate  -60 gain    0 input  -12  residual   -59.3
+tone steps   comp  -24 gate  -60 gain    0 input   +0  residual   -36.9
+tone steps   comp  -24 gate  -60 gain  -12 input  -24  residual   -93.5
+tone steps   comp  -24 gate  -60 gain  -12 input  -12  residual   -59.3
+tone steps   comp  -24 gate  -60 gain  -12 input   +0  residual   -36.9
+tone steps   comp  -24 gate  -40 gain    0 input  -24  residual   -93.6
+tone steps   comp  -24 gate  -40 gain    0 input  -12  residual   -59.3
+tone steps   comp  -24 gate  -40 gain    0 input   +0  residual   -36.9
+tone steps   comp  -24 gate  -40 gain  -12 input  -24  residual   -93.6
+tone steps   comp  -24 gate  -40 gain  -12 input  -12  residual   -59.3
+tone steps   comp  -24 gate  -40 gain  -12 input   +0  residual   -36.9
+tone steps   comp  -24 gate  -20 gain    0 input  -24  residual   -93.6
+tone steps   comp  -24 gate  -20 gain    0 input  -12  residual   -62.8
+tone steps   comp  -24 gate  -20 gain    0 input   +0  residual   -37.5
+tone steps   comp  -24 gate  -20 gain  -12 input  -24  residual   -93.6
+tone steps   comp  -24 gate  -20 gain  -12 input  -12  residual   -62.8
+tone steps   comp  -24 gate  -20 gain  -12 input   +0  residual   -37.5
+tone steps   comp  -30 gate  off gain    0 input  -24  residual   -76.0
+tone steps   comp  -30 gate  off gain    0 input  -12  residual   -46.1
+tone steps   comp  -30 gate  off gain    0 input   +0  residual   -29.0
+tone steps   comp  -30 gate  off gain  -12 input  -24  residual   -76.0
+tone steps   comp  -30 gate  off gain  -12 input  -12  residual   -46.1
+tone steps   comp  -30 gate  off gain  -12 input   +0  residual   -29.0
+tone steps   comp  -30 gate  -60 gain    0 input  -24  residual   -75.9
+tone steps   comp  -30 gate  -60 gain    0 input  -12  residual   -46.1
+tone steps   comp  -30 gate  -60 gain    0 input   +0  residual   -29.0
+tone steps   comp  -30 gate  -60 gain  -12 input  -24  residual   -75.9
+tone steps   comp  -30 gate  -60 gain  -12 input  -12  residual   -46.1
+tone steps   comp  -30 gate  -60 gain  -12 input   +0  residual   -29.0
+tone steps   comp  -30 gate  -40 gain    0 input  -24  residual   -76.0
+tone steps   comp  -30 gate  -40 gain    0 input  -12  residual   -46.0
+tone steps   comp  -30 gate  -40 gain    0 input   +0  residual   -28.9
+tone steps   comp  -30 gate  -40 gain  -12 input  -24  residual   -76.0
+tone steps   comp  -30 gate  -40 gain  -12 input  -12  residual   -46.0
+tone steps   comp  -30 gate  -40 gain  -12 input   +0  residual   -28.9
+tone steps   comp  -30 gate  -20 gain    0 input  -24  residual   -77.8
+tone steps   comp  -30 gate  -20 gain    0 input  -12  residual   -51.3
+tone steps   comp  -30 gate  -20 gain    0 input   +0  residual   -30.4
+tone steps   comp  -30 gate  -20 gain  -12 input  -24  residual   -77.8
+tone steps   comp  -30 gate  -20 gain  -12 input  -12  residual   -51.3
+tone steps   comp  -30 gate  -20 gain  -12 input   +0  residual   -30.4
+tone steps   comp  -36 gate  off gain    0 input  -24  residual   -58.2
+tone steps   comp  -36 gate  off gain    0 input  -12  residual   -36.3
+tone steps   comp  -36 gate  off gain    0 input   +0  residual   -22.9
+tone steps   comp  -36 gate  off gain  -12 input  -24  residual   -58.2
+tone steps   comp  -36 gate  off gain  -12 input  -12  residual   -36.3
+tone steps   comp  -36 gate  off gain  -12 input   +0  residual   -22.9
+tone steps   comp  -36 gate  -60 gain    0 input  -24  residual   -58.2
+tone steps   comp  -36 gate  -60 gain    0 input  -12  residual   -36.3
+tone steps   comp  -36 gate  -60 gain    0 input   +0  residual   -22.9
+tone steps   comp  -36 gate  -60 gain  -12 input  -24  residual   -58.2
+tone steps   comp  -36 gate  -60 gain  -12 input  -12  residual   -36.3
+tone steps   comp  -36 gate  -60 gain  -12 input   +0  residual   -22.9
+tone steps   comp  -36 gate  -40 gain    0 input  -24  residual   -58.7
+tone steps   comp  -36 gate  -40 gain    0 input  -12  residual   -36.2
+tone steps   comp  -36 gate  -40 gain    0 input   +0  residual   -22.8
+tone steps   comp  -36 gate  -40 gain  -12 input  -24  residual   -58.7
+tone steps   comp  -36 gate  -40 gain  -12 input  -12  residual   -36.2
+tone steps   comp  -36 gate  -40 gain  -12 input   +0  residual   -22.8
+tone steps   comp  -36 gate  -20 gain    0 input  -24  residual   -61.9
+tone steps   comp  -36 gate  -20 gain    0 input  -12  residual   -43.0
+tone steps   comp  -36 gate  -20 gain    0 input   +0  residual   -25.6
+tone steps   comp  -36 gate  -20 gain  -12 input  -24  residual   -61.9
+tone steps   comp  -36 gate  -20 gain  -12 input  -12  residual   -43.0
+tone steps   comp  -36 gate  -20 gain  -12 input   +0  residual   -25.6
+sine 1 kHz   comp    0 gate  off gain    0 input  -24  residual  -192.9
+sine 1 kHz   comp    0 gate  off gain    0 input  -12  residual  -204.9
+sine 1 kHz   comp    0 gate  off gain    0 input   +0  residual  -216.9
+sine 1 kHz   comp    0 gate  off gain  -12 input  -24  residual  -144.3
+sine 1 kHz   comp    0 gate  off gain  -12 input  -12  residual  -143.1
+sine 1 kHz   comp    0 gate  off gain  -12 input   +0  residual  -141.6
+sine 1 kHz   comp    0 gate  -60 gain    0 input  -24  residual  -192.9
+sine 1 kHz   comp    0 gate  -60 gain    0 input  -12  residual  -204.9
+sine 1 kHz   comp    0 gate  -60 gain    0 input   +0  residual  -216.9
+sine 1 kHz   comp    0 gate  -60 gain  -12 input  -24  residual  -144.3
+sine 1 kHz   comp    0 gate  -60 gain  -12 input  -12  residual  -143.1
+sine 1 kHz   comp    0 gate  -60 gain  -12 input   +0  residual  -141.6
+sine 1 kHz   comp    0 gate  -40 gain    0 input  -24  residual  -108.3
+sine 1 kHz   comp    0 gate  -40 gain    0 input  -12  residual  -204.9
+sine 1 kHz   comp    0 gate  -40 gain    0 input   +0  residual  -216.9
+sine 1 kHz   comp    0 gate  -40 gain  -12 input  -24  residual  -108.2
+sine 1 kHz   comp    0 gate  -40 gain  -12 input  -12  residual  -143.1
+sine 1 kHz   comp    0 gate  -40 gain  -12 input   +0  residual  -141.6
+sine 1 kHz   comp    0 gate  -20 gain    0 input  -24  residual  -100.5
+sine 1 kHz   comp    0 gate  -20 gain    0 input  -12  residual  -106.7
+sine 1 kHz   comp    0 gate  -20 gain    0 input   +0  residual  -108.6
+sine 1 kHz   comp    0 gate  -20 gain  -12 input  -24  residual  -100.4
+sine 1 kHz   comp    0 gate  -20 gain  -12 input  -12  residual  -106.7
+sine 1 kHz   comp    0 gate  -20 gain  -12 input   +0  residual  -108.6
+sine 1 kHz   comp   -6 gate  off gain    0 input  -24  residual  -121.5
+sine 1 kHz   comp   -6 gate  off gain    0 input  -12  residual  -124.0
+sine 1 kHz   comp   -6 gate  off gain    0 input   +0  residual  -120.0
+sine 1 kHz   comp   -6 gate  off gain  -12 input  -24  residual  -121.4
+sine 1 kHz   comp   -6 gate  off gain  -12 input  -12  residual  -124.0
+sine 1 kHz   comp   -6 gate  off gain  -12 input   +0  residual  -120.0
+sine 1 kHz   comp   -6 gate  -60 gain    0 input  -24  residual  -121.5
+sine 1 kHz   comp   -6 gate  -60 gain    0 input  -12  residual  -124.0
+sine 1 kHz   comp   -6 gate  -60 gain    0 input   +0  residual  -120.0
+sine 1 kHz   comp   -6 gate  -60 gain  -12 input  -24  residual  -121.4
+sine 1 kHz   comp   -6 gate  -60 gain  -12 input  -12  residual  -124.0
+sine 1 kHz   comp   -6 gate  -60 gain  -12 input   +0  residual  -120.0
+sine 1 kHz   comp   -6 gate  -40 gain    0 input  -24  residual  -107.5
+sine 1 kHz   comp   -6 gate  -40 gain    0 input  -12  residual  -124.0
+sine 1 kHz   comp   -6 gate  -40 gain    0 input   +0  residual  -120.0
+sine 1 kHz   comp   -6 gate  -40 gain  -12 input  -24  residual  -107.5
+sine 1 kHz   comp   -6 gate  -40 gain  -12 input  -12  residual  -124.0
+sine 1 kHz   comp   -6 gate  -40 gain  -12 input   +0  residual  -120.0
+sine 1 kHz   comp   -6 gate  -20 gain    0 input  -24  residual  -100.3
+sine 1 kHz   comp   -6 gate  -20 gain    0 input  -12  residual  -107.1
+sine 1 kHz   comp   -6 gate  -20 gain    0 input   +0  residual  -108.7
+sine 1 kHz   comp   -6 gate  -20 gain  -12 input  -24  residual  -100.3
+sine 1 kHz   comp   -6 gate  -20 gain  -12 input  -12  residual  -107.0
+sine 1 kHz   comp   -6 gate  -20 gain  -12 input   +0  residual  -108.6
+sine 1 kHz   comp  -12 gate  off gain    0 input  -24  residual  -124.6
+sine 1 kHz   comp  -12 gate  off gain    0 input  -12  residual  -121.6
+sine 1 kHz   comp  -12 gate  off gain    0 input   +0  residual  -114.8
+sine 1 kHz   comp  -12 gate  off gain  -12 input  -24  residual  -124.6
+sine 1 kHz   comp  -12 gate  off gain  -12 input  -12  residual  -121.5
+sine 1 kHz   comp  -12 gate  off gain  -12 input   +0  residual  -114.8
+sine 1 kHz   comp  -12 gate  -60 gain    0 input  -24  residual  -124.6
+sine 1 kHz   comp  -12 gate  -60 gain    0 input  -12  residual  -121.6
+sine 1 kHz   comp  -12 gate  -60 gain    0 input   +0  residual  -114.8
+sine 1 kHz   comp  -12 gate  -60 gain  -12 input  -24  residual  -124.6
+sine 1 kHz   comp  -12 gate  -60 gain  -12 input  -12  residual  -121.5
+sine 1 kHz   comp  -12 gate  -60 gain  -12 input   +0  residual  -114.8
+sine 1 kHz   comp  -12 gate  -40 gain    0 input  -24  residual  -108.5
+sine 1 kHz   comp  -12 gate  -40 gain    0 input  -12  residual  -121.6
+sine 1 kHz   comp  -12 gate  -40 gain    0 input   +0  residual  -114.8
+sine 1 kHz   comp  -12 gate  -40 gain  -12 input  -24  residual  -108.5
+sine 1 kHz   comp  -12 gate  -40 gain  -12 input  -12  residual  -121.5
+sine 1 kHz   comp  -12 gate  -40 gain  -12 input   +0  residual  -114.8
+sine 1 kHz   comp  -12 gate  -20 gain    0 input  -24  residual   -99.1
+sine 1 kHz   comp  -12 gate  -20 gain    0 input  -12  residual  -106.7
+sine 1 kHz   comp  -12 gate  -20 gain    0 input   +0  residual  -108.6
+sine 1 kHz   comp  -12 gate  -20 gain  -12 input  -24  residual   -99.1
+sine 1 kHz   comp  -12 gate  -20 gain  -12 input  -12  residual  -106.7
+sine 1 kHz   comp  -12 gate  -20 gain  -12 input   +0  residual  -108.5
+sine 1 kHz   comp  -18 gate  off gain    0 input  -24  residual  -122.7
+sine 1 kHz   comp  -18 gate  off gain    0 input  -12  residual  -117.1
+sine 1 kHz   comp  -18 gate  off gain    0 input   +0  residual  -110.4
+sine 1 kHz   comp  -18 gate  off gain  -12 input  -24  residual  -123.2
+sine 1 kHz   comp  -18 gate  off gain  -12 input  -12  residual  -117.1
+sine 1 kHz   comp  -18 gate  off gain  -12 input   +0  residual  -110.4
+sine 1 kHz   comp  -18 gate  -60 gain    0 input  -24  residual  -122.7
+sine 1 kHz   comp  -18 gate  -60 gain    0 input  -12  residual  -117.1
+sine 1 kHz   comp  -18 gate  -60 gain    0 input   +0  residual  -110.4
+sine 1 kHz   comp  -18 gate  -60 gain  -12 input  -24  residual  -123.2
+sine 1 kHz   comp  -18 gate  -60 gain  -12 input  -12  residual  -117.1
+sine 1 kHz   comp  -18 gate  -60 gain  -12 input   +0  residual  -110.4
+sine 1 kHz   comp  -18 gate  -40 gain    0 input  -24  residual  -107.8
+sine 1 kHz   comp  -18 gate  -40 gain    0 input  -12  residual  -117.1
+sine 1 kHz   comp  -18 gate  -40 gain    0 input   +0  residual  -110.4
+sine 1 kHz   comp  -18 gate  -40 gain  -12 input  -24  residual  -107.7
+sine 1 kHz   comp  -18 gate  -40 gain  -12 input  -12  residual  -117.1
+sine 1 kHz   comp  -18 gate  -40 gain  -12 input   +0  residual  -110.4
+sine 1 kHz   comp  -18 gate  -20 gain    0 input  -24  residual  -100.2
+sine 1 kHz   comp  -18 gate  -20 gain    0 input  -12  residual  -106.0
+sine 1 kHz   comp  -18 gate  -20 gain    0 input   +0  residual  -106.2
+sine 1 kHz   comp  -18 gate  -20 gain  -12 input  -24  residual  -100.2
+sine 1 kHz   comp  -18 gate  -20 gain  -12 input  -12  residual  -105.9
+sine 1 kHz   comp  -18 gate  -20 gain  -12 input   +0  residual  -106.2
+sine 1 kHz   comp  -24 gate  off gain    0 input  -24  residual  -118.2
+sine 1 kHz   comp  -24 gate  off gain    0 input  -12  residual  -112.8
+sine 1 kHz   comp  -24 gate  off gain    0 input   +0  residual  -110.2
+sine 1 kHz   comp  -24 gate  off gain  -12 input  -24  residual  -117.7
+sine 1 kHz   comp  -24 gate  off gain  -12 input  -12  residual  -112.8
+sine 1 kHz   comp  -24 gate  off gain  -12 input   +0  residual  -110.0
+sine 1 kHz   comp  -24 gate  -60 gain    0 input  -24  residual  -118.2
+sine 1 kHz   comp  -24 gate  -60 gain    0 input  -12  residual  -112.8
+sine 1 kHz   comp  -24 gate  -60 gain    0 input   +0  residual  -110.2
+sine 1 kHz   comp  -24 gate  -60 gain  -12 input  -24  residual  -117.7
+sine 1 kHz   comp  -24 gate  -60 gain  -12 input  -12  residual  -112.8
+sine 1 kHz   comp  -24 gate  -60 gain  -12 input   +0  residual  -110.0
+sine 1 kHz   comp  -24 gate  -40 gain    0 input  -24  residual  -107.4
+sine 1 kHz   comp  -24 gate  -40 gain    0 input  -12  residual  -112.8
+sine 1 kHz   comp  -24 gate  -40 gain    0 input   +0  residual  -110.2
+sine 1 kHz   comp  -24 gate  -40 gain  -12 input  -24  residual  -107.4
+sine 1 kHz   comp  -24 gate  -40 gain  -12 input  -12  residual  -112.8
+sine 1 kHz   comp  -24 gate  -40 gain  -12 input   +0  residual  -110.0
+sine 1 kHz   comp  -24 gate  -20 gain    0 input  -24  residual  -100.2
+sine 1 kHz   comp  -24 gate  -20 gain    0 input  -12  residual  -105.4
+sine 1 kHz   comp  -24 gate  -20 gain    0 input   +0  residual  -105.8
+sine 1 kHz   comp  -24 gate  -20 gain  -12 input  -24  residual  -100.1
+sine 1 kHz   comp  -24 gate  -20 gain  -12 input  -12  residual  -105.4
+sine 1 kHz   comp  -24 gate  -20 gain  -12 input   +0  residual  -105.8
+sine 1 kHz   comp  -30 gate  off gain    0 input  -24  residual  -115.6
+sine 1 kHz   comp  -30 gate  off gain    0 input  -12  residual  -111.2
+sine 1 kHz   comp  -30 gate  off gain    0 input   +0  residual  -107.4
+sine 1 kHz   comp  -30 gate  off gain  -12 input  -24  residual  -115.4
+sine 1 kHz   comp  -30 gate  off gain  -12 input  -12  residual  -111.2
+sine 1 kHz   comp  -30 gate  off gain  -12 input   +0  residual  -107.4
+sine 1 kHz   comp  -30 gate  -60 gain    0 input  -24  residual  -115.6
+sine 1 kHz   comp  -30 gate  -60 gain    0 input  -12  residual  -111.2
+sine 1 kHz   comp  -30 gate  -60 gain    0 input   +0  residual  -107.4
+sine 1 kHz   comp  -30 gate  -60 gain  -12 input  -24  residual  -115.4
+sine 1 kHz   comp  -30 gate  -60 gain  -12 input  -12  residual  -111.2
+sine 1 kHz   comp  -30 gate  -60 gain  -12 input   +0  residual  -107.4
+sine 1 kHz   comp  -30 gate  -40 gain    0 input  -24  residual  -106.2
+sine 1 kHz   comp  -30 gate  -40 gain    0 input  -12  residual  -111.2
+sine 1 kHz   comp  -30 gate  -40 gain    0 input   +0  residual  -107.4
+sine 1 kHz   comp  -30 gate  -40 gain  -12 input  -24  residual  -106.2
+sine 1 kHz   comp  -30 gate  -40 gain  -12 input  -12  residual  -111.2
+sine 1 kHz   comp  -30 gate  -40 gain  -12 input   +0  residual  -107.4
+sine 1 kHz   comp  -30 gate  -20 gain    0 input  -24  residual   -99.0
+sine 1 kHz   comp  -30 gate  -20 gain    0 input  -12  residual  -104.3
+sine 1 kHz   comp  -30 gate  -20 gain    0 input   +0  residual  -105.3
+sine 1 kHz   comp  -30 gate  -20 gain  -12 input  -24  residual   -98.9
+sine 1 kHz   comp  -30 gate  -20 gain  -12 input  -12  residual  -104.2
+sine 1 kHz   comp  -30 gate  -20 gain  -12 input   +0  residual  -105.3
+sine 1 kHz   comp  -36 gate  off gain    0 input  -24  residual  -113.6
+sine 1 kHz   comp  -36 gate  off gain    0 input  -12  residual  -109.3
+sine 1 kHz   comp  -36 gate  off gain    0 input   +0  residual  -103.6
+sine 1 kHz   comp  -36 gate  off gain  -12 input  -24  residual  -113.4
+sine 1 kHz   comp  -36 gate  off gain  -12 input  -12  residual  -109.3
+sine 1 kHz   comp  -36 gate  off gain  -12 input   +0  residual  -103.5
+sine 1 kHz   comp  -36 gate  -60 gain    0 input  -24  residual  -113.6
+sine 1 kHz   comp  -36 gate  -60 gain    0 input  -12  residual  -109.3
+sine 1 kHz   comp  -36 gate  -60 gain    0 input   +0  residual  -103.6
+sine 1 kHz   comp  -36 gate  -60 gain  -12 input  -24  residual  -113.4
+sine 1 kHz   comp  -36 gate  -60 gain  -12 input  -12  residual  -109.3
+sine 1 kHz   comp  -36 gate  -60 gain  -12 input   +0  residual  -103.5
+sine 1 kHz   comp  -36 gate  -40 gain    0 input  -24  residual  -106.0
+sine 1 kHz   comp  -36 gate  -40 gain    0 input  -12  residual  -109.3
+sine 1 kHz   comp  -36 gate  -40 gain    0 input   +0  residual  -103.6
+sine 1 kHz   comp  -36 gate  -40 gain  -12 input  -24  residual  -106.0
+sine 1 kHz   comp  -36 gate  -40 gain  -12 input  -12  residual  -109.3
+sine 1 kHz   comp  -36 gate  -40 gain  -12 input   +0  residual  -103.5
+sine 1 kHz   comp  -36 gate  -20 gain    0 input  -24  residual   -97.2
+sine 1 kHz   comp  -36 gate  -20 gain    0 input  -12  residual  -102.8
+sine 1 kHz   comp  -36 gate  -20 gain    0 input   +0  residual  -103.2
+sine 1 kHz   comp  -36 gate  -20 gain  -12 input  -24  residual   -97.2
+sine 1 kHz   comp  -36 gate  -20 gain  -12 input  -12  residual  -102.8
+sine 1 kHz   comp  -36 gate  -20 gain  -12 input   +0  residual  -103.2
+grid: 672 cases, median -71.4 dB, worst -10.1 dB, 396 below -60 dB

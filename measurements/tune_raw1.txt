@@ -1,0 +1,50 @@
+reference renders cached 46 {'silent_retries': 9}
+start -23.97561763483309
+best 2.2191,0.50043,30.052,340.23,370.55,78.009,19.496,211.6,203.75 -27.907678900660432
+{'windowMs': np.float64(2.2191), 'ta1': np.float64(0.5004), 'tr1': np.float64(30.0521), 'ta2': np.float64(340.2337), 'tr2': np.float64(370.5467), 'gta1': np.float64(78.0093), 'gtr1': np.float64(19.496), 'gta2': np.float64(211.5956), 'gtr2': np.float64(203.7516)}
+tone steps -50/-10/-30              -12   off   -54.6
+tone steps -50/-10/-30              -24   off   -28.4
+tone steps -50/-10/-30              -36   off   -20.4
+AM 5 Hz 3 kHz                       -12   off   -49.6
+AM 5 Hz 3 kHz                       -24   off   -25.4
+AM 5 Hz 3 kHz                       -36   off   -17.1
+white noise -20 rms                 -12   off   -23.9
+white noise -20 rms                 -24   off   -13.3
+white noise -20 rms                 -36   off   -10.6
+pink noise -20 rms                  -12   off   -26.7
+pink noise -20 rms                  -24   off   -13.6
+pink noise -20 rms                  -36   off    -9.8
+noise bursts                        -12   off   -19.8
+noise bursts                        -24   off   -14.6
+noise bursts                        -36   off   -10.1
+voice-like                          -12   off   -19.3
+voice-like                          -24   off   -13.7
+voice-like                          -36   off   -11.1
+log sweep -20                       -12   off   -41.9
+log sweep -20                       -24   off   -34.7
+log sweep -20                       -36   off   -30.4
+step -10/-30                        -12   off   -50.7
+step -10/-30                        -24   off   -27.5
+step -10/-30                        -36   off   -19.9
+step -20/-50                        -12   off   -65.6
+step -20/-50                        -24   off   -48.7
+step -20/-50                        -36   off   -27.3
+step -5/-15                         -12   off   -41.3
+step -5/-15                         -24   off   -34.0
+step -5/-15                         -36   off   -30.4
+bursts -10 dB of 5/20/50/200 ms     -12   off   -51.5
+bursts -10 dB of 5/20/50/200 ms     -24   off   -29.4
+bursts -10 dB of 5/20/50/200 ms     -36   off   -13.5
+sine 100 Hz -20                     -12   off   -39.9
+sine 100 Hz -20                     -24   off   -32.3
+sine 100 Hz -20                     -36   off   -27.8
+tone steps -50/-10/-30              -24   -40   -28.4
+tone steps -50/-10/-30              -12   -30   -40.9
+white noise -20 rms                 -24   -40   -13.3
+white noise -20 rms                 -12   -30   -23.9
+voice-like                          -24   -40   -13.7
+voice-like                          -12   -30   -19.2
+gate sweep tones                    -24   -40   -45.2
+gate sweep tones                    -12   -30   -36.1
+noise bursts                        -24   -40   -14.6
+noise bursts                        -12   -30   -19.8

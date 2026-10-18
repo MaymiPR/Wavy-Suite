@@ -1,0 +1,16 @@
+linear 40
+linear 80
+linear 160
+linear 256
+[linear] 9.7s
+harmonics 80 -12
+harmonics 80 0
+harmonics 80 12
+harmonics 160 -12
+harmonics 160 0
+harmonics 160 12
+[harmonics] 0.9s
+transfer done
+[transfer] 0.5s
+dynamics done
+[dynamics] 0.1s

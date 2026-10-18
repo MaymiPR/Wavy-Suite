@@ -1,8 +1,7 @@
 # WVox: measurements of the reference (Phase 3)
 
-Everything here was measured on the user's own licensed install, for private analysis. Raw renders, CSV tables and plots
-are in `measurements/rvox/` and are **not** part of the public repository (git-ignored); this file only records what the
-data showed. Reproduce with `python -I nulltest/measure_rvox.py` (needs `pedalboard`, `numpy`, `scipy`, `matplotlib`).
+Everything here was measured on the user's own licensed install. The data (JSON, CSV tables, plots) is in
+`measurements/rvox/`; large raw arrays (`.npz`) are left out and regenerate with the scripts. Reproduce with `python -I nulltest/measure_rvox.py` (needs `pedalboard`, `numpy`, `scipy`, `matplotlib`).
 
 ## Method
 
@@ -71,7 +70,7 @@ Phase 4 needed more than the Phase 3 numbers, so further experiments (`nulltest/
 
 # WBass: measurements of the reference (Phase 3)
 
-Measured on the user's own install for private analysis; raw data and plots are in the git-ignored `measurements/rbass/`.
+Measured on the user's own install; data and plots are in `measurements/rbass/`.
 Reproduce with `python -I nulltest/measure_rbass.py`.
 
 ## Method

@@ -1,7 +1,7 @@
 # Wavy Suite — Research
 
 Phase 1 evidence for each plugin. One section per plugin, written before any code. "Local" sources are files shipped
-in the user's own Waves V17 install (read for private analysis only; none of it is copied into this repo).
+in the user's own Waves V17 install (read for analysis; none of the Waves files are copied into this repo).
 
 Sources
 - **S1** Local manual `Plug-Ins V17\RVox.bundle\Contents\Resources\RVox.pdf` (7 pages, "Renaissance Vox User Guide").

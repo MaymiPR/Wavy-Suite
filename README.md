@@ -60,4 +60,4 @@ To add a plugin to the installers, add it to [packaging/plugins.txt](packaging/p
 
 ## License
 
-[AGPL-3.0](LICENSE). Reference renders and measurement data made during development stay private and are not part of this repository.
+[AGPL-3.0](LICENSE). Measurement data (JSON, CSV, plots) is in `measurements/`; the reference plugins and their artwork are not part of this repository.

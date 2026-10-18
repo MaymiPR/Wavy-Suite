@@ -1,0 +1,43 @@
+reference renders cached 46 {'silent_retries': 0}
+start -26.888084461126063
+Traceback (most recent call last):
+  File "C:\Users\wint1\Downloads\REA\Wavy\nulltest\tune_wvox.py", line 48, in <module>
+    r = minimize(score, p0, method='Nelder-Mead', options={'xatol': 1e-2, 'fatol': 0.01, 'maxiter': int(sys.argv[1]) if len(sys.argv) > 1 else 500, 'adaptive': True})
+  File "C:\Users\wint1\AppData\Local\Python\pythoncore-3.15-64\Lib\site-packages\scipy\optimize\_minimize.py", line 772, in minimize
+    res = _minimize_neldermead(fun, x0, args, callback, bounds=bounds,
+                               **options)
+  File "C:\Users\wint1\AppData\Local\Python\pythoncore-3.15-64\Lib\site-packages\scipy\optimize\_optimize.py", line 928, in _minimize_neldermead
+    fsim[j] = func(sim[j])
+              ~~~~^^^^^^^^
+  File "C:\Users\wint1\AppData\Local\Python\pythoncore-3.15-64\Lib\site-packages\scipy\optimize\_optimize.py", line 561, in function_wrapper
+    fx = function(np.copy(x), *(wrapper_args + args))
+  File "C:\Users\wint1\Downloads\REA\Wavy\nulltest\tune_wvox.py", line 39, in score
+    mine = N.ours(S[nme], FS, c, g, gn, tune)[0]
+           ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\wint1\Downloads\REA\Wavy\nulltest\nulltest_wvox.py", line 27, in ours
+    subprocess.run(args, check=True, capture_output=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\wint1\AppData\Local\Python\pythoncore-3.15-64\Lib\subprocess.py", line 669, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\wint1\AppData\Local\Python\pythoncore-3.15-64\Lib\subprocess.py", line 1213, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\wint1\AppData\Local\Python\pythoncore-3.15-64\Lib\subprocess.py", line 1719, in _execute_child
+    hp, ht, pid, tid = _winapi.CreateProcess(executable, args,
+                       ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+                             # no special security
+                             ^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+                             cwd,
+                             ^^^^
+                             startupinfo)
+                             ^^^^^^^^^^^^
+FileNotFoundError: [WinError 2] The system cannot find the file specified

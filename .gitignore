@@ -4,9 +4,11 @@ _deps/
 *.user
 __pycache__/
 *.pyc
-# private reference material: never publish
-measurements/
+# Waves' own artwork (extracted skin images, screenshots of the Waves windows): never publish
 reference/
+# measurement data is published (json, csv, png, logs); the raw numpy arrays are large and regenerable
+measurements/**/*.npz
+measurements/**/*.npy
 nulltest/renders/
 nulltest/reference_renders/
 .DS_Store
