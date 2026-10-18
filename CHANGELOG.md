@@ -11,6 +11,8 @@
   so a restored state always snaps to on or off. Meters move like the reference's (measured from its editor: instant
   rise, 0.325 s one-pole release, 26.7 dB/s in silence), independent of the host's buffer size; editors redraw at
   60 frames per second.
+- **WVox meters** measured from RVox's editor and matched: Output as above, Energy with two release stages (0.341 s
+  then 0.094 s), Gain reduction shows the deepest reduction of each frame (short bursts are no longer missed).
 
 ## 0.1.0
 

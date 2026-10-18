@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <atomic>
+#include "WavyMeter.h"
 #include "WVoxPresets.h"
 #include "WVoxDsp.h"
 
@@ -54,8 +55,9 @@ public:
     juce::UndoManager undo { 32, 32 };   // the reference undoes the last 32 actions
     juce::AudioProcessorValueTreeState apvts;
 
-    // Meter values shown by the editor (dB): input energy, total gain reduction (<= 0), output peaks.
-    std::atomic<float> energyDb { -80.0f }, attnDb { 0.0f }, outLDb { -80.0f }, outRDb { -80.0f };
+    // Meter values for the editor, the highest since it last read them (dB): input energy, depth of the total gain
+    // reduction (>= 0), output peaks.
+    wavy::PeakTap energyDb, attnDepth, outLDb, outRDb;
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout layout();

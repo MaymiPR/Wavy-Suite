@@ -156,6 +156,8 @@ public:
     int getLatency() const { return latency; }
     // total gain reduction of the last sample in dB (<= 0): compressor reduction below its idle gain plus the gate
     float getReductionDb() const { return reductionDb; }
+    // deepest gain reduction (dB, <= 0) within the last process() call, for the meter
+    float getBlockMinReductionDb() const { return blockMinReductionDb; }
 
     void reset()
     {
@@ -165,7 +167,7 @@ public:
         for (auto& d : delay) std::fill (d.begin(), d.end(), 0.0f);
         for (auto& c : apX) c = 0.0f;
         for (auto& c : apY) for (auto& v : c) v = 0.0f;
-        n = 0; reductionDb = 0.0f;
+        n = 0; reductionDb = blockMinReductionDb = 0.0f;
     }
 
     void setParams (const Params& p) { params = p; }
@@ -177,6 +179,7 @@ public:
         const float idleGain = tune.fixedGain * M;
         const float outGain = std::pow (10.0f, params.gainDb / 20.0f);
         const bool gateOn = params.gateDb > -79.95f;
+        blockMinReductionDb = 0.0f;
 
         for (int i = 0; i < numSamples; ++i)
         {
@@ -218,6 +221,7 @@ public:
             const float fastRatio = box2.push (box1.push (-hold.push (-ratio)));
             const float g = gateShaped * std::min (fastRatio, slowRatio);
             reductionDb = 20.0f * std::log10 (std::max (g, 1.0e-6f));
+            blockMinReductionDb = std::min (blockMinReductionDb, reductionDb);
 
             const float lin = g * idleGain * outGain;
             const int j = n - latency;                                // audio index that leaves now
@@ -238,6 +242,6 @@ private:
     float apX[2] = {}, apY[2][3] = {};
     float gateLevel = 0.0f, gateRho = 0.0f;
     int channels = 2, latency = 64, size = 128, mask = 127, n = 0;
-    float reductionDb = 0.0f;
+    float reductionDb = 0.0f, blockMinReductionDb = 0.0f;
 };
 }

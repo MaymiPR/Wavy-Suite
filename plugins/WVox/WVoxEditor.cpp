@@ -19,10 +19,16 @@ Rectangle<int> WVoxEditor::vuTextRect (bool right) const { return { isMono() ? 2
 
 void WVoxEditor::tick()
 {
-    energy = proc.energyDb.load(); attn = proc.attnDb.load();
-    outL = proc.outLDb.load();     outR = proc.outRDb.load();
-    energyHold = jmax (energyHold, energy); attnHold = jmin (attnHold, attn);
-    outLHold = jmax (outLHold, outL);       outRHold = jmax (outRHold, outR);
+    // the reference's ballistics (WavyMeter.h) on the level meters; gain reduction is shown as it is (the deepest
+    // reduction of the frame), as in the reference; the readouts hold the extreme values themselves
+    const double now = Time::getMillisecondCounterHiRes() * 0.001, dt = lastTick > 0.0 ? now - lastTick : 0.0;
+    lastTick = now;
+    const float e = proc.energyDb.take(), l = proc.outLDb.take(), r = proc.outRDb.take();
+    attn = -jmax (0.0f, proc.attnDepth.take());
+    energy = energyBar.update (e, dt);
+    outL = outLBar.update (l, dt); outR = outRBar.update (r, dt);
+    energyHold = jmax (energyHold, e); attnHold = jmin (attnHold, attn);
+    outLHold = jmax (outLHold, l);     outRHold = jmax (outRHold, r);
     content().repaint (30, 100, 310, 240);
 }
 

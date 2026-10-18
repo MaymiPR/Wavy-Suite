@@ -208,3 +208,21 @@ and a bass line and kicks.
 - WBass implements this in `Source/common/WavyMeter.h` (the audio thread only collects peaks; the editor applies the
   law at 60 frames per second with the real time between frames, so the movement does not depend on the host's
   buffer size).
+
+### Meter ballistics (WVox / RVox)
+
+Filmed the same way (`tools/MeterCapture`, the same probe and bass-line signals, Compression −12 dB); bar heights in
+[measurements/rvox/meters](measurements/rvox/meters).
+
+- **Output** (36 dB over the 155 px track, 4.3 px/dB): the same law as RBass, one-pole on linear amplitude with
+  0.325 s (26.7 dB/s in silence); fits the bass-line capture to 6 px RMS, most frames within 1–2 px.
+- **Energy** (input level, 80 dB over the track, 1.97 px/dB): two such stages in a row, 0.341 s then 0.094 s
+  (`nulltest/fit_meter_energy.py`, 2.2 px RMS); the second stage makes the fall start gently.
+- **Gain reduction**: the compressor's reduction itself with no meter smoothing (a 5 ms burst shows its full
+  reduction for one frame and is gone in the next). WVox shows the deepest reduction since the last frame.
+- **Not matched**: after a steady test tone that stops (or steps down), the reference output bar sometimes snaps down
+  at once instead of easing (the same quirk as the RBass Original Bass meter); no rule tried in
+  `nulltest/fit_meter_vox.py` (falling line with several hold rules, updates only on change) explains it. It does not
+  show on the bass line.
+- WVox against the reference on the bass line: Energy, Output and Gain reduction within 2.0, 2.3 and 2.0 px on 90 % of
+  the frames.

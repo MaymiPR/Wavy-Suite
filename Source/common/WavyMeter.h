@@ -23,18 +23,30 @@ struct PeakTap
     float take() noexcept { return db.exchange (-80.0f, std::memory_order_relaxed); }
 };
 
-// editor side: instant rise, one-pole release toward the current peak (linear amplitude)
+// editor side: instant rise, one-pole release toward the current peak (linear amplitude); an optional second stage
+// of the same kind after it (the RVox Energy meter: 0.341 s then 0.094 s, which makes its fall start gently)
 struct MeterBallistics
 {
-    static constexpr double tau = 0.325, floorDb = -80.0;
-    double level = 0.0;   // linear
+    static constexpr double floorDb = -80.0;
+    double tau = 0.325, tau2 = 0.0;
+    double level = 0.0, level2 = 0.0;   // linear
+
+    MeterBallistics() = default;
+    MeterBallistics (double t, double t2 = 0.0) : tau (t), tau2 (t2) {}
 
     float update (float peakDb, double dtSeconds) noexcept
     {
+        const double dt = std::min (dtSeconds, 0.25);
         const double peak = peakDb > floorDb ? std::pow (10.0, peakDb / 20.0) : 0.0;
-        if (peak >= level) level = peak;
-        else level += (peak - level) * (1.0 - std::exp (-std::min (dtSeconds, 0.25) / tau));
-        return level > 1.0e-4 ? (float) (20.0 * std::log10 (level)) : (float) floorDb;
+        level = follow (level, peak, dt, tau);
+        const double shown = tau2 > 0.0 ? (level2 = follow (level2, level, dt, tau2)) : level;
+        return shown > 1.0e-4 ? (float) (20.0 * std::log10 (shown)) : (float) floorDb;
+    }
+
+private:
+    static double follow (double state, double target, double dt, double t) noexcept
+    {
+        return target >= state ? target : state + (target - state) * (1.0 - std::exp (-dt / t));
     }
 };
 }

@@ -82,7 +82,7 @@ void WVoxProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
         procs[0].setParams (p);
         const float* const* r = w;
         procs[0].process (r, w, n);
-        attnDb.store (procs[0].getReductionDb());
+        attnDepth.push (-procs[0].getBlockMinReductionDb());
     }
     else
     {
@@ -93,18 +93,13 @@ void WVoxProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
             float* out[1] = { w[c] };
             procs[c].process (in, out, n);
         }
-        attnDb.store (jmin (procs[0].getReductionDb(), procs[1].getReductionDb()));
+        attnDepth.push (-jmin (procs[0].getBlockMinReductionDb(), procs[1].getBlockMinReductionDb()));
     }
 
     const float peakL = b.getMagnitude (0, 0, n), peakR = ch > 1 ? b.getMagnitude (1, 0, n) : peakL;
-    auto smooth = [] (std::atomic<float>& a, float v)
-    {
-        const float old = a.load();
-        a.store (v > old ? v : old + (v - old) * 0.15f);   // quick rise, slow fall
-    };
-    smooth (energyDb, toDb (inPeak));
-    smooth (outLDb, toDb (peakL));
-    smooth (outRDb, toDb (peakR));
+    energyDb.push (toDb (inPeak));
+    outLDb.push (toDb (peakL));
+    outRDb.push (toDb (peakR));
 }
 
 AudioProcessorEditor* WVoxProcessor::createEditor() { return new WVoxEditor (*this); }
