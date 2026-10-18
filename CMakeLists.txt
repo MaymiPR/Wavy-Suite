@@ -30,6 +30,7 @@ endif()
 add_library(WavyCommon STATIC
     Source/common/WavyToolbar.cpp)
 target_include_directories(WavyCommon PUBLIC Source/common)
+set_target_properties(WavyCommon PROPERTIES POSITION_INDEPENDENT_CODE ON)   # linked into shared plugins (Linux)
 target_compile_definitions(WavyCommon PUBLIC
     JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
 target_link_libraries(WavyCommon PUBLIC
