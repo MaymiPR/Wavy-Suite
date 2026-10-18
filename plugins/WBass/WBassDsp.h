@@ -8,7 +8,9 @@
 //       level: d = LP2(cA Freq, QA) LP1(cB Freq) x (a resonant band peaking near Freq),
 //              E = (F2(F1(|d|^kr)))^(1/kr), F1 and F2 attack / release one-pole followers in cascade (a second-order,
 //              asymmetric smoother: the measured gain settles in about 30 ms after a rise, more slowly after a fall)
-//       gain:  CS = C0 (1 + E / E0)^-p, an upward compressor (about 300x at low level)
+//       gain:  CS = C0 (1 + E / E0)^-p (1 + EL / El0)^-pL, an upward compressor (about 300x at low level); EL is a
+//              second level, read from l itself by an attack / release follower: its ripple makes the 3rd harmonic of
+//              low notes (it stays when a strong tone outside l pins the wide level detector)
 //       n = C0 c^(1-alpha) HP3(Freq) (c^alpha l), c = CS / C0  (most of the gain after the first high-pass)
 //       q = HP3(Freq/3) (n * CS b)                            the harmonic product, scaled by Decay (0 removes it)
 //       generated = HP3(Freq) (-n + k2 Decay q), times Intensity, then a peak limiter on the generated signal alone
@@ -28,16 +30,17 @@ inline constexpr double pi = 3.14159265358979323846;
 
 struct Tuning
 {
-    // fitted jointly to the reference renders at Freq 40, 80, 160 and 256 plus transients (kicks, bass notes, a riff)
-    // at Freq 80 / 160 / 256 (nulltest/fit_multiF2.py, MEASUREMENTS.md "WBass model")
-    double C0 = 311.3523526972685, E0 = 0.03342508848153219, p = 0.6271451724796594;                // gain law
-    double cA = 0.9915667368674228, QA = 1.3579371934947657, cB = 10.374984;                // level band (x Freq)
+    // fitted jointly to time-domain renders at Freq 40 / 80 / 160 / 256, transients (kicks, bass notes, a riff) and the
+    // steady harmonic and detector-pinning sets (nulltest/fit_combo.py, MEASUREMENTS.md "WBass model")
+    double C0 = 315.9608630559933, E0 = 0.030499720821978243, p = 0.55503236720374;                // gain law
+    double cA = 1.0386281298252804, QA = 1.7618851483536635, cB = 10.374984;                // level band (x Freq)
     double kr = 1.0;                                               // rectifier exponent
-    double att1 = 0.002371992752992989, rel1 = 0.0045131990862175494;                       // follower 1 (s) at Freq 80
-    double att2 = 0.012092191831505063, rel2 = 0.0258940387278084;                       // follower 2 (s) at Freq 80
-    double s1 = 0.12125740125427971, s2 = 0.4220890600290935;                           // follower times scale with (80 / Freq)^s
-    double alpha = 0.17132345642706678;                                             // share of the gain ahead of the first high-pass
-    double k2 = -0.00819654425922447;                                                // harmonic product gain at Decay 1
+    double att1 = 0.002489532680531953, rel1 = 0.0024505484900786867;                       // follower 1 (s) at Freq 80
+    double att2 = 0.015066489274832208, rel2 = 0.028267150668494348;                       // follower 2 (s) at Freq 80
+    double s1 = 0.24816982832999762, s2 = 0.3189141441137469;                           // follower times scale with (80 / Freq)^s
+    double El0 = 0.007175230751448638, pL = 0.0660965110542429, tLa = 0.006268107590220969, tLr = 0.015175753598975574, sL = 0.0;  // l-driven stage
+    double alpha = 0.24535396843164406;                                             // share of the gain ahead of the first high-pass
+    double k2 = -0.007985047672314461;                                                // harmonic product gain at Decay 1
     double limT = 0.70287, limRel = 0.02844;                       // generated-signal limiter: ceiling, gain release (s)
     double gainGlideMs = 25.0;                                     // Out Gain smoothing
     double ceiling = 32767.0 / 32768.0;                            // output clip: [-1, 32767/32768], hard (measured)
@@ -107,7 +110,7 @@ public:
     {
         for (auto& c : orig) { c.lp.reset(); c.hp.reset(); }
         lpThird.reset(); lpFreq.reset(); hpN.reset(); hpQ.reset(); hpW.reset(); detLp1.reset(); detLp2.reset();
-        e1 = e2 = 0.0; gLim = 1.0;
+        e1 = e2 = eL = 0.0; gLim = 1.0;
         gainNow = gainTarget;
     }
 
@@ -142,7 +145,10 @@ public:
             const double k2c = e1 > e2 ? a2a : a2;
             e2 = k2c * e2 + (1.0 - k2c) * e1;
             const double level = t.kr == 1.0 ? e2 : std::pow (e2, 1.0 / t.kr);
-            const double g = std::pow (1.0 + level / t.E0, -t.p);              // CS / C0
+            const double al = std::abs (l);
+            const double kl = al > eL ? aLa : aLr;
+            eL = kl * eL + (1.0 - kl) * al;
+            const double g = std::pow (1.0 + level / t.E0, -t.p) * (t.pL > 0 ? std::pow (1.0 + eL / t.El0, -t.pL) : 1.0);   // CS / C0
             const double cs = t.C0 * g;
             const double nn = t.C0 * std::pow (g, 1.0 - t.alpha) * hpN.run (std::pow (g, t.alpha) * l);
             const double q = hpQ.run (nn * cs * b);
@@ -174,7 +180,7 @@ private:
     Butter3 lpThird, lpFreq, hpN, hpQ, hpW;
     Biquad detLp1, detLp2;
     double fs = 48000, freq = 80, intensity = 1, decay = 1, gainTarget = 1, gainNow = 1, glide = 0;
-    double a1 = 0, a2 = 0, a1a = 0, a2a = 0, e1 = 0, e2 = 0, aLim = 0, gLim = 1;
+    double a1 = 0, a2 = 0, a1a = 0, a2a = 0, e1 = 0, e2 = 0, aLim = 0, gLim = 1, aLa = 0, aLr = 0, eL = 0;
     bool origIn = true;
     int nCh = 2;
 
@@ -189,6 +195,8 @@ private:
         const double sc1 = std::pow (80.0 / f, t.s1), sc2 = std::pow (80.0 / f, t.s2);
         a1 = onePoleCoef (t.rel1 * sc1, fs); a1a = onePoleCoef (t.att1 * sc1, fs);
         a2 = onePoleCoef (t.rel2 * sc2, fs); a2a = onePoleCoef (t.att2 * sc2, fs);
+        const double scL = std::pow (80.0 / f, t.sL);
+        aLa = onePoleCoef (t.tLa * scL, fs); aLr = onePoleCoef (t.tLr * scL, fs);
         designFirst (detLp1, false, f * t.cB, fs);
         designSecond (detLp2, false, f * t.cA, fs, t.QA);
     }

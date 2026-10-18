@@ -142,16 +142,21 @@ Scripts: `nulltest/ident_rbass_linear.py`, `ident_rbass_nl.py`, `ident_rbass_swe
   signal (its Intensity −24 render scaled up, which never reaches the limiter) against its limited one: the gain
   drops at once to what each sample needs to stay under 0.703 and recovers as a one-pole in the gain domain with
   28.4 ms (median −42 dB, kicks −32 … −43 dB; a level-domain release gave only −22 dB).
-Fitted first on 72 time-domain renders across the four Freq settings (`nulltest/fit_multiF.py`), then again with
-transients added (kicks, bass notes and a riff at Freq 80 / 160 / 256, each against the reference's unlimited
-generated signal, `nulltest/render_transients.py`, `fit_multiF2.py`). The two fits pull in different directions:
-steady tones prefer a slow first follower that drops at once at each zero crossing, transients prefer an ordinary
-fast attack / release (2.4 / 4.5 ms, then 12 / 26 ms). A second, parallel fast level path does not resolve it. The
-plug-in uses the transient-weighted fit (better on the null test as a whole). Still not understood: the exact
-detector, the 3rd harmonic of low notes (about 5 dB weak), and kicks at Freq 160 / 256 (−10 / −7 dB on the
-unlimited generated signal). This is a fitted model of the gain control, not an identified one.
+- *Two level detectors (pinning test, `nulltest/render_pin.py`):* a low carrier (15–40 Hz) plus a strong tone at
+  157–220 Hz, which the wide level detector sees but the l band does not. The pinning tone lowers the overall gain
+  as expected, but the carrier's 3rd harmonic hardly changes (20 Hz at −26 dB: +4.5 → +1.7 dB re h1 with the pinning
+  tone at −3 dBFS), where a single detector predicts a collapse (to −8 dB). So a second gain stage reads l itself:
+  CS = C0 (1 + E/E0)^-p (1 + EL/El0)^-pL, EL an attack / release follower on |l|. Its ripple makes the 3rd harmonic
+  of low notes, locked to the zero crossings of l as measured earlier.
+Fitted on time-domain renders across the four Freq settings, on transients (kicks, bass notes and a riff at Freq
+80 / 160 / 256, each against the reference's unlimited generated signal, `nulltest/render_transients.py`) and on the
+steady harmonic and pinning sets together (`nulltest/fit_combo.py`). A fit to the harmonic sets alone reproduces
+the pinning behaviour well but fails on everything else (null median −12.7 dB); a fit to the waveforms alone keeps
+the l stage small. Still not understood: the exact detectors, the 3rd harmonic of 40 Hz notes (4–10 dB weak when
+pinned) and of the lowest notes (10–12 Hz), and kicks at Freq 160 / 256 (−11 / −7 dB on the unlimited generated
+signal). This is a fitted model of the gain control, not an identified one.
 
 **Null test** ([docs/NULL_RESULTS_WBASS.md](docs/NULL_RESULTS_WBASS.md), 12 signals × 8 settings, generated part split
-off the reference with a second Intensity render): median residual −29.3 dB on the whole output and −22.8 dB on the
-generated part alone (first round: −22.6 / −18.0 dB); worst generated-part case −1.1 dB (a 30 Hz tone at Freq 160).
-This is not a null.
+off the reference with a second Intensity render): median residual −28.9 dB on the whole output and −23.2 dB on the
+generated part alone (first round: −22.6 / −18.0 dB); worst generated-part case −1.9 dB (a 30 Hz tone at Freq 160,
+whose generated part is −55 dBFS). This is not a null.

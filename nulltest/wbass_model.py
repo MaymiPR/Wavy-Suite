@@ -276,6 +276,11 @@ def generated7(x, F, P, fs=FS, parts=False):
         EB = attrel(attrel(np.abs(d), P["taB"] * sB, P["trB"] * sB, fs), P["taB2"] * sB, P["trB2"] * sB, fs)
         E = np.maximum(E, P["kB"] * EB)
     CS = P["C0"] * (1 + E / P["E0"]) ** (-P["p"])
+    if "El0" in P:     # second gain stage driven by l itself (it makes the 3rd harmonic of low notes)
+        sl_ = (80.0 / F) ** P.get("sL", 0.0)
+        EL = attrel(np.abs(l), P["tLa"] * sl_, P["tLr"] * sl_, fs)
+        if P.get("tL2", 0) > 0: EL = onepole(EL, P["tL2"] * sl_, fs)
+        CS = CS * (1 + EL / P["El0"]) ** (-P["pL"])
     pl = P.get("place", "post")
     if pl == "pre":
         n = sosfilt(sos(3, 'high', F, fs), CS * l)
