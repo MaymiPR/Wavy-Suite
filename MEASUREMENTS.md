@@ -138,8 +138,10 @@ Scripts: `nulltest/ident_rbass_linear.py`, `ident_rbass_nl.py`, `ident_rbass_swe
 - *Freq dependence:* fitting the four Freq settings 40 / 80 / 160 / 256 together, the follower times scale as
   (80/F)^0.34 and (80/F)^0.19.
 - *Generated-signal limiter ("clip-free"):* Intensity is an exact gain on the generated part (−147 dB) until it peaks
-  near 0.7; above that a peak limiter (instant attack, 18.6 ms release, ceiling 0.709) on the generated signal alone
-  holds it (fitted −17 … −40 dB on Intensity +12 / +18 / +24 renders).
+  near 0.7; above that a limiter on the generated signal alone holds it. Measured on the reference's own unlimited
+  signal (its Intensity −24 render scaled up, which never reaches the limiter) against its limited one: the gain
+  drops at once to what each sample needs to stay under 0.703 and recovers as a one-pole in the gain domain with
+  28.4 ms (median −42 dB, kicks −32 … −43 dB; a level-domain release gave only −22 dB).
 Fitted on 72 time-domain renders across the four Freq settings: median residual of the generated part −20.8 / −24.0 /
 −26.6 / −26.7 dB at Freq 40 / 80 / 160 / 256. The exact detector (why the followers have these odd time constants,
 the ~5 dB weak 3rd harmonic on low notes) is still not understood: this is a fitted model of the gain control, not

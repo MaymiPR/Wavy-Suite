@@ -83,6 +83,7 @@ protected:
     void attach (juce::Button&, const char* paramID, juce::Rectangle<int> bounds);
     juce::Component& content();
     bool isMono() const;
+    void setFactoryPresets (const std::vector<wavy::FactoryPreset>& list) { toolbar->setFactoryPresets (&list); }
 
     // common drawing
     void paintPanel (juce::Graphics&) const;                      // black background, panel, frame

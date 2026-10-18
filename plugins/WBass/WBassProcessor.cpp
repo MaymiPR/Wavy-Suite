@@ -13,9 +13,12 @@ AudioProcessorValueTreeState::ParameterLayout WBassProcessor::layout()
                      .withAutomatable (automatable);
         l.add (std::make_unique<AudioParameterFloat> (ParameterID { id, 1 }, name, r, def, a));
     };
-    auto addB = [&] (const char* id, const char* name, bool def, bool automatable)
+    // on / off switches as two-choice parameters: unlike AudioParameterBool their value always snaps to 0 or 1, so a
+    // restored state can never leave them half-way (pluginval's state test)
+    auto addB = [&] (const char* id, const char* name, bool def, bool automatable, StringArray labels)
     {
-        l.add (std::make_unique<AudioParameterBool> (ParameterID { id, 1 }, name, def, AudioParameterBoolAttributes().withAutomatable (automatable)));
+        l.add (std::make_unique<AudioParameterChoice> (ParameterID { id, 1 }, name, labels, def ? 1 : 0,
+                                                       AudioParameterChoiceAttributes().withAutomatable (automatable)));
     };
     // Freq is logarithmic in the reference (32..256 Hz, 1 Hz steps)
     NormalisableRange<float> freqRange (32.0f, 256.0f,
@@ -28,13 +31,13 @@ AudioProcessorValueTreeState::ParameterLayout WBassProcessor::layout()
     addF (wbass::response, "Response", { 0.0f, 30.0f, 0.1f }, 30.0f, false, "ms", 1);
     addF (wbass::ratio, "Ratio", { 0.25f, 1.0f, 0.01f }, 0.63f, false, "", 2);
     addF (wbass::intensity, "Intensity", { -24.0f, 24.0f, 0.1f }, 0.0f, true, "dB", 1);
-    addB (wbass::origBass, "Original Bass", true, true);
+    addB (wbass::origBass, "Original Bass", true, true, { "Out", "In" });
     addF (wbass::gain, "Gain", { -30.0f, 0.0f, 0.1f }, 0.0f, true, "dB", 1);
     addF (wbass::decay, "Decay", { 0.0f, 1.0f, 0.1f }, 1.0f, false, "", 1);
     addF (wbass::smoothTc, "SmoothTc", { 0.0f, 1000.0f, 0.1f }, 20.0f, false, "", 1);
     addF (wbass::tc, "Tc", { 0.0f, 2000.0f, 0.1f }, 20.0f, false, "ms", 1);
     addF (wbass::xfadeTc, "XFadeTc", { 0.0f, 5000.0f, 0.1f }, 10.0f, false, "", 1);
-    addB (wbass::smooth, "Smooth", true, false);
+    addB (wbass::smooth, "Smooth", true, false, { "Off", "On" });
     l.add (std::make_unique<AudioParameterChoice> (ParameterID { wbass::mode, 1 }, "Mode", StringArray { "Stereo", "Mono" }, 0));
     return l;
 }

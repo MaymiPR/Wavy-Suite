@@ -207,6 +207,33 @@ static void testProcessor()
     CHECK (10.0 * std::log10 (a / c) > 15.0);          // the quiet channel keeps its own, larger, gain
 }
 
+static void testFactoryPresets()
+{
+    WVoxProcessor proc;
+    const auto& list = wvox::factoryPresets();
+    CHECK (! list.empty());
+    CHECK (proc.getNumPrograms() == 1 + (int) list.size());
+    for (size_t i = 0; i < list.size(); ++i)
+    {
+        for (const auto& v : list[i].values)
+        {
+            auto* p = proc.apvts.getParameter (v.id);
+            CHECK (p != nullptr);                                        // every id exists
+            if (p == nullptr) continue;
+            const auto& r = p->getNormalisableRange();
+            CHECK (v.value >= r.start - 1.0e-4f && v.value <= r.end + 1.0e-4f);
+        }
+        proc.setCurrentProgram ((int) i + 1);
+        for (const auto& v : list[i].values)
+            if (auto* p = proc.apvts.getParameter (v.id))
+                CHECK (std::abs (p->convertFrom0to1 (p->getValue()) - v.value) <= 0.051f);   // applied (1 Hz / 0.1 dB steps)
+    }
+    proc.setCurrentProgram (0);
+    for (auto* p : proc.getParameters())
+        if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (p))
+            CHECK (std::abs (rp->getValue() - rp->getDefaultValue()) < 1.0e-6f);   // program 0 = defaults
+}
+
 int main()
 {
     juce::ScopedJuceInitialiser_GUI init;
@@ -217,6 +244,7 @@ int main()
     testBlockSizeInvariance();
     testStereoLink();
     testProcessor();
+    testFactoryPresets();
     std::printf ("%d checks, %d failed\n", checks, failures);
     return failures == 0 ? 0 : 1;
 }

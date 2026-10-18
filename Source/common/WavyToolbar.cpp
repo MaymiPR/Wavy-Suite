@@ -114,6 +114,18 @@ void Toolbar::loadDefault()
     }
     presetName = "Default Preset";
     presetFile = juce::File();
+    factoryIndex = -1;
+    loadedValues = currentValues();
+    repaint();
+}
+
+void Toolbar::loadFactory (int index)
+{
+    if (factory == nullptr || index < 0 || index >= (int) factory->size()) return;
+    applyPreset (apvts, (*factory)[(size_t) index], modeParam);
+    presetName = (*factory)[(size_t) index].name;
+    presetFile = juce::File();
+    factoryIndex = index;
     loadedValues = currentValues();
     repaint();
 }
@@ -127,6 +139,7 @@ void Toolbar::loadUser (const juce::File& f)
         apvts.state.setProperty ("uiWidth", w, nullptr);
         presetName = f.getFileNameWithoutExtension();
         presetFile = f;
+        factoryIndex = -1;
         loadedValues = currentValues();
         repaint();
     }
@@ -134,11 +147,17 @@ void Toolbar::loadUser (const juce::File& f)
 
 void Toolbar::step (int delta)
 {
-    juce::Array<juce::File> list { juce::File() };   // index 0 = factory default
-    list.addArray (userPresets());
-    int idx = juce::jmax (0, list.indexOf (presetFile));
-    idx = (idx + delta + list.size()) % list.size();
-    if (idx == 0) loadDefault(); else loadUser (list[idx]);
+    // order: Default Preset, the factory list, then the user presets
+    const int nf = factory != nullptr ? (int) factory->size() : 0;
+    const auto users = userPresets();
+    const int total = 1 + nf + users.size();
+    int idx = 0;
+    if (factoryIndex >= 0) idx = 1 + factoryIndex;
+    else if (presetFile.exists() && users.contains (presetFile)) idx = 1 + nf + users.indexOf (presetFile);
+    idx = (idx + delta + total) % total;
+    if (idx == 0) loadDefault();
+    else if (idx <= nf) loadFactory (idx - 1);
+    else loadUser (users[idx - 1 - nf]);
 }
 
 void Toolbar::saveTo (const juce::File& f)
@@ -149,6 +168,7 @@ void Toolbar::saveTo (const juce::File& f)
     if (auto xml = state.createXml()) xml->writeTo (f);
     presetName = f.getFileNameWithoutExtension();
     presetFile = f;
+    factoryIndex = -1;
     loadedValues = currentValues();
     repaint();
 }
@@ -175,7 +195,25 @@ void Toolbar::showPresetMenu()
     juce::PopupMenu m;
     m.setLookAndFeel (&menuLook);
     m.addSectionHeader ("Factory Presets");
-    m.addItem (1, "Default Preset", true, ! presetFile.exists());
+    m.addItem (1, "Default Preset", true, ! presetFile.exists() && factoryIndex < 0);
+    if (factory != nullptr)
+    {
+        juce::StringArray groups;
+        for (const auto& p : *factory) groups.addIfNotAlreadyThere (p.group);
+        for (const auto& g : groups)
+        {
+            juce::PopupMenu sub;
+            sub.setLookAndFeel (&menuLook);
+            bool inside = false;
+            for (int i = 0; i < (int) factory->size(); ++i)
+                if (g == (*factory)[(size_t) i].group)
+                {
+                    sub.addItem (1000 + i, (*factory)[(size_t) i].name, true, i == factoryIndex);
+                    inside = inside || i == factoryIndex;
+                }
+            m.addSubMenu (g, sub, true, nullptr, inside);
+        }
+    }
     const auto users = userPresets();
     if (! users.isEmpty())
     {
@@ -197,6 +235,7 @@ void Toolbar::showPresetMenu()
         else if (r == 2) safe->saveAs();
         else if (r == 3) safe->saveTo (safe->presetFile);
         else if (r == 4) { safe->userDir().createDirectory(); safe->userDir().revealToUser(); }
+        else if (r >= 1000) safe->loadFactory (r - 1000);
         else if (r >= 100 && r - 100 < users.size()) safe->loadUser (users[r - 100]);
     });
 }

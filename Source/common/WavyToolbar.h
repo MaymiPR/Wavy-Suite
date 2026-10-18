@@ -2,6 +2,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <functional>
 #include "WavyMenuLook.h"
+#include "WavyPresets.h"
 
 namespace wavy
 {
@@ -24,6 +25,7 @@ public:
     void mouseExit (const juce::MouseEvent&) override;
     void mouseDown (const juce::MouseEvent&) override;
     void refresh();
+    void setFactoryPresets (const std::vector<FactoryPreset>* list) { factory = list; }
 
     static constexpr int width = 371, height = 36;
 
@@ -35,10 +37,12 @@ private:
     void switchSetup();
     void copyToOther();
 
-    // presets: factory "Default" + user presets (.wavypreset files in Documents/Wavy Suite/User Presets/<plugin>)
+    // presets: factory "Default" and the plugin's factory list, then user presets (.wavypreset files in
+    // Documents/Wavy Suite/User Presets/<plugin>)
     juce::File userDir() const;
     juce::Array<juce::File> userPresets() const;
     void loadDefault();
+    void loadFactory (int index);
     void loadUser (const juce::File&);
     void step (int delta);
     void saveAs();
@@ -59,7 +63,9 @@ private:
     int hot = -1;
 
     juce::String presetName { "Default Preset" };
-    juce::File presetFile;                 // empty for the factory default
+    juce::File presetFile;                 // empty for the factory presets
+    const std::vector<FactoryPreset>* factory = nullptr;
+    int factoryIndex = -1;                 // -1: Default Preset or a user preset
     std::vector<float> loadedValues;
     MenuLook menuLook;
 };

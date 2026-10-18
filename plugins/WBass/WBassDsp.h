@@ -12,7 +12,9 @@
 //       n = C0 c^(1-alpha) HP3(Freq) (c^alpha l), c = CS / C0  (most of the gain after the first high-pass)
 //       q = HP3(Freq/3) (n * CS b)                            the harmonic product, scaled by Decay (0 removes it)
 //       generated = HP3(Freq) (-n + k2 Decay q), times Intensity, then a peak limiter on the generated signal alone
-//       (instant attack, 18.6 ms release, ceiling 0.709: the "clip-free" stage; Intensity is an exact gain below it),
+//       (the "clip-free" stage; Intensity is an exact gain below it): the gain drops at once to what each sample
+//       needs to stay under 0.703 and recovers as a one-pole with 28.4 ms (measured on the reference's own unlimited
+//       signal: -42 dB median, kicks -32 ... -43 dB),
 //       added to both channels;
 //   * Gain: output trim with a short glide, then a hard clip to the 16-bit range [-1, 32767/32768] (no knee, no time
 //     constant: measured with loud 1 kHz tones, where nothing is generated).
@@ -35,7 +37,7 @@ struct Tuning
     double s1 = 0.3432486125351782, s2 = 0.1882709219210759;                           // follower times scale with (80 / Freq)^s
     double alpha = 0.046981939933763116;                                             // share of the gain ahead of the first high-pass
     double k2 = -0.007058531827821184;                                                // harmonic product gain at Decay 1
-    double limT = 0.708922, limRel = 0.018581;                     // generated-signal limiter: ceiling, release (s)
+    double limT = 0.70287, limRel = 0.02844;                       // generated-signal limiter: ceiling, gain release (s)
     double gainGlideMs = 25.0;                                     // Out Gain smoothing
     double ceiling = 32767.0 / 32768.0;                            // output clip: [-1, 32767/32768], hard (measured)
 };
@@ -104,7 +106,7 @@ public:
     {
         for (auto& c : orig) { c.lp.reset(); c.hp.reset(); }
         lpThird.reset(); lpFreq.reset(); hpN.reset(); hpQ.reset(); hpW.reset(); detLp1.reset(); detLp2.reset();
-        e1 = e2 = eLim = 0.0;
+        e1 = e2 = 0.0; gLim = 1.0;
         gainNow = gainTarget;
     }
 
@@ -145,8 +147,9 @@ public:
             const double q = hpQ.run (nn * cs * b);
             double gen = hpW.run (-nn + t.k2 * decay * q) * intensity;
             const double ag = std::abs (gen);
-            eLim = ag > eLim ? ag : aLim * eLim + (1.0 - aLim) * ag;
-            if (eLim > t.limT) gen *= t.limT / eLim;
+            const double need = ag > t.limT ? t.limT / ag : 1.0;
+            gLim = need < gLim ? need : aLim * gLim + (1.0 - aLim) * need;
+            gen *= gLim;
             harmPeak = std::max (harmPeak, (float) std::abs (gen));
             origPeak = std::max (origPeak, (float) std::abs (b));
 
@@ -170,7 +173,7 @@ private:
     Butter3 lpThird, lpFreq, hpN, hpQ, hpW;
     Biquad detLp1, detLp2;
     double fs = 48000, freq = 80, intensity = 1, decay = 1, gainTarget = 1, gainNow = 1, glide = 0;
-    double a1 = 0, a2 = 0, a1a = 0, a2a = 0, e1 = 0, e2 = 0, aLim = 0, eLim = 0;
+    double a1 = 0, a2 = 0, a1a = 0, a2a = 0, e1 = 0, e2 = 0, aLim = 0, gLim = 1;
     bool origIn = true;
     int nCh = 2;
 

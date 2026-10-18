@@ -7,6 +7,7 @@ WVoxEditor::WVoxEditor (WVoxProcessor& p)
     : Editor (p, p.apvts, p.undo, p.apvts.getParameter (wvox::mode), "WVox", JucePlugin_VersionString, W, H), proc (p),
       comp (makeFader (Fader::Big)), gate (makeFader (Fader::Small, 4)), gain (makeFader (Fader::Small, 5))
 {
+    setFactoryPresets (wvox::factoryPresets());
     gate.format = [] (double v) { return dbText ((float) v, true); };
     attach (comp, wvox::comp, { 135, 99, 102, 207 }, 0.0);
     attach (gate, wvox::gate, { 37, 89, 42, 211 }, -80.0);

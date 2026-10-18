@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <atomic>
+#include "WBassPresets.h"
 #include "WBassDsp.h"
 
 // Parameters follow the reference's parameter list (ParamXML order, ranges and defaults; see RESEARCH.md, WBass).
@@ -37,10 +38,23 @@ public:
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram (int) override {}
-    const juce::String getProgramName (int) override { return "Default"; }
+    // programs for the host's preset list: 0 = Default, then the factory presets (wbass::factoryPresets()).
+    // A change applies only when the number changes, so a host that sets program 0 at load keeps the restored state.
+    int getNumPrograms() override { return 1 + (int) wbass::factoryPresets().size(); }
+    int getCurrentProgram() override { return currentProgram; }
+    void setCurrentProgram (int index) override
+    {
+        if (index == currentProgram || index < 0 || index >= getNumPrograms()) return;
+        currentProgram = index;
+        static const wavy::FactoryPreset defaults { "", "Default", {} };
+        wavy::applyPreset (apvts, index == 0 ? defaults : wbass::factoryPresets()[(size_t) index - 1], apvts.getParameter (wbass::mode));
+    }
+    const juce::String getProgramName (int index) override
+    {
+        if (index <= 0 || index >= getNumPrograms()) return "Default";
+        const auto& p = wbass::factoryPresets()[(size_t) index - 1];
+        return juce::String (p.group) + ": " + p.name;
+    }
     void changeProgramName (int, const juce::String&) override {}
     void getStateInformation (juce::MemoryBlock&) override;
     void setStateInformation (const void*, int) override;
@@ -54,5 +68,6 @@ public:
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout layout();
+    int currentProgram = 0;
     wbass::Processor dsp;
 };

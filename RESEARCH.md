@@ -114,6 +114,13 @@ The first factory/artist preset read (Low Boost Elec. Fiddle) holds `0 86 5 0.63
 ### GUI geometry (B2), dark skin
 View **371 × 392 px**, the same toolbar strip as RVox. Controls (l, t, w, h): Intensity fader 135, 99, 102, 207 (value text white-grey 211/213/215, Arial 17); Out Gain fader 297, 105, 33, 195 (text 292, 85, 42 × 16); Frequency horizontal slider 120, 334, 132 × 41 (text 249, 340, 42 × 16); Original Bass In/Out toggle 41, 88, 33 × 38; Created Harmonics meter 145, 121, 82 × 155 (readout 143, 287, 82 × 25, Arial 16); Original Bass meter 50, 121, 15 × 156 (readout 39, 303); Output meters 307 / 315, 122, 5 × 155 stereo, 311 mono (readouts 278 / 315, 303, mono 295); clip light 302, 103, 23 × 13; Skins 23, 2, 49 × 15. Meter scale 3 / 9 / 15 / 21 / 27 dB in the centre window.
 
+### Presets (B3, converted)
+All 45 factory and artist presets of the reference (Full Reset excluded) are carried over as WBass factory presets by
+their setting values only (`nulltest/read_ref_presets.py` converts the "States" files through the reference itself,
+`tools/make_presets.py` writes `plugins/WBass/WBassPresets.h`). Every name is new: no artist names, no Waves product
+names, no other trademarks; the name says what the setting is for. The same is done for WVox (21 presets; the
+reference's "States" presets use its linear scales, checked against the two it converts itself).
+
 ### Notes for the next phases
 - The Original Bass switch is not automatable through the VST3; Phase 3 must set it through the plugin state to measure both positions.
 - Hidden constants (Response, Ratio, Decay, smoothing) shape the sound; WBass keeps them as non-automatable parameters with these defaults so presets round-trip.

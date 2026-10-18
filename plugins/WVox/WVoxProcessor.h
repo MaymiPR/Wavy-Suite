@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <atomic>
+#include "WVoxPresets.h"
 #include "WVoxDsp.h"
 
 // Parameters follow the reference plugin's parameter list (ranges and defaults from its ParamXML).
@@ -29,10 +30,23 @@ public:
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram (int) override {}
-    const juce::String getProgramName (int) override { return "Default"; }
+    // programs for the host's preset list: 0 = Default, then the factory presets (wvox::factoryPresets()).
+    // A change applies only when the number changes, so a host that sets program 0 at load keeps the restored state.
+    int getNumPrograms() override { return 1 + (int) wvox::factoryPresets().size(); }
+    int getCurrentProgram() override { return currentProgram; }
+    void setCurrentProgram (int index) override
+    {
+        if (index == currentProgram || index < 0 || index >= getNumPrograms()) return;
+        currentProgram = index;
+        static const wavy::FactoryPreset defaults { "", "Default", {} };
+        wavy::applyPreset (apvts, index == 0 ? defaults : wvox::factoryPresets()[(size_t) index - 1], apvts.getParameter (wvox::mode));
+    }
+    const juce::String getProgramName (int index) override
+    {
+        if (index <= 0 || index >= getNumPrograms()) return "Default";
+        const auto& p = wvox::factoryPresets()[(size_t) index - 1];
+        return juce::String (p.group) + ": " + p.name;
+    }
     void changeProgramName (int, const juce::String&) override {}
     void getStateInformation (juce::MemoryBlock&) override;
     void setStateInformation (const void*, int) override;
@@ -45,6 +59,7 @@ public:
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout layout();
+    int currentProgram = 0;
     void configure();
 
     wvox::Processor procs[2];
