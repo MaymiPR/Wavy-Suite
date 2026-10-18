@@ -1,12 +1,21 @@
-// Windows check that a Wavy plugin leaves the keyboard with its host:
-//   FocusCheck <path to .vst3>
-// Hosts the plugin's editor in a window, then sends every window the plugin created the message Windows sends on a
-// mouse click (WM_MOUSEACTIVATE). A window that answers MA_NOACTIVATE (3) does not take the keyboard from the host.
-// Exit code 0 = all plugin windows refuse activation.
+// Windows check that the space bar reaches the host while a plugin window is in use:
+//   FocusCheck <path to .vst3> [x,y ...]
+// Hosts the plugin's editor in a window, clicks into it (at the given design points, default a few spots) the way
+// Windows delivers a click, then sends the space key to whichever window has the keyboard focus. PASS when the
+// space ends up with the host: either the host kept the focus, or the plugin passed the unhandled key on to its
+// parent window. Chan Sampler (whose space bar works in FL Studio) is the known-good reference for this check.
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <iostream>
 #include <windows.h>
+
+static int spaceSeenByHost = 0;
+static WNDPROC hostProc = nullptr;
+static LRESULT CALLBACK hostHook (HWND h, UINT m, WPARAM w, LPARAM l)
+{
+    if ((m == WM_KEYDOWN || m == WM_CHAR) && (w == VK_SPACE || w == ' ')) ++spaceSeenByHost;
+    return CallWindowProc (hostProc, h, m, w, l);
+}
 
 static BOOL CALLBACK collect (HWND h, LPARAM lp)
 {
@@ -14,9 +23,11 @@ static BOOL CALLBACK collect (HWND h, LPARAM lp)
     return TRUE;
 }
 
+static void pump (int ms) { juce::MessageManager::getInstance()->runDispatchLoopUntil (ms); }
+
 int main (int argc, char** argv)
 {
-    if (argc < 2) { std::cerr << "usage: FocusCheck plugin.vst3\n"; return 2; }
+    if (argc < 2) { std::cerr << "usage: FocusCheck plugin.vst3 [x,y ...]\n"; return 2; }
     juce::ScopedJuceInitialiser_GUI init;
     juce::AudioPluginFormatManager fm;
     fm.addFormat (new juce::VST3PluginFormat());
@@ -32,26 +43,64 @@ int main (int argc, char** argv)
     auto* ed = inst->createEditorIfNeeded();
     win.setContentNonOwned (ed, true);
     win.setVisible (true);
-    for (int i = 0; i < 20; ++i) juce::MessageManager::getInstance()->runDispatchLoopUntil (20);
+    win.toFront (true);
+    for (int i = 0; i < 20; ++i) pump (20);
 
-    auto host = (HWND) win.getWindowHandle();
+    // the plugin's own window: a child whose class was registered by the .vst3 module
     std::vector<HWND> children;
-    EnumChildWindows (host, collect, (LPARAM) &children);
-    int refusing = 0, taking = 0;
+    EnumChildWindows ((HWND) win.getWindowHandle(), collect, (LPARAM) &children);
+    HWND plug = nullptr;
     for (auto h : children)
     {
-        // only judge windows whose class was registered by the plugin's module (not this host's own embedding window)
         char mod[MAX_PATH] = {};
         GetModuleFileNameA ((HMODULE) GetClassLongPtr (h, GCLP_HMODULE), mod, MAX_PATH);
-        const bool fromPlugin = juce::String (mod).containsIgnoreCase (".vst3");
-        const auto r = SendMessage (h, WM_MOUSEACTIVATE, (WPARAM) host, MAKELPARAM (HTCLIENT, WM_LBUTTONDOWN));
-        std::cout << (fromPlugin ? "plugin window" : "host window  ") << " (" << juce::File (mod).getFileName() << "): WM_MOUSEACTIVATE -> "
-                  << (long long) r << (r == MA_NOACTIVATE ? " (no activate)" : " (activates)") << "\n";
-        if (fromPlugin) (r == MA_NOACTIVATE ? refusing : taking)++;
+        if (juce::String (mod).containsIgnoreCase (".vst3")) { plug = h; break; }
     }
+    if (plug == nullptr) { std::cout << "no plugin window found\n"; return 1; }
+    HWND parent = GetParent (plug);
+    hostProc = (WNDPROC) SetWindowLongPtr (parent, GWLP_WNDPROC, (LONG_PTR) hostHook);
+
+    std::vector<POINT> points;
+    for (int i = 2; i < argc; ++i)
+    {
+        const auto s = juce::String (argv[i]);
+        points.push_back ({ s.upToFirstOccurrenceOf (",", false, false).getIntValue(), s.fromFirstOccurrenceOf (",", false, false).getIntValue() });
+    }
+    if (points.empty()) points = { { 57, 100 }, { 185, 200 }, { 312, 125 }, { 185, 20 } };
+
+    int failures = 0;
+    for (auto pt : points)
+    {
+        // a click as Windows delivers it: WM_MOUSEACTIVATE (activate + focus unless refused), then button down / up
+        const auto act = SendMessage (plug, WM_MOUSEACTIVATE, (WPARAM) parent, MAKELPARAM (HTCLIENT, WM_LBUTTONDOWN));
+        if (act != MA_NOACTIVATE && act != MA_NOACTIVATEANDEAT) SetFocus (plug);
+        const LPARAM xy = MAKELPARAM (pt.x, pt.y);
+        SendMessage (plug, WM_LBUTTONDOWN, MK_LBUTTON, xy);
+        pump (50);
+        SendMessage (plug, WM_LBUTTONUP, 0, xy);
+        pump (100);
+
+        // a user closes a menu or value box first (Escape), then presses space
+        if (HWND f = GetFocus()) { SendMessage (f, WM_KEYDOWN, VK_ESCAPE, 0); SendMessage (f, WM_KEYUP, VK_ESCAPE, 0); }
+        pump (100);
+        HWND focus = GetFocus();
+        HWND target = focus != nullptr ? focus : parent;
+        const bool focusInPlugin = (target == plug) || IsChild (plug, target);
+        spaceSeenByHost = 0;
+        SendMessage (target, WM_KEYDOWN, VK_SPACE, 0x00390001);
+        SendMessage (target, WM_CHAR, ' ', 0x00390001);
+        SendMessage (target, WM_KEYUP, VK_SPACE, 0xC0390001);
+        pump (100);
+        const bool ok = ! focusInPlugin || spaceSeenByHost > 0;
+        std::cout << "click at " << pt.x << "," << pt.y << ": keyboard focus " << (focusInPlugin ? "in the plugin" : "with the host")
+                  << ", space reached the host: " << (ok ? "yes" : "NO") << "\n";
+        if (! ok) ++failures;
+    }
+
+    SetWindowLongPtr (parent, GWLP_WNDPROC, (LONG_PTR) hostProc);
     win.clearContentComponent();
     delete ed;
     inst = nullptr;
-    std::cout << (children.empty() ? "no plugin windows found\n" : taking == 0 ? "PASS: the host keeps the keyboard\n" : "FAIL: a click takes the keyboard\n");
-    return (refusing + taking == 0 || taking != 0) ? 1 : 0;
+    std::cout << (failures == 0 ? "PASS: the space bar reaches the host\n" : "FAIL: the plugin swallows the space bar\n");
+    return failures == 0 ? 0 : 1;
 }

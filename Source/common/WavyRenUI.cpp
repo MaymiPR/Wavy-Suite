@@ -245,16 +245,20 @@ void Editor::resized()
 
 Component& Editor::content() { return *contentComp; }
 
-// The plugin wrapper's top-level component decides whether a click activates the plugin window (and so takes the
-// keyboard from the host). Switch that off once we are attached, so the host keeps its transport keys (space = play).
+// As Chan Sampler does (its space bar works in FL Studio): no component of the editor ever takes the keyboard focus,
+// recursively, including each fader's value label; keys nothing uses then go on to the host (space = play / pause).
+// Typing a value still works: the text box JUCE opens asks for the focus itself.
 void Editor::parentHierarchyChanged()
 {
     AudioProcessorEditor::parentHierarchyChanged();
-    for (Component* c = this; c != nullptr; c = c->getParentComponent())
+    std::function<void (Component&)> noFocus = [&noFocus] (Component& c)
     {
-        c->setMouseClickGrabsKeyboardFocus (false);
-        c->setWantsKeyboardFocus (false);
-    }
+        c.setWantsKeyboardFocus (false);
+        c.setMouseClickGrabsKeyboardFocus (false);
+        for (auto* child : c.getChildren())
+            noFocus (*child);
+    };
+    noFocus (*this);
 }
 
 bool Editor::isMono() const { return modeParam != nullptr && modeParam->getValue() > 0.5f; }
