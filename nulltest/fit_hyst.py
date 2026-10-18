@@ -7,7 +7,7 @@ times = np.array([2, 5, 10, 20, 35, 50, 75, 100, 150, 200, 300, 400, 600, 800, 1
 base = -40.0
 ref = np.array([[D[f'{L}_{d}'][int(0.5*FS) + int(d*48) + int(t*48)] for t in times] for (L, d) in keys])
 Ls = np.array([k[0] for k in keys], float); ds = np.array([k[1] for k in keys], float)
-DT = 0.25
+DT = 1.0
 def sim(p):
     t1u, t1d, h, ta, tr = p
     k = lambda tau: 1 - np.exp(-DT/tau)
@@ -30,7 +30,7 @@ def err(p):
     return float(np.sqrt(np.mean((sim(p) - ref)**2)))
 best = None
 for st in ([25, 25, 5, 180, 600], [10, 50, 3, 180, 500], [40, 10, 6, 150, 700], [5, 5, 1, 180, 600]):
-    r = minimize(err, st, method='Nelder-Mead', options={'maxiter': 700, 'xatol': 1e-3, 'fatol': 1e-4})
+    r = minimize(err, st, method='Nelder-Mead', options={"maxiter": 400, 'xatol': 1e-3, 'fatol': 1e-4})
     print(np.round(st, 1), '->', np.round(r.x, 3), round(r.fun, 4), flush=True)
     if best is None or r.fun < best.fun: best = r
 print('best t1u t1d h ta tr:', np.round(best.x, 3), 'rms %.4f dB' % best.fun)

@@ -51,6 +51,18 @@ public:
     }
     void mouseDoubleClick (const MouseEvent&) override { showTextBox(); }
 
+    // only the thumb (and its value text) takes the mouse; clicks on the rest of the track fall through
+    bool hitTest (int x, int y) override
+    {
+        const juce::Point<int> p (x, y);
+        if (valueTextBounds().contains (p)) return true;
+        const float pos = (float) getPositionOfValue (getValue());
+        if (kind == Comp)
+            return Rectangle<float> (21.0f, pos - 32.0f + 10.0f, 60.0f, 35.0f).contains (p.toFloat());
+        const float cx = 16.5f + (float) (kind == Gate ? 4 : 5), cy = pos - 3.0f;
+        return p.toFloat().getDistanceFrom ({ cx, cy }) <= 14.0f;
+    }
+
     Rectangle<int> valueTextBounds() const
     {
         for (auto* c : getChildren())
