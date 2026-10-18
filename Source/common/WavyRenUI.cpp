@@ -129,6 +129,8 @@ void Look::drawLinearSlider (Graphics& g, int, int, int, int, float pos, float, 
         g.fillRect (0.0f, cy - 1.5f, pill.getX() + 4.0f, 3.0f);                      // rails stop at the ring
         g.fillRect (pill.getRight() - 4.0f, cy - 1.5f, 102.0f - pill.getRight() + 4.0f, 3.0f);
         g.drawRoundedRectangle (pill.reduced (1.5f), 15.0f, 3.0f);                  // transparent inside
+        g.setColour (Colour (25, 25, 25));                                           // the reference's 1 px black line inside the ring
+        g.drawRoundedRectangle (pill.reduced (3.5f), 13.0f, 1.0f);
         auto in = pill.reduced (3.0f);
         if (down) { g.setColour (ring); g.drawRoundedRectangle (in.reduced (0.5f), in.getHeight() * 0.5f, 1.5f); }
     }
@@ -337,15 +339,24 @@ void Editor::paintTitle (Graphics& g, const String& name, Colour nameColour)
     g.drawText (name, Rectangle<float> (x0 + 32.0f, 49.0f, nameW + 4.0f, 26.0f), Justification::centredLeft);
 }
 
-// the reference's clip light (23 x 13): grey rim, dark inner ring, core grey when off and pink-red when lit
+// the reference's clip light (23 x 13): lit = grey rim, dark ring, pink-red core
 void Editor::paintClipLight (Graphics& g, Rectangle<float> r, bool lit)
 {
+    // unlit it is a dim navy pill that almost blends into the panel (as rendered by the reference's dark skin)
     const auto outer = Rectangle<float> (r.getX() + 2.0f, r.getY() + 1.0f, 19.0f, 11.0f);
+    if (! lit)
+    {
+        g.setColour (Colour (14, 39, 59));
+        g.fillRoundedRectangle (outer, 5.5f);
+        g.setColour (Colour (23, 46, 62));
+        g.fillRoundedRectangle (outer.reduced (1.5f, 1.0f), 4.5f);
+        return;
+    }
     g.setColour (Colour (119, 119, 119));
     g.fillRoundedRectangle (outer, 5.5f);
-    g.setColour (lit ? Colour (67, 67, 67) : Colour (89, 89, 89));
+    g.setColour (Colour (67, 67, 67));
     g.fillRoundedRectangle (outer.reduced (2.0f, 1.0f), 4.0f);
-    g.setColour (lit ? Colour (242, 109, 125) : Colour (119, 119, 119));
+    g.setColour (Colour (242, 109, 125));
     g.fillRoundedRectangle (outer.reduced (4.0f, 3.0f), 2.5f);
 }
 }
