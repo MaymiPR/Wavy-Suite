@@ -269,12 +269,16 @@ def generated7(x, F, P, fs=FS, parts=False):
         d = sosfilt(sos(3, 'low', F * P["cA"], fs), x)
     kr = P.get("kr", 1.0)
     s1 = (80.0 / F) ** P.get("s1", 0.0); s2 = (80.0 / F) ** P.get("s2", 0.0)     # time constants vs Freq
-    E1 = attrel(np.abs(d) ** kr, P["ta1"] * s1, P["tr1"] * s1, fs)
-    E = ((1 - P.get("m1", 0.0)) * attrel(E1, P["ta2"] * s2, P["tr2"] * s2, fs) + P.get("m1", 0.0) * E1) ** (1.0 / kr)
+    sa = (80.0 / F) ** P.get("sA", 0.0)                                          # extra scaling of the attacks
+    E1 = attrel(np.abs(d) ** kr, P["ta1"] * s1 * sa, P["tr1"] * s1, fs)
+    E = ((1 - P.get("m1", 0.0)) * attrel(E1, P["ta2"] * s2 * sa, P["tr2"] * s2, fs) + P.get("m1", 0.0) * E1) ** (1.0 / kr)
     if "kB" in P:      # a second, fast level path (attack / release) on the same band; the larger level wins
         sB = (80.0 / F) ** P.get("sB", 0.0)
         EB = attrel(attrel(np.abs(d), P["taB"] * sB, P["trB"] * sB, fs), P["taB2"] * sB, P["trB2"] * sB, fs)
         E = np.maximum(E, P["kB"] * EB)
+    dly = int(round(P.get("dly", 0)))
+    if dly > 0:        # the gain reacts dly samples late
+        E = np.concatenate([np.full(dly, E[0]), E[:-dly]])
     CS = P["C0"] * (1 + E / P["E0"]) ** (-P["p"])
     if "El0" in P:     # second gain stage driven by l itself (it makes the 3rd harmonic of low notes)
         sl_ = (80.0 / F) ** P.get("sL", 0.0)

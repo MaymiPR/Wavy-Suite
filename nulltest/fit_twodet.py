@@ -27,10 +27,11 @@ def comp(y, f, secs=0.5):
 
 
 def model_h(P, f0, LA, fb, LB):
-    t = np.arange(int(0.9 * FS)) / FS
+    # with a pinning tone the analysis needs whole cycles of both tones (2 s), as in render_pin.py
+    t = np.arange(int((2.6 if LB is not None else 0.9) * FS)) / FS
     x = 10 ** (LA / 20) * np.sin(2 * np.pi * f0 * t) + (0 if LB is None else 10 ** (LB / 20) * np.sin(2 * np.pi * fb * t))
     y = M.generated7(x, F, P)
-    return np.array([comp(y, k * f0) for k in (1, 3, 5)])
+    return np.array([comp(y, k * f0, 2.0 if LB is not None else 0.5) for k in (1, 3, 5)])
 
 
 base = dict(json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "build", "multiF2.json"))), k2=0.0)

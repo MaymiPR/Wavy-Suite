@@ -38,6 +38,7 @@ struct Tuning
     double att1 = 0.002489532680531953, rel1 = 0.0024505484900786867;                       // follower 1 (s) at Freq 80
     double att2 = 0.015066489274832208, rel2 = 0.028267150668494348;                       // follower 2 (s) at Freq 80
     double s1 = 0.24816982832999762, s2 = 0.3189141441137469;                           // follower times scale with (80 / Freq)^s
+    double sA = 0.0;                                               // extra (80 / Freq)^sA on the attack times
     double El0 = 0.007175230751448638, pL = 0.0660965110542429, tLa = 0.006268107590220969, tLr = 0.015175753598975574, sL = 0.0;  // l-driven stage
     double alpha = 0.24535396843164406;                                             // share of the gain ahead of the first high-pass
     double k2 = -0.007985047672314461;                                                // harmonic product gain at Decay 1
@@ -193,8 +194,9 @@ private:
         hpQ.design (true, f / 3.0, fs);
         hpW.design (true, f, fs);
         const double sc1 = std::pow (80.0 / f, t.s1), sc2 = std::pow (80.0 / f, t.s2);
-        a1 = onePoleCoef (t.rel1 * sc1, fs); a1a = onePoleCoef (t.att1 * sc1, fs);
-        a2 = onePoleCoef (t.rel2 * sc2, fs); a2a = onePoleCoef (t.att2 * sc2, fs);
+        const double scA = std::pow (80.0 / f, t.sA);          // attacks scale additionally
+        a1 = onePoleCoef (t.rel1 * sc1, fs); a1a = onePoleCoef (t.att1 * sc1 * scA, fs);
+        a2 = onePoleCoef (t.rel2 * sc2, fs); a2a = onePoleCoef (t.att2 * sc2 * scA, fs);
         const double scL = std::pow (80.0 / f, t.sL);
         aLa = onePoleCoef (t.tLa * scL, fs); aLr = onePoleCoef (t.tLr * scL, fs);
         designFirst (detLp1, false, f * t.cB, fs);

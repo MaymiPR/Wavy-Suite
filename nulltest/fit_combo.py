@@ -19,10 +19,11 @@ for F in (80, 160, 256):
         sets.append((F, tr["x_%s_%d" % (nm, F)].astype(np.float64), tr["lin_%s_%d" % (nm, F)], "TR_" + nm, 2))
 sl = slice(FS // 10, None)
 base = json.load(open(os.path.join(B, "multiF2.json")))
-td = json.load(open(os.path.join(B, "twodet.json")))
-base.update(El0=td["El0"], pL=td["pL"], tLa=td["tLa"], tLr=td["tLr"], sL=0.0)
-keys = ["C0", "E0", "p", "cA", "QA", "ta1", "tr1", "ta2", "tr2", "alpha", "k2", "s1", "s2", "El0", "pL", "tLa", "tLr"]
-lin = {"s1", "s2", "alpha"}
+base = json.load(open(os.path.join(B, os.environ.get("BASE", "multiF2.json"))))
+td = json.load(open(os.path.join(B, os.environ.get("LSTAGE", "twodet.json"))))
+base.update(El0=td["El0"], pL=td["pL"], tLa=td["tLa"], tLr=td["tLr"], sL=0.0, sA=0.0)
+keys = ["C0", "E0", "p", "cA", "QA", "ta1", "tr1", "ta2", "tr2", "alpha", "k2", "s1", "s2", "El0", "pL", "tLa", "tLr", "sA"]
+lin = {"s1", "s2", "alpha", "sA"}
 WH = float(os.environ.get("WH", "0.15"))      # weight of the harmonic block
 
 
@@ -47,10 +48,10 @@ def resid(v):
 
 
 v0 = np.array([base[k] if k in lin else np.log(abs(base[k])) for k in keys])
-lo = np.array([-0.5 if k in ("s1", "s2") else 0.0 if k == "alpha" else -15 for k in keys])
-hi = np.array([1.5 if k in ("s1", "s2") else 1.0 if k == "alpha" else 8 for k in keys])
+lo = np.array([-1.5 if k == "sA" else -0.5 if k in ("s1", "s2") else 0.0 if k == "alpha" else -15 for k in keys])
+hi = np.array([1.5 if k in ("s1", "s2", "sA") else 1.0 if k == "alpha" else 8 for k in keys])
 r = least_squares(resid, np.clip(v0, lo + 1e-6, hi - 1e-6), bounds=(lo, hi), diff_step=1e-3, max_nfev=60)
-P = mk(r.x); json.dump(P, open(os.path.join(B, "combo.json"), "w"))
+P = mk(r.x); json.dump(P, open(os.path.join(B, os.environ.get("OUT", "combo.json")), "w"))
 print({k: round(P[k], 6) for k in keys})
 for F in (40, 80, 160, 256):
     v = [10 * np.log10(np.sum((g[sl] - M.generated7(x, F, P)[sl]) ** 2) / np.sum(g[sl] ** 2)) for FF, x, g, n, w in sets if FF == F]

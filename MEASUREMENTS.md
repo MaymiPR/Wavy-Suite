@@ -148,6 +148,15 @@ Scripts: `nulltest/ident_rbass_linear.py`, `ident_rbass_nl.py`, `ident_rbass_swe
   tone at −3 dBFS), where a single detector predicts a collapse (to −8 dB). So a second gain stage reads l itself:
   CS = C0 (1 + E/E0)^-p (1 + EL/El0)^-pL, EL an attack / release follower on |l|. Its ripple makes the 3rd harmonic
   of low notes, locked to the zero crossings of l as measured earlier.
+- *The l-driven stage alone (`nulltest/render_pinned.py`, `fit_lstage.py`):* with the wide detector pinned by a
+  −3 dBFS tone near 200 Hz, the gain over one period of l is a sawtooth that jumps up at each zero crossing and
+  slides down through the half-cycle, deeper for lower notes (±50 % at 10 Hz). Fitted alone it is a follower with a
+  slower attack (14 ms) than release (3.7 ms) on |l|; h1 then matches to ±1 dB and h3 to −8 … +4 dB, except the
+  lowest notes (10–12 Hz, 6–10 dB weak). In the combined fit the waveform data keep this stage small, so its shape
+  is not settled.
+- *Kicks at high Freq:* the reference lets the first generated peak of a kick through about 3 dB higher at Freq
+  160 / 256 (its gain reacts later there); a plain delay of the level makes everything worse, and Freq-dependent
+  attack times (fitted: slower at high Freq) help only slightly.
 Fitted on time-domain renders across the four Freq settings, on transients (kicks, bass notes and a riff at Freq
 80 / 160 / 256, each against the reference's unlimited generated signal, `nulltest/render_transients.py`) and on the
 steady harmonic and pinning sets together (`nulltest/fit_combo.py`). A fit to the harmonic sets alone reproduces
