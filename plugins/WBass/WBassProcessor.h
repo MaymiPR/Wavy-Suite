@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <atomic>
+#include "WavyMeter.h"
 #include "WBassPresets.h"
 #include "WBassDsp.h"
 
@@ -62,8 +63,9 @@ public:
     juce::UndoManager undo { 32, 32 };   // the reference undoes the last 32 actions
     juce::AudioProcessorValueTreeState apvts;
 
-    // meters (dB): original bass below Freq, created harmonics, output peaks; clip latch
-    std::atomic<float> origDb { -80.0f }, harmDb { -80.0f }, outLDb { -80.0f }, outRDb { -80.0f };
+    // meters (dB, highest peak since the editor last read them): original bass below Freq, created harmonics, output
+    // peaks; clip latch
+    wavy::PeakTap origDb, harmDb, outLDb, outRDb;
     std::atomic<bool> clipped { false };
 
 private:

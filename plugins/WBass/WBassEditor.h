@@ -23,6 +23,8 @@ private:
     wavy::ren::Fader& freq;
     wavy::ren::InSwitch& origBass;
 
+    wavy::MeterBallistics origBar, harmBar, outLBar, outRBar;
+    double lastTick = 0.0;
     float orig = -80.0f, harm = -80.0f, outL = -80.0f, outR = -80.0f;
     float origHold = -80.0f, harmHold = -80.0f, outLHold = -80.0f, outRHold = -80.0f;
     bool clip = false;

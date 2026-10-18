@@ -74,15 +74,10 @@ void WBassProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
 
     auto toDb = [] (float v) { return v > 1.0e-4f ? Decibels::gainToDecibels (v) : -80.0f; };
     const float peakL = b.getMagnitude (0, 0, n), peakR = ch > 1 ? b.getMagnitude (1, 0, n) : peakL;
-    auto smooth = [] (std::atomic<float>& a, float v)
-    {
-        const float old = a.load();
-        a.store (v > old ? v : old + (v - old) * 0.15f);   // quick rise, slow fall
-    };
-    smooth (origDb, toDb (dsp.lastOrigPeak));
-    smooth (harmDb, toDb (dsp.lastHarmPeak));
-    smooth (outLDb, toDb (peakL));
-    smooth (outRDb, toDb (peakR));
+    origDb.push (toDb (dsp.lastOrigPeak));
+    harmDb.push (toDb (dsp.lastHarmPeak));
+    outLDb.push (toDb (peakL));
+    outRDb.push (toDb (peakR));
     if (jmax (peakL, peakR) >= (float) dsp.t.ceiling) clipped.store (true);
 }
 

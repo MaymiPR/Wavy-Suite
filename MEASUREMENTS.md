@@ -184,3 +184,27 @@ generated part alone (fitted analytical model: −28.9 / −23.2 dB; first round
 generated part reaches −34 … −36 dB at Freq 32 / 40, −30 … −31 dB at Freq 80, −26 dB at Freq 160 and −17 dB at Freq
 256 (whose worst cases are very low notes with a generated part 38 dB under the output). Weakest signals: kick-like
 transients (−22 dB) and a 30 Hz tone (−22 dB). This is not a null.
+
+### Meter ballistics (WBass / RBass)
+
+The reference's meters cannot be read through the plug-in interface, so they were filmed:
+`tools/MeterCapture` hosts the plug-in, plays a test signal through it in real time, records its output, and grabs the
+editor about 40 times a second. `nulltest/meter_frames.py` turns the frames into bar heights; the numbers are in
+[measurements/rbass/meters](measurements/rbass/meters) (the screenshots themselves stay out of the repository).
+Signals: tone bursts and level steps at 25 / 50 / 300 / 1000 Hz, 5 / 20 / 100 ms bursts (`nulltest/meter_probe.py`),
+and a bass line and kicks.
+
+- **Law** (`nulltest/fit_meter.py`, fitted on the output meter against the recorded audio): each frame takes the
+  highest peak of the last ~17 ms; the bar jumps up to it at once and otherwise moves toward it as a one-pole on
+  **linear amplitude**, time constant **0.325 s**. In silence that is a straight 26.7 dB/s fall (the same on all
+  three meters, from any level); with the signal still playing, a drop to a lower level settles gently (from −3.3 to
+  −8.7 dB takes about a second), and an onset peak above a steady tone eases back over ~1 s. Residual of the fit:
+  1.1 px RMS (0.2 dB) over the whole probe.
+- **Scale**: 5.17 px per dB, 0 dB at the top of a 155 px track (30 dB), on all three meters.
+- **Readouts** hold the highest peak until clicked.
+- **Not matched**: the Original Bass bar sometimes drops at once to a lower level after a long sustained tone instead
+  of easing down (e.g. a 2 s tone stopping). WBass eases down there too. On music (bass line, kicks) the bars agree
+  with the reference within 3.5 px (0.7 dB) on 90 % of the frames.
+- WBass implements this in `Source/common/WavyMeter.h` (the audio thread only collects peaks; the editor applies the
+  law at 60 frames per second with the real time between frames, so the movement does not depend on the host's
+  buffer size).

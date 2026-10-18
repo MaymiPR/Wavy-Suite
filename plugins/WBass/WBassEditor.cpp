@@ -31,11 +31,15 @@ Rectangle<int> WBassEditor::vuTextRect (bool right) const { return { isMono() ? 
 
 void WBassEditor::tick()
 {
-    orig = proc.origDb.load(); harm = proc.harmDb.load();
-    outL = proc.outLDb.load(); outR = proc.outRDb.load();
+    // the reference's ballistics (WavyMeter.h); the readouts hold the highest peak itself
+    const double now = Time::getMillisecondCounterHiRes() * 0.001, dt = lastTick > 0.0 ? now - lastTick : 0.0;
+    lastTick = now;
+    const float o = proc.origDb.take(), h = proc.harmDb.take(), l = proc.outLDb.take(), r = proc.outRDb.take();
+    orig = origBar.update (o, dt); harm = harmBar.update (h, dt);
+    outL = outLBar.update (l, dt); outR = outRBar.update (r, dt);
     clip = clip || proc.clipped.exchange (false);
-    origHold = jmax (origHold, orig); harmHold = jmax (harmHold, harm);
-    outLHold = jmax (outLHold, outL); outRHold = jmax (outRHold, outR);
+    origHold = jmax (origHold, o); harmHold = jmax (harmHold, h);
+    outLHold = jmax (outLHold, l); outRHold = jmax (outRHold, r);
     content().repaint (30, 95, 310, 245);
 }
 

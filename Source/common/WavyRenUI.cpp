@@ -214,7 +214,7 @@ Editor::Editor (AudioProcessor& p, AudioProcessorValueTreeState& state, UndoMana
     setResizable (true, true);
     const int savedW = (int) state.state.getProperty ("uiWidth", roundToInt (W * wavy::defaultWindowScale()));
     setSize (jlimit (W * 3 / 4, W * 3, savedW), jlimit (H * 3 / 4, H * 3, savedW * H / W));
-    startTimerHz (30);
+    startTimerHz (60);   // meter frames; the reference's bars fall smoothly
 }
 
 Editor::~Editor()
