@@ -18,11 +18,16 @@
 //       needs to stay under 0.703 and recovers as a one-pole with 28.4 ms (measured on the reference's own unlimited
 //       signal: -42 dB median, kicks -32 ... -43 dB),
 //       added to both channels;
+//   * learned gain (default): the level-to-gain block above is replaced by a small recurrent network (GRU) trained on
+//     reference renders (nulltest/train_gain.py); it reads x, b, l, u = HP3(Freq) l and Freq and gives the gain ahead
+//     of the first high-pass (g_pre) and after it (g_post): n = C0 g_post HP3(Freq)(g_pre l), the product uses
+//     C0 g_pre g_post. It runs on its own 48 kHz clock (the rate it was trained at) at any host sample rate.
 //   * Gain: output trim with a short glide, then a hard clip to the 16-bit range [-1, 32767/32768] (no knee, no time
 //     constant: measured with loud 1 kHz tones, where nothing is generated).
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include "WBassGainNet.h"
 
 namespace wbass
 {
@@ -44,7 +49,45 @@ struct Tuning
     double k2 = -0.007985047672314461;                                                // harmonic product gain at Decay 1
     double limT = 0.70287, limRel = 0.02844;                       // generated-signal limiter: ceiling, gain release (s)
     double gainGlideMs = 25.0;                                     // Out Gain smoothing
+    bool learned = true;                                           // learned gain block (else the fitted analytical one)
     double ceiling = 32767.0 / 32768.0;                            // output clip: [-1, 32767/32768], hard (measured)
+};
+
+// the learned gain network: one GRU step per 48 kHz tick
+class GainNet
+{
+public:
+    void reset() { std::fill (h, h + gainnet::hidden, 0.0f); out[0] = out[1] = 0.0f; }
+    // in: 5 inputs; result in out[0] = ln g_pre, out[1] = ln g_post
+    void step (const float* in)
+    {
+        constexpr int H = gainnet::hidden, I = gainnet::inputs;
+        float gi[3 * H], gh[3 * H];
+        for (int j = 0; j < 3 * H; ++j)
+        {
+            float a = gainnet::bih[j], c = gainnet::bhh[j];
+            for (int k = 0; k < I; ++k) a += gainnet::Wih[j * I + k] * in[k];
+            for (int m = 0; m < H; ++m) c += gainnet::Whh[j * H + m] * h[m];
+            gi[j] = a; gh[j] = c;
+        }
+        for (int j = 0; j < H; ++j)
+        {
+            const float r = 1.0f / (1.0f + std::exp (-(gi[j] + gh[j])));
+            const float z = 1.0f / (1.0f + std::exp (-(gi[H + j] + gh[H + j])));
+            const float n = std::tanh (gi[2 * H + j] + r * gh[2 * H + j]);
+            h[j] = (1.0f - z) * n + z * h[j];
+        }
+        for (int o = 0; o < 2; ++o)
+        {
+            float a = gainnet::bout[o];
+            for (int m = 0; m < H; ++m) a += gainnet::Wout[o * H + m] * h[m];
+            out[o] = a;
+        }
+    }
+    float out[2] {};
+
+private:
+    float h[gainnet::hidden] {};
 };
 
 // one biquad section, transposed direct form II, double precision
@@ -112,6 +155,7 @@ public:
         for (auto& c : orig) { c.lp.reset(); c.hp.reset(); }
         lpThird.reset(); lpFreq.reset(); hpN.reset(); hpQ.reset(); hpW.reset(); detLp1.reset(); detLp2.reset();
         e1 = e2 = eL = 0.0; gLim = 1.0;
+        net.reset(); hpU.reset(); tNow = 0.0; for (auto& v : fPrev) v = 0.0f;
         gainNow = gainTarget;
     }
 
@@ -139,21 +183,45 @@ public:
             // generated path
             const double l = lpThird.run (xm);
             const double b = lpFreq.run (xm);
-            const double d = detLp2.run (detLp1.run (xm));
-            const double r = t.kr == 1.0 ? std::abs (d) : std::pow (std::abs (d), t.kr);
-            const double k1 = r > e1 ? a1a : a1;
-            e1 = k1 * e1 + (1.0 - k1) * r;
-            const double k2c = e1 > e2 ? a2a : a2;
-            e2 = k2c * e2 + (1.0 - k2c) * e1;
-            const double level = t.kr == 1.0 ? e2 : std::pow (e2, 1.0 / t.kr);
-            const double al = std::abs (l);
-            const double kl = al > eL ? aLa : aLr;
-            eL = kl * eL + (1.0 - kl) * al;
-            const double g = std::pow (1.0 + level / t.E0, -t.p) * (t.pL > 0 ? std::pow (1.0 + eL / t.El0, -t.pL) : 1.0);   // CS / C0
-            const double cs = t.C0 * g;
-            const double nn = t.C0 * std::pow (g, 1.0 - t.alpha) * hpN.run (std::pow (g, t.alpha) * l);
-            const double q = hpQ.run (nn * cs * b);
-            double gen = hpW.run (-nn + t.k2 * decay * q) * intensity;
+            const double u = hpU.run (l);
+            double gen;
+            if (t.learned)
+            {
+                const float fCur[5] = { feat (xm), feat (b), feat (l), feat (u), logF };
+                const double tPrev = tNow; tNow += step48;
+                for (double k = std::floor (tPrev) + 1.0; k <= tNow; k += 1.0)
+                {
+                    const float w = (float) ((k - tPrev) / step48);
+                    float in[5];
+                    for (int m = 0; m < 5; ++m) in[m] = fPrev[m] + w * (fCur[m] - fPrev[m]);
+                    net.step (in);
+                }
+                if (tNow > 1.0e6) tNow -= std::floor (tNow);
+                std::copy (fCur, fCur + 5, fPrev);
+                const double gpre = std::exp ((double) net.out[0]), gpost = std::exp ((double) net.out[1]);
+                const double C0 = gainnet::C0;
+                const double nn = C0 * gpost * hpN.run (gpre * l);
+                const double q = hpQ.run (nn * C0 * gpre * gpost * b);
+                gen = hpW.run (-nn + gainnet::k2 * decay * q) * intensity;
+            }
+            else
+            {
+                const double d = detLp2.run (detLp1.run (xm));
+                const double r = t.kr == 1.0 ? std::abs (d) : std::pow (std::abs (d), t.kr);
+                const double k1 = r > e1 ? a1a : a1;
+                e1 = k1 * e1 + (1.0 - k1) * r;
+                const double k2c = e1 > e2 ? a2a : a2;
+                e2 = k2c * e2 + (1.0 - k2c) * e1;
+                const double level = t.kr == 1.0 ? e2 : std::pow (e2, 1.0 / t.kr);
+                const double al = std::abs (l);
+                const double kl = al > eL ? aLa : aLr;
+                eL = kl * eL + (1.0 - kl) * al;
+                const double g = std::pow (1.0 + level / t.E0, -t.p) * (t.pL > 0 ? std::pow (1.0 + eL / t.El0, -t.pL) : 1.0);   // CS / C0
+                const double cs = t.C0 * g;
+                const double nn = t.C0 * std::pow (g, 1.0 - t.alpha) * hpN.run (std::pow (g, t.alpha) * l);
+                const double q = hpQ.run (nn * cs * b);
+                gen = hpW.run (-nn + t.k2 * decay * q) * intensity;
+}
             const double ag = std::abs (gen);
             const double need = ag > t.limT ? t.limT / ag : 1.0;
             gLim = need < gLim ? need : aLim * gLim + (1.0 - aLim) * need;
@@ -180,6 +248,11 @@ private:
     Orig orig[2];
     Butter3 lpThird, lpFreq, hpN, hpQ, hpW;
     Biquad detLp1, detLp2;
+    Butter3 hpU;
+    GainNet net;
+    double tNow = 0.0, step48 = 1.0;
+    float fPrev[5] {}, logF = 0.0f;
+    static float feat (double v) { return (float) (std::abs (std::asinh (v / 1.0e-3)) / 8.0); }
     double fs = 48000, freq = 80, intensity = 1, decay = 1, gainTarget = 1, gainNow = 1, glide = 0;
     double a1 = 0, a2 = 0, a1a = 0, a2a = 0, e1 = 0, e2 = 0, aLim = 0, gLim = 1, aLa = 0, aLr = 0, eL = 0;
     bool origIn = true;
@@ -193,6 +266,9 @@ private:
         hpN.design (true, f, fs);
         hpQ.design (true, f / 3.0, fs);
         hpW.design (true, f, fs);
+        hpU.design (true, f, fs);
+        logF = (float) std::log (f / 80.0);
+        step48 = 48000.0 / fs;
         const double sc1 = std::pow (80.0 / f, t.s1), sc2 = std::pow (80.0 / f, t.s2);
         const double scA = std::pow (80.0 / f, t.sA);          // attacks scale additionally
         a1 = onePoleCoef (t.rel1 * sc1, fs); a1a = onePoleCoef (t.att1 * sc1 * scA, fs);

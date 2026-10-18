@@ -25,7 +25,7 @@ int main (int argc, char** argv)
         else if (k == "cA") t.cA = v; else if (k == "QA") t.QA = v; else if (k == "cB") t.cB = v; else if (k == "kr") t.kr = v;
         else if (k == "ta1") t.att1 = v; else if (k == "tr1") t.rel1 = v; else if (k == "ta2") t.att2 = v; else if (k == "tr2") t.rel2 = v;
         else if (k == "alpha") t.alpha = v; else if (k == "k2") t.k2 = v; else if (k == "limT") t.limT = v; else if (k == "limRel") t.limRel = v; else if (k == "s1") t.s1 = v; else if (k == "s2") t.s2 = v;
-        else if (k == "El0") t.El0 = v; else if (k == "pL") t.pL = v; else if (k == "tLa") t.tLa = v; else if (k == "tLr") t.tLr = v; else if (k == "sL") t.sL = v; else if (k == "sA") t.sA = v;
+        else if (k == "El0") t.El0 = v; else if (k == "pL") t.pL = v; else if (k == "tLa") t.tLa = v; else if (k == "tLr") t.tLr = v; else if (k == "sL") t.sL = v; else if (k == "sA") t.sA = v; else if (k == "learned") t.learned = v != 0.0;
         else if (k == "ceiling") t.ceiling = v; else if (k == "decay") decay = v;
     }
     FILE* f = std::fopen (argv[1], "rb");

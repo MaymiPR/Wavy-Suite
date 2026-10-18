@@ -165,7 +165,22 @@ the l stage small. Still not understood: the exact detectors, the 3rd harmonic o
 pinned) and of the lowest notes (10–12 Hz), and kicks at Freq 160 / 256 (−11 / −7 dB on the unlimited generated
 signal). This is a fitted model of the gain control, not an identified one.
 
+**Learned gain block (current).** Since no analytical detector reproduced everything at once, the plug-in now keeps the
+identified structure exact (filters, gain ahead of / after the first high-pass, harmonic product, limiter, clip) and
+learns only the level-to-gain block from data: a GRU with 32 units reads |x|, |b|, |l|, |u| (compressed with asinh)
+and ln(Freq/80) and gives ln g_pre and ln g_post, sample by sample. Magnitudes only, so the gain is symmetric and
+Decay 0 leaves no even harmonics, as in the reference. Trained with PyTorch on 900 reference renders (tones, steps,
+AM, two-tones, noise, kicks, bass lines, pinned pairs, sweeps; Freq 32 … 256; Decay 0 / 1) against the exact
+generated part (`nulltest/render_trainset.py`, `nulltest/train_gain.py`, exported by `tools/export_gainnet.py`
+into `plugins/WBass/WBassGainNet.h`); validated on 80 held-out renders: median −37.7 dB (the fitted analytical
+model −25.3 dB). In the plug-in the network runs on its own 48 kHz clock (the rate it was trained at) at any host
+rate: the null at 44.1 and 96 kHz is within 0.2 dB of 48 kHz. The C++ matches the trained model to −74 … −91 dB.
+Cost: about 6 % of one core for real-time stereo. This is a learned model of the reference's gain control, not an
+identification of its algorithm.
+
 **Null test** ([docs/NULL_RESULTS_WBASS.md](docs/NULL_RESULTS_WBASS.md), 12 signals × 8 settings, generated part split
-off the reference with a second Intensity render): median residual −28.9 dB on the whole output and −23.2 dB on the
-generated part alone (first round: −22.6 / −18.0 dB); worst generated-part case −1.9 dB (a 30 Hz tone at Freq 160,
-whose generated part is −55 dBFS). This is not a null.
+off the reference with a second Intensity render): median residual −36.8 dB on the whole output and −31.5 dB on the
+generated part alone (fitted analytical model: −28.9 / −23.2 dB; first round −22.6 / −18.0 dB). By setting, the
+generated part reaches −34 … −36 dB at Freq 32 / 40, −30 … −31 dB at Freq 80, −26 dB at Freq 160 and −17 dB at Freq
+256 (whose worst cases are very low notes with a generated part 38 dB under the output). Weakest signals: kick-like
+transients (−22 dB) and a 30 Hz tone (−22 dB). This is not a null.

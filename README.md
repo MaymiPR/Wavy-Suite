@@ -30,7 +30,7 @@ The installers are not code-signed or notarized; see [packaging/](packaging) for
 | Wavy plugin | Modelled on | Status |
 |---|---|---|
 | **WVox** | vocal compressor / gate / limiter (three-control) | released: steady material nulls, dynamic material is close (see below) |
-| **WBass** | psychoacoustic bass enhancer (harmonic generator) | in progress: UI done, DSP working; null test median −28.9 dB (generated part −23.2 dB), gain control fitted, still being refined |
+| **WBass** | psychoacoustic bass enhancer (harmonic generator) | in progress: UI done, DSP working; null test median −36.8 dB (generated part −31.5 dB); the gain control is a small network trained on renders of the reference |
 | WMaxxBass, WComp, WDelay, WBass Ride, WVox Ride, WVox Chain, WVox Bend | | planned, one at a time |
 
 ### WVox null test (honest numbers)
