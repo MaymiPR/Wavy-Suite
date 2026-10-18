@@ -1,0 +1,214 @@
+# Builds every Wavy Suite plugin (listed in packaging/plugins.txt) on Windows (VST3 + CLAP), macOS (universal
+# AU + VST3 + CLAP) and Linux (VST3 + CLAP), runs the unit tests, validates the plugins with pluginval (and auval
+# on macOS) and makes ONE installer per operating system holding all of them:
+#   Windows  WavySuite-<version>-Windows-Setup.exe   (Inno Setup)
+#   macOS    WavySuite-<version>-macOS.pkg           (productbuild)
+#   Linux    WavySuite-<version>-Linux.tar.gz        (with install-linux.sh)
+# Runs on every push and pull request (installers come out as downloadable artifacts). Push a version tag
+# (git tag v0.1.0 && git push origin v0.1.0) to also publish them as a GitHub Release with that version's notes
+# from CHANGELOG.md and their SHA-256 checksums.
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure
+        run: cmake -B build -A x64
+
+      - name: Build (all plugins, tests and tools)
+        run: cmake --build build --config Release --parallel
+
+      - name: Unit tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Validate every VST3 (pluginval, strictest level)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip -OutFile pluginval.zip
+          Expand-Archive pluginval.zip -DestinationPath pluginval
+          $failed = 0
+          foreach ($line in Get-Content packaging/plugins.txt) {
+            if (-not $line.Trim() -or $line.StartsWith('#')) { continue }
+            $t, $p, $code = $line.Split([char]0x7C)
+            $plug = Resolve-Path "build/plugins/$t/${t}_artefacts/Release/VST3/$p.vst3"
+            # pluginval is a GUI-subsystem program: wait for it and read its real exit code
+            $r = Start-Process -FilePath "pluginval/pluginval.exe" -NoNewWindow -Wait -PassThru `
+                   -ArgumentList @("--strictness-level", "10", "--skip-gui-tests", "--timeout-ms", "900000", "--validate", "`"$plug`"")
+            Write-Host "pluginval $p exit code: $($r.ExitCode)"
+            if ($r.ExitCode -ne 0) { $failed++ }
+          }
+          if ($failed -ne 0) { exit 1 }
+
+      - name: Installer (Inno Setup, all plugins)
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path CMakeLists.txt -Pattern 'project\(WavySuite VERSION ([0-9.]+)\)').Matches[0].Groups[1].Value
+          pwsh packaging/make_iss_include.ps1 build
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
+          & $iscc "/DAppVersion=$version" "packaging\WavySuite.iss"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: WavySuite-Windows
+          path: dist/*.exe
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: "Configure (universal: Apple Silicon + Intel)"
+        run: cmake -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
+
+      - name: Build (all plugins, tests and tools)
+        run: cmake --build build --config Release -- -quiet
+
+      - name: Unit tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Collect, check universal binaries and sign (ad hoc)
+        run: |
+          set -e
+          mkdir -p stage/au stage/vst3 stage/clap
+          grep -v '^#' packaging/plugins.txt | grep -v '^\s*$' | while IFS='|' read -r t p code; do
+            A="build/plugins/$t/${t}_artefacts/Release"
+            for b in "$A/AU/$p.component" "$A/VST3/$p.vst3" "$A/CLAP/$p.clap"; do
+              lipo -info "$b/Contents/MacOS/$p"
+              codesign --force --deep --sign - "$b"
+            done
+            cp -R "$A/AU/$p.component" stage/au/
+            cp -R "$A/VST3/$p.vst3" stage/vst3/
+            cp -R "$A/CLAP/$p.clap" stage/clap/
+          done
+
+      - name: Validate every AU (auval) and VST3 / AU (pluginval)
+        run: |
+          set -e
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R stage/au/* ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar || true
+          curl -sL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip
+          unzip -q pluginval.zip
+          P=pluginval.app/Contents/MacOS/pluginval
+          grep -v '^#' packaging/plugins.txt | grep -v '^\s*$' | while IFS='|' read -r t p code; do
+            auval -v aufx "$code" Wavy
+            $P --strictness-level 10 --skip-gui-tests --timeout-ms 900000 --validate ~/Library/Audio/Plug-Ins/Components/"$p.component"
+            $P --strictness-level 10 --skip-gui-tests --timeout-ms 900000 --validate "stage/vst3/$p.vst3"
+          done
+
+      - name: Installer (.pkg, all plugins)
+        run: |
+          set -e
+          V=$(sed -n 's/^project(WavySuite VERSION \([0-9.]*\)).*/\1/p' CMakeLists.txt)
+          mkdir -p pkg/res dist
+          # Install exactly where stated (pkgbuild would otherwise follow a copy of a bundle found elsewhere on the disk).
+          for c in au vst3 clap; do
+            pkgbuild --analyze --root stage/$c pkg/$c.plist
+            n=$(plutil -extract @count raw pkg/$c.plist 2>/dev/null || echo 1)
+            for ((i = 0; i < n; i++)); do plutil -replace $i.BundleIsRelocatable -bool NO pkg/$c.plist; done
+          done
+          pkgbuild --root stage/au   --component-plist pkg/au.plist   --install-location "/Library/Audio/Plug-Ins/Components"       --identifier com.wavysuite.au   --version "$V" pkg/WavySuite-AU.pkg
+          pkgbuild --root stage/vst3 --component-plist pkg/vst3.plist --install-location "/Library/Audio/Plug-Ins/VST3/Wavy Suite" --identifier com.wavysuite.vst3 --version "$V" pkg/WavySuite-VST3.pkg
+          pkgbuild --root stage/clap --component-plist pkg/clap.plist --install-location "/Library/Audio/Plug-Ins/CLAP/Wavy Suite" --identifier com.wavysuite.clap --version "$V" pkg/WavySuite-CLAP.pkg
+          cp LICENSE pkg/res/LICENSE.txt
+          sed "s/VERSION/$V/g" packaging/distribution.xml > pkg/distribution.xml
+          productbuild --distribution pkg/distribution.xml --package-path pkg --resources pkg/res "dist/WavySuite-$V-macOS.pkg"
+          pkgutil --payload-files "dist/WavySuite-$V-macOS.pkg" | head -20
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: WavySuite-macOS
+          path: dist/*.pkg
+
+  linux:
+    runs-on: ubuntu-22.04   # the oldest glibc we support (2.35), so the build runs on newer systems too
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build libasound2-dev libjack-jackd2-dev libfreetype6-dev libfontconfig1-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
+            libglu1-mesa-dev mesa-common-dev xvfb
+
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (all plugins, tests and tools)
+        run: cmake --build build
+
+      - name: Unit tests
+        run: xvfb-run -a ctest --test-dir build --output-on-failure
+
+      - name: Validate every VST3 (pluginval, strictest level)
+        run: |
+          set -e
+          curl -sL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Linux.zip
+          unzip -q pluginval.zip
+          grep -v '^#' packaging/plugins.txt | grep -v '^\s*$' | while IFS='|' read -r t p code; do
+            xvfb-run -a ./pluginval --strictness-level 10 --skip-gui-tests --timeout-ms 900000 --validate "build/plugins/$t/${t}_artefacts/Release/VST3/$p.vst3"
+          done
+
+      - name: Installer (tarball with install script, all plugins)
+        run: |
+          set -e
+          V=$(sed -n 's/^project(WavySuite VERSION \([0-9.]*\)).*/\1/p' CMakeLists.txt)
+          D="WavySuite-$V-Linux"
+          mkdir -p "$D/VST3" "$D/CLAP" dist
+          grep -v '^#' packaging/plugins.txt | grep -v '^\s*$' | while IFS='|' read -r t p code; do
+            A="build/plugins/$t/${t}_artefacts/Release"
+            cp -R "$A/VST3/$p.vst3" "$D/VST3/"
+            cp "$A/CLAP/$p.clap" "$D/CLAP/"
+          done
+          cp packaging/install-linux.sh "$D/" && chmod +x "$D/install-linux.sh"
+          cp packaging/INSTALL-Linux.txt "$D/INSTALL.txt"
+          cp LICENSE "$D/LICENSE.txt"
+          tar -czf "dist/$D.tar.gz" "$D"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: WavySuite-Linux
+          path: dist/*.tar.gz
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # This version's section of CHANGELOG.md
+          tr -d '\r' < CHANGELOG.md | awk -v v="## $VERSION" '$0 == v {on = 1; next} /^## / {on = 0} on' > notes.md
+          [ -s notes.md ] || echo "Wavy Suite $VERSION" > notes.md
+          cat packaging/INSTALL-Windows.txt packaging/INSTALL-macOS.txt packaging/INSTALL-Linux.txt | sed 's/^/    /' > install.md
+          printf '\n## Installing\n\n' >> notes.md; cat install.md >> notes.md
+          FILES=$(find artifacts -type f \( -name '*.exe' -o -name '*.pkg' -o -name '*.tar.gz' \))
+          # Checksums, so downloads of these unsigned files can be checked
+          (cd artifacts && find . -type f \( -name '*.exe' -o -name '*.pkg' -o -name '*.tar.gz' \) -exec sha256sum {} + | sed 's|  .*/|  |') > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          gh release create "${GITHUB_REF_NAME}" $FILES SHA256SUMS.txt \
+            --repo "${GITHUB_REPOSITORY}" --title "Wavy Suite ${VERSION}" --notes-file notes.md

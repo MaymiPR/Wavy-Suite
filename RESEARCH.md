@@ -12,8 +12,8 @@ Sources
 - **S6** Official product page, fetched 2026-10-17: [waves.com/plugins/renaissance-vox](https://www.waves.com/plugins/renaissance-vox). Official manual PDF linked from it: [renaissance-vox.pdf](https://assets.wavescdn.com/pdf/plugins/renaissance-vox.pdf) (matches local S1). The earlier guess `waves.com/plugins/rvox` is a 404.
 
 ### Product-page facts (S6)
-- "Classic compressor/limiter optimized for vocals"; three controls: Gate, Compression, Output Gain.
-- Gate = "gentle downward expansion", not a hard gate; compressor = soft-knee curve; limiting/level maximizing run automatically (no limiter control); smart metering.
+- Described as a classic compressor / limiter for vocals; three controls: Gate, Compression, Output Gain.
+- Gate described as gentle downward expansion, not a hard gate; compressor = soft-knee curve; limiting/level maximizing run automatically (no limiter control); smart metering.
 - Components: mono and stereo only. Skins: light, dark, legacy.
 - **Published latency:** 64 samples @ 44.1/48 kHz, 128 @ 88.2/96 kHz, 256 @ 176.4/192 kHz (67 on TDM 48 kHz). Max sample rate 192 kHz.
 
@@ -38,11 +38,11 @@ Mono / stereo / mono→stereo / live components are one plugin with a **Mode** s
 ## 1. WVox (Renaissance Vox)
 
 ### Documented behaviour (S1)
-- Dynamics processor for vocals: "compression, gating, and limiting ... into just three controls" (p.2).
+- Dynamics processor for vocals that puts compression, gating and limiting behind three controls (p.2).
 - Components: mono and stereo, otherwise identical (p.2). Skins: Light, Dark, Legacy; same controls, values unchanged on skin switch (p.2).
 - **Compression** fader: one control combining threshold and ratio. Lowering it increases gain reduction *and* output level; output is held by a peak limiter. Range printed as "-36 dB to -36 dB" (typo in manual; S2 says -36…0). Double-click enters a value (p.5).
-- **Gain**: the *output ceiling* of the limiter, not a plain fader. At high gain "makeup gain maintains a relatively even output level when the Compression setting is changed" (p.5). Compression is **post-gate** (p.5).
-- **Gate**: downward expander, "very gentle", **soft knee** ("some gain reduction may be perceived even if the Gate threshold is set very low"), range −∞…0 dB; superimposed on the input energy meter (p.6).
+- **Gain**: the *output ceiling* of the limiter, not a plain fader. At high Gain settings the manual says make-up gain keeps the output level fairly even as Compression changes (p.5). Compression is **post-gate** (p.5).
+- **Gate**: downward expander, described as very gentle with a **soft knee** (the manual notes some reduction even with a very low threshold), range −∞…0 dB; superimposed on the input energy meter (p.6).
 - **Total Compression display**: sum of compressor + gate gain reduction, peak value below, click to reset hold (p.5).
 - **Output meters**: full-scale, peak value below, click to reset; −∞…0 dB (p.6).
 - **Input Energy meter** left side, reference for setting the gate (p.6).

@@ -1,0 +1,17 @@
+Wavy Suite for macOS (universal: Apple Silicon and Intel, macOS 10.13 or later)
+===============================================================================
+
+Open WavySuite-<version>-macOS.pkg. It installs every Wavy plugin as AU, VST3 and CLAP
+(Customize lets you leave formats out):
+  - AU   -> /Library/Audio/Plug-Ins/Components
+  - VST3 -> /Library/Audio/Plug-Ins/VST3/Wavy Suite
+  - CLAP -> /Library/Audio/Plug-Ins/CLAP/Wavy Suite
+
+The installer is not notarized by Apple (that needs a paid developer account), so macOS stops it
+the first time:
+  - macOS 15 and later: open it once, then System Settings > Privacy & Security > "Open Anyway".
+  - Earlier macOS: right-click (Control-click) the .pkg, choose Open, then Open.
+Restart your DAW afterwards (Logic rescans AUs at launch).
+
+To check the download, compare its SHA-256 with SHA256SUMS.txt on the Releases page:
+  shasum -a 256 WavySuite-<version>-macOS.pkg

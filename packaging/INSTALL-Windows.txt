@@ -1,0 +1,12 @@
+Wavy Suite for Windows (64-bit)
+===============================
+
+Run WavySuite-<version>-Windows-Setup.exe. It installs every Wavy plugin:
+  - VST3 to C:\Program Files\Common Files\VST3\Wavy Suite
+  - CLAP to C:\Program Files\Common Files\CLAP\Wavy Suite
+Pick "Choose plugins and formats" to leave some out, then rescan plugins in your DAW.
+Uninstall from Settings > Apps > Wavy Suite.
+
+The installer is not code-signed, so Windows SmartScreen may warn: click "More info", then "Run anyway".
+To check the download, compare its SHA-256 with SHA256SUMS.txt on the Releases page:
+  certutil -hashfile WavySuite-<version>-Windows-Setup.exe SHA256

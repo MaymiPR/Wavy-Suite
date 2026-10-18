@@ -1,0 +1,41 @@
+; Windows installer for the whole Wavy Suite (Inno Setup 6). Built by .github/workflows/release.yml:
+;   pwsh packaging/make_iss_include.ps1 build      (writes packaging/plugins.iss.inc from plugins.txt)
+;   iscc /DAppVersion=<version> packaging\WavySuite.iss
+
+#ifndef AppVersion
+  #define AppVersion "0.1.0"
+#endif
+
+[Setup]
+AppId={{3E7A9C41-6B2D-4F58-9A1E-5C0D7B2E8F64}
+AppName=Wavy Suite
+AppVersion={#AppVersion}
+AppPublisher=Wavy Suite
+AppPublisherURL=https://github.com/MaymiPR/WavySuite
+AppSupportURL=https://github.com/MaymiPR/WavySuite/issues
+DefaultDirName={autopf}\Wavy Suite
+DefaultGroupName=Wavy Suite
+DisableProgramGroupPage=yes
+LicenseFile=..\LICENSE
+OutputDir=..\dist
+OutputBaseFilename=WavySuite-{#AppVersion}-Windows-Setup
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+PrivilegesRequired=admin
+Compression=lzma2
+SolidCompression=yes
+WizardStyle=modern
+UninstallDisplayName=Wavy Suite
+
+[Types]
+Name: "full"; Description: "All plugins, VST3 and CLAP"
+Name: "custom"; Description: "Choose plugins and formats"; Flags: iscustom
+
+; [Components], [Files] and [UninstallDelete] for every plugin in plugins.txt
+#include "plugins.iss.inc"
+
+[Files]
+Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
+
+[Icons]
+Name: "{group}\Uninstall Wavy Suite"; Filename: "{uninstallexe}"

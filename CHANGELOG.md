@@ -1,0 +1,11 @@
+# Changelog
+
+## 0.1.0
+
+First release of the Wavy Suite, with one plugin:
+
+- **WVox**, a three-control vocal compressor / gate / limiter (VST3, CLAP, AU; Windows, macOS, Linux).
+  - Dark skin on the reference's pixel grid, resizable 75–200 %, Waves-style toolbar (Setup A/B with copy, undo / redo, presets with Save, Mode Stereo / Mono, window size), click a value to type it.
+  - DSP from measurements: four-phase true-peak detector, exact static law, identified look-ahead (64 / 128 / 256 samples) and gate; fitted slow path.
+  - Null test against the reference: steady material nulls (−95 to −120 dB at any setting); dynamic material is close (median −71 dB over a 672-case settings grid; dense noise at heavy compression −10 to −25 dB).
+- One installer per operating system for the whole suite.

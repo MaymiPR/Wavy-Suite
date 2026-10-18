@@ -90,7 +90,9 @@ public:
     {
         auto k = [fs] (float ms) { return 1.0f - std::exp (-1.0f / (std::max (ms, 0.01f) * 0.001f * (float) fs)); };
         a1 = k (t.ta1); r1 = k (t.tr1); a2 = k (t.ta2); r2 = k (t.tr2); band = t.band;
-        mode = t.slowMode; decay = std::pow (10.0f, -t.decayDbS / (20.0f * (float) fs));
+        attackLog = t.slowMode == 3;
+        useMin = t.slowMode == 4;
+        mode = t.slowMode >= 3 ? 2 : t.slowMode; decay = std::pow (10.0f, -t.decayDbS / (20.0f * (float) fs));
         reset();
     }
     void reset() { s1 = -120.0f; s2 = -120.0f; c1 = 0.0f; h = 0.0f; q = 1.0f; }
@@ -99,8 +101,9 @@ public:
     {
         c1 += (v - c1) * (v > c1 ? a1 : r1);              // level stage (amplitude)
         const float r = 1.0f / (1.0f + (M - 1.0f) * c1);
-        q += (r - q) * (r < q ? a2 : r2);                  // gain-ratio stage: attack when the ratio falls
-        return q;
+        if (r < q) q = attackLog ? q * std::pow (r / q, a2) : q + (r - q) * a2;   // attack (ratio falls): linear or in dB
+        else       q += (r - q) * r2;                                             // release in the linear ratio
+        return useMin ? std::min (q, r) : q;               // mode 4: the level stage also sets the gain directly
     }
     // v: live amplitude; returns the slow amplitude
     float process (float v)
@@ -120,6 +123,7 @@ public:
 private:
     float a1 = 0.01f, r1 = 0.1f, a2 = 0.01f, r2 = 0.001f, band = 0.0f, s1 = -120.0f, s2 = -120.0f, c1 = 0.0f, h = 0.0f, decay = 1.0f, q = 1.0f;
     int mode = 0;
+    bool attackLog = false, useMin = false;
 };
 
 // Processes up to two channels with one shared (linked) gain. For independent channels run one Processor per channel.
@@ -207,7 +211,7 @@ public:
             // compressor: instant ratio to the idle gain from the live level of the input (detected in parallel with the gate)
             const float ratio = 1.0f / (1.0f + (M - 1.0f) * v);
             const float vw = slowWin.push (v);
-            const float slowRatio = tune.slowMode == 2 ? slow.processRatio (vw, M)
+            const float slowRatio = tune.slowMode >= 2 ? slow.processRatio (vw, M)
                                                        : 1.0f / (1.0f + (M - 1.0f) * std::max (v, slow.process (vw)));
 
             // fast path: 65-sample hold of the minimum, then two moving averages (identified look-ahead shape)

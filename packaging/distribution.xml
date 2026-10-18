@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- macOS installer layout for the whole suite (productbuild); VERSION is filled in by the release workflow. -->
+<installer-gui-script minSpecVersion="2">
+    <title>Wavy Suite VERSION</title>
+    <license file="LICENSE.txt"/>
+    <options customize="allow" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+    <domains enable_localSystem="true"/>
+    <choices-outline>
+        <line choice="au"/>
+        <line choice="vst3"/>
+        <line choice="clap"/>
+    </choices-outline>
+    <choice id="au" title="Audio Unit (AU)" description="All Wavy plugins for Logic Pro, GarageBand, Ableton Live and other AU hosts. Installs to /Library/Audio/Plug-Ins/Components.">
+        <pkg-ref id="com.wavysuite.au"/>
+    </choice>
+    <choice id="vst3" title="VST3" description="All Wavy plugins for Ableton Live, FL Studio, Reaper, Cubase and other VST3 hosts. Installs to /Library/Audio/Plug-Ins/VST3/Wavy Suite.">
+        <pkg-ref id="com.wavysuite.vst3"/>
+    </choice>
+    <choice id="clap" title="CLAP" description="All Wavy plugins for Bitwig, Reaper and other CLAP hosts. Installs to /Library/Audio/Plug-Ins/CLAP/Wavy Suite.">
+        <pkg-ref id="com.wavysuite.clap"/>
+    </choice>
+    <pkg-ref id="com.wavysuite.au" version="VERSION">WavySuite-AU.pkg</pkg-ref>
+    <pkg-ref id="com.wavysuite.vst3" version="VERSION">WavySuite-VST3.pkg</pkg-ref>
+    <pkg-ref id="com.wavysuite.clap" version="VERSION">WavySuite-CLAP.pkg</pkg-ref>
+</installer-gui-script>

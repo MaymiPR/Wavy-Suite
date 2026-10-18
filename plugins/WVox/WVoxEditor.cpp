@@ -98,9 +98,9 @@ public:
     Label* createSliderTextBox (Slider& s) override
     {
         auto* l = LookAndFeel_V4::createSliderTextBox (s);
-        const bool comp = static_cast<Fader&> (s).kind == Fader::Comp;
-        l->setFont (arial (comp ? 13.5f : 13.5f));
-        l->setColour (Label::textColourId, comp ? kValue : kReadout);
+        const bool isComp = static_cast<Fader&> (s).kind == Fader::Comp;
+        l->setFont (arial (13.5f));
+        l->setColour (Label::textColourId, isComp ? kValue : kReadout);
         l->setColour (Label::textWhenEditingColourId, Colours::white);
         l->setColour (Label::backgroundColourId, Colours::transparentBlack);
         l->setColour (Label::outlineColourId, Colours::transparentBlack);
