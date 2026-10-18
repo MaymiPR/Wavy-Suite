@@ -21,7 +21,7 @@ FS = 48000
 def ours(x, fs, comp, gate, gain, tune=()):
     x = np.atleast_2d(np.asarray(x, np.float32))
     ch, n = x.shape
-    fi, fo = os.path.join(TMP, "in.f32"), os.path.join(TMP, "out.f32")
+    fi, fo = os.path.join(TMP, "in%d.f32" % os.getpid()), os.path.join(TMP, "out%d.f32" % os.getpid())
     x.T.astype(np.float32).tofile(fi)
     args = [EXE, fi, fo, str(ch), str(fs), str(comp), str(-80.0 if gate is None else gate), str(gain), *tune]
     subprocess.run(args, check=True, capture_output=True)
@@ -87,6 +87,7 @@ def main():
             pk = 20 * np.log10(max(np.abs(mine - ref).max(), 1e-12) / max(np.abs(ref).max(), 1e-12))
             rows.append((name, f"{comp}/{'off' if gate is None else gate}/{gain}", all_, st, pk))
             print("%-26s %-22s %9.1f %9.1f %9.1f" % rows[-1])
+    if "--extra" in args: extra_cases(rows)
     allv = np.array([r[2] for r in rows])
     print("median residual %.1f dB, best %.1f, worst %.1f; %d of %d cases below -60 dB" % (np.median(allv), allv.min(), allv.max(), (allv < -60).sum(), len(allv)))
     if out_md:
@@ -97,6 +98,38 @@ def main():
             for r in rows: f.write("| %s | %s | %.1f | %.1f | %.1f |\n" % r)
             f.write("\nMedian %.1f dB, best %.1f dB, worst %.1f dB; %d of %d cases below -60 dB.\n" % (np.median(allv), allv.min(), allv.max(), (allv < -60).sum(), len(allv)))
     return rows
+
+
+def extra_cases(out_rows):
+    """Other sample rates and stereo (linked) material."""
+    rng = np.random.default_rng(5)
+    print("-- other sample rates (mono)")
+    for fs in (44100, 96000, 192000):
+        n = int(2.0 * fs); t = np.arange(n) / fs
+        z = rng.standard_normal(n); noise = (z / z.std() * 10 ** (-20 / 20)).astype(np.float32)
+        steps = np.concatenate([R.tone(fs, 1000, 0.7, -50), R.tone(fs, 1000, 0.7, -10), R.tone(fs, 1000, 0.6, -30)])
+        for name, x in ((f"sine 1 kHz -20 @{fs}", R.tone(fs, 1000, 2.0, -20)), (f"tone steps @{fs}", steps), (f"white noise @{fs}", noise)):
+            for comp, gate, gain in ((-24, None, 0), (-12, -40, -3)):
+                ref = R.render(x, fs, comp=comp, gate=gate, gain=gain)[0]
+                mine = ours(x, fs, comp, gate, gain)[0]
+                r = residual_db(mine, ref, int(0.2 * fs)); st = residual_db(mine, ref, len(x) - fs // 2)
+                row = (name, f"{comp}/{'off' if gate is None else gate}/{gain}", r, st, 20 * np.log10(max(np.abs(mine - ref).max(), 1e-12) / max(np.abs(ref).max(), 1e-12)))
+                out_rows.append(row); print("%-26s %-22s %9.1f %9.1f %9.1f" % row)
+    print("-- stereo (linked), 48 kHz")
+    n = int(3.0 * FS); t = np.arange(n) / FS
+    zl = rng.standard_normal(n); zr = rng.standard_normal(n)
+    st_sigs = {
+        "stereo: L -10 / R -40 tones": np.stack([R.tone(FS, 1000, 3.0, -10), R.tone(FS, 1300, 3.0, -40)]),
+        "stereo: noise L -20 / R -30": np.stack([zl / zl.std() * 10 ** (-20 / 20), zr / zr.std() * 10 ** (-30 / 20)]).astype(np.float32),
+        "stereo: alternating loud channel": np.stack([R.tone(FS, 1000, 3.0, -15) * ((t // 0.5) % 2 == 0), R.tone(FS, 700, 3.0, -15) * ((t // 0.5) % 2 == 1)]).astype(np.float32),
+    }
+    for name, x in st_sigs.items():
+        for comp, gate, gain in ((-24, None, 0), (-12, -40, -3)):
+            ref = R.render(x, FS, comp=comp, gate=gate, gain=gain, name="RVox Stereo")
+            mine = ours(x, FS, comp, gate, gain)
+            r = residual_db(mine, ref, int(0.2 * FS)); st = residual_db(mine, ref, n - FS)
+            row = (name, f"{comp}/{'off' if gate is None else gate}/{gain}", r, st, 20 * np.log10(max(np.abs(mine - ref).max(), 1e-12) / max(np.abs(ref).max(), 1e-12)))
+            out_rows.append(row); print("%-26s %-22s %9.1f %9.1f %9.1f" % row)
 
 
 if __name__ == "__main__":
