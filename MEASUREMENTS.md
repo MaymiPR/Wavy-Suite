@@ -261,3 +261,15 @@ Filmed the same way (`tools/MeterCapture`, the same probe and bass-line signals,
   show on the bass line.
 - WVox against the reference on the bass line: Energy, Output and Gain reduction within 2.0, 2.3 and 2.0 px on 90 % of
   the frames.
+
+### Control feel (WBassX / MaxxBass)
+
+Measured by dragging the real editor with `tools/MeterCapture drag=x,y,dx,dy[,mod,steps]` (synthetic mouse moves,
+parameters read back, cursor visibility checked mid-drag):
+
+- The cursor is hidden while a fader, knob or the Freq slider is dragged (WBassX puts it back on the control).
+- Faders and the Freq slider follow the mouse 1:1 (a fader's 165 px travel, the slider's 264 px).
+- Knobs: about 500 px for the full range when the mouse moves 5 px or more per move, about 1000 px when it moves
+  slowly (2 px or less per move); Ctrl about 3000 px. Shift does nothing special.
+- WBassX gives the same values as the reference on every test drag (e.g. Ratio 1.00 -> 1.12 -> 1.18, Decay -15.0 ->
+  -16.2 -> -16.8, Input -4.8 vs -4.9 dB, Freq 80 -> 119 Hz).

@@ -52,7 +52,7 @@ WBassXEditor::WBassXEditor (WBassXProcessor& p)
     attachSlider (freq, wbassx::freq, { 86, 286, 340, 26 }, 80.0);
 
     slope.addItemList ({ "6 dB/oct", "12 dB/oct", "24 dB/oct" }, 1);
-    attachCombo (slope, wbassx::highpass, { 341, 327, 51, 21 });
+    attachCombo (slope, wbassx::highpass, { 343, 329, 50, 20 });
 
     auto& monitor = make<RadioColumn> (*p.apvts.getParameter (wbassx::monitor), &p.undo,
                                        StringArray { "Audio", "Harmonics", "Original Bass" },
@@ -217,7 +217,7 @@ void WBassXEditor::paintContent (Graphics& g)
     g.drawText ("Harmonics", Rectangle<int> (240, 331, 80, 16), Justification::centredRight);
     g.drawText ("Filter", Rectangle<int> (341, 356, 51, 16), Justification::centred);
     g.setColour (Colour (82, 83, 86));
-    for (auto [x0, x1] : { std::pair<int, int> { 98, 113 }, { 156, 179 }, { 323, 339 }, { 394, 425 } })
+    for (auto [x0, x1] : { std::pair<int, int> { 98, 113 }, { 156, 179 }, { 323, 343 }, { 393, 425 } })
         g.fillRect (x0, 339, x1 - x0, 1);
 
     // mix panel: labels, fader scale ticks

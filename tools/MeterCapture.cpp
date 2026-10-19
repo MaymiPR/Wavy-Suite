@@ -1,5 +1,6 @@
 // Records a plug-in editor's meters while audio plays (Windows), to measure meter ballistics the host cannot read.
 //   MeterCapture <plugin.vst3> "<sub-plugin name>[@uid]" <out.raw> [paramName=value ...] [in=<mono float32 48 kHz file>]
+//   ... [design=<width>] drag=x,y,dx,dy[,ctrl|shift|alt] ...   (drag script instead of the capture, see DragScript)
 // Loads the plug-in (a shell's sub-plugin by name), opens its editor, feeds a fixed schedule of 50 Hz tone bursts from
 // a real-time paced thread, and grabs the editor's screen area every ~25 ms. out.raw: per frame a double timestamp
 // (seconds since the schedule started), then width * height * 3 bytes (RGB); out.raw.txt holds width and height,
@@ -97,6 +98,83 @@ public:
     Component& editor; Feeder& feeder; File out; std::unique_ptr<FileOutputStream> stream; bool sizeWritten = false;
 };
 
+// Drag script (drag=x,y,dx,dy[,ctrl|shift|alt] in the editor's design pixels, design=<design width>): moves the real
+// mouse over the editor, prints every parameter before and after each drag, and whether the cursor stayed visible
+// in the middle of the drag. Used to measure how far a control moves per pixel of mouse movement.
+class DragScript : public Thread
+{
+public:
+    DragScript (AudioPluginInstance& p, Component& ed, StringArray d, float designW)
+        : Thread ("drag"), plugin (p), editor (ed), drags (std::move (d)), design (designW) {}
+    std::atomic<bool> done { false };
+    void run() override
+    {
+        sleep (2000);
+        for (auto& d : drags)
+        {
+            auto t = StringArray::fromTokens (d, ",", "");
+            const float x = t[0].getFloatValue(), y = t[1].getFloatValue(), dx = t[2].getFloatValue(), dy = t[3].getFloatValue();
+            const String mod = t.size() > 4 ? t[4] : String();
+            const int steps = t.size() > 5 ? jmax (1, t[5].getIntValue()) : 50;     // 12 ms apart
+            std::printf ("== drag %s\n", d.toRawUTF8());
+            dump ("before");
+            Point<int> start;
+            {
+                MessageManagerLock mml;
+                const auto pos = editor.getScreenPosition();
+                const float s = (float) editor.getWidth() / design;
+                const double scale = Desktop::getInstance().getDisplays().getDisplayForRect (editor.getScreenBounds())->scale;
+                start = { roundToInt ((pos.x + x * s) * scale), roundToInt ((pos.y + y * s) * scale) };
+                stepScale = s * (float) scale;
+            }
+            const WORD vk = mod == "ctrl" ? VK_CONTROL : mod == "shift" ? VK_SHIFT : mod == "alt" ? VK_MENU : 0;
+            SetCursorPos (start.x, start.y); sleep (150);
+            if (vk) { keybd_event ((BYTE) vk, 0, 0, 0); sleep (50); }
+            mouse_event (MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0); sleep (80);
+            bool hidden = false;
+            for (int i = 1; i <= steps; ++i)
+            {
+                SetCursorPos (start.x + roundToInt (dx * stepScale * (float) i / steps), start.y + roundToInt (dy * stepScale * (float) i / steps));
+                sleep (12);
+                if (i == steps / 2)
+                {
+                    CURSORINFO ci { sizeof (CURSORINFO) };
+                    GetCursorInfo (&ci);
+                    hidden = (ci.flags & CURSOR_SHOWING) == 0 || ci.hCursor == nullptr;
+                }
+            }
+            sleep (80);
+            mouse_event (MOUSEEVENTF_LEFTUP, 0, 0, 0, 0); sleep (50);
+            if (vk) keybd_event ((BYTE) vk, 0, KEYEVENTF_KEYUP, 0);
+            sleep (300);
+            std::printf ("cursor during drag: %s\n", hidden ? "HIDDEN" : "visible");
+            dump ("after");
+        }
+        done = true;
+    }
+    void dump (const char* when)
+    {
+        std::printf ("%s:", when);
+        for (auto* p : plugin.getParameters())
+            if (p->getName (64).isNotEmpty() && ! p->getName (64).startsWith ("MIDI") && p->getName (64).length() < 24)
+                std::printf (" [%s=%s]", p->getName (64).toRawUTF8(), p->getText (p->getValue(), 32).trim().toRawUTF8());
+        std::printf ("\n");
+        std::fflush (stdout);
+    }
+    AudioPluginInstance& plugin;
+    Component& editor;
+    StringArray drags;
+    float design, stepScale = 1.0f;
+};
+
+class DragWatch : public Timer
+{
+public:
+    explicit DragWatch (DragScript& d) : script (d) {}
+    void timerCallback() override { if (script.done) { stopTimer(); JUCEApplicationBase::quit(); } }
+    DragScript& script;
+};
+
 class App : public JUCEApplication
 {
 public:
@@ -166,6 +244,20 @@ public:
         window->setTopLeftPosition (100, 100);
         window->setVisible (true);
         window->setAlwaysOnTop (true);
+        StringArray drags; float design = 800.0f;
+        for (int i = 3; i < args.size(); ++i)
+        {
+            if (args[i].startsWith ("drag=")) drags.add (args[i].substring (5));
+            if (args[i].startsWith ("design=")) design = args[i].substring (7).getFloatValue();
+        }
+        if (! drags.isEmpty())
+        {
+            dragScript = std::make_unique<DragScript> (*plugin, *window->getContentComponent(), drags, design);
+            dragWatch = std::make_unique<DragWatch> (*dragScript);
+            dragScript->startThread();
+            dragWatch->startTimer (100);
+            return;
+        }
         std::vector<float> in = Feeder::defaultInput();
         for (int i = 3; i < args.size(); ++i)
             if (args[i].startsWith ("in="))      // a mono float32 48 kHz file instead of the default schedule
@@ -180,6 +272,7 @@ public:
     }
     void shutdown() override
     {
+        if (dragScript) dragScript->stopThread (3000);
         if (feeder) feeder->stopThread (3000);
         capture.reset();
         if (window) window->setContentNonOwned (nullptr, false);
@@ -192,6 +285,8 @@ private:
     std::unique_ptr<AudioPluginInstance> plugin;
     std::unique_ptr<DocumentWindow> window;
     std::unique_ptr<Feeder> feeder;
+    std::unique_ptr<DragScript> dragScript;
+    std::unique_ptr<DragWatch> dragWatch;
     std::unique_ptr<Capture> capture;
 };
 

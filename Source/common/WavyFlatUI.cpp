@@ -49,12 +49,56 @@ static void clickToType (Slider& s, Rectangle<int> textArea, const MouseEvent& e
     if (e.mouseWasClicked() && ! e.mods.isAltDown() && textArea.contains (e.getPosition())) s.showTextBox();
 }
 
+//==============================================================================
+bool WavesDrag::down (Slider& s, const MouseEvent& e, Rectangle<int> textArea)
+{
+    if (textArea.contains (e.getPosition()) || e.mods.isAltDown() || e.mods.isPopupMenu()) return false;
+    active = true;
+    virt = last = e.position;
+    e.source.enableUnboundedMouseMovement (true, false);         // hide the cursor, no screen edge
+    s.Slider::mouseDown (e);
+    return true;
+}
+
+void WavesDrag::drag (Slider& s, const MouseEvent& e)
+{
+    const auto d = e.position - last;
+    last = e.position;
+    float k = 1.0f;
+    if (kind == Rotary)
+    {
+        const float step = std::abs (std::abs (d.y) > std::abs (d.x) ? d.y : d.x);
+        k = e.mods.isCtrlDown() ? 1.0f / 6.0f : step <= 3.0f ? 0.5f : 1.0f;
+    }
+    else if (e.mods.isCtrlDown())
+        k = 0.25f;
+    virt += d * k;
+    s.Slider::mouseDrag (e.withNewPosition (virt));
+}
+
+bool WavesDrag::up (Slider& s, const MouseEvent& e, Point<float> restoreAt)
+{
+    if (! active) return false;
+    active = false;
+    s.Slider::mouseUp (e.withNewPosition (virt));
+    e.source.enableUnboundedMouseMovement (false);
+    Desktop::setMousePosition (s.localPointToGlobal (restoreAt).roundToInt());   // the cursor comes back on the control
+    return true;
+}
+
+static void setUpFeel (Slider& s, int pixelsForFullRange)
+{
+    s.setMouseDragSensitivity (pixelsForFullRange);
+    s.setVelocityModeParameters (1.0, 1, 0.0, false);              // Ctrl / Alt must not switch to JUCE's velocity mode
+}
+
+//==============================================================================
 VFader::VFader (Colour line) : lineColour (line)
 {
     setSliderStyle (LinearVertical);
     setTextBoxStyle (TextBoxBelow, false, 31, 18);
     setSliderSnapsToMousePosition (false);
-    setMouseDragSensitivity (165);
+    setUpFeel (*this, 165);
     setScrollWheelEnabled (true);
 }
 
@@ -64,7 +108,14 @@ bool VFader::hitTest (int x, int y)
     return textArea.contains (x, y) || Rectangle<float> (0.0f, pos - 16.0f, (float) getWidth(), 32.0f).contains ((float) x, (float) y);
 }
 
-void VFader::mouseUp (const MouseEvent& e) { Slider::mouseUp (e); clickToType (*this, textArea, e); }
+void VFader::mouseDown (const MouseEvent& e) { if (! feel.down (*this, e, textArea)) Slider::mouseDown (e); }
+void VFader::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e); else Slider::mouseDrag (e); }
+void VFader::mouseUp (const MouseEvent& e)
+{
+    if (feel.up (*this, e, { (float) getWidth() * 0.5f, (float) getPositionOfValue (getValue()) })) return;
+    Slider::mouseUp (e);
+    clickToType (*this, textArea, e);
+}
 
 void VFader::paint (Graphics& g)
 {
@@ -92,12 +143,19 @@ Knob::Knob (String l) : label (std::move (l))
 {
     setSliderStyle (RotaryVerticalDrag);
     setTextBoxStyle (TextBoxBelow, false, 54, 14);
-    setMouseDragSensitivity (200);
+    setUpFeel (*this, 500);
     setScrollWheelEnabled (true);
     setRotaryParameters (MathConstants<float>::pi * 1.25f, MathConstants<float>::pi * 2.75f, true);
 }
 
-void Knob::mouseUp (const MouseEvent& e) { Slider::mouseUp (e); clickToType (*this, textArea, e); }
+void Knob::mouseDown (const MouseEvent& e) { if (! feel.down (*this, e, textArea)) Slider::mouseDown (e); }
+void Knob::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e); else Slider::mouseDrag (e); }
+void Knob::mouseUp (const MouseEvent& e)
+{
+    if (feel.up (*this, e, centre)) return;
+    Slider::mouseUp (e);
+    clickToType (*this, textArea, e);
+}
 
 void Knob::paint (Graphics& g)
 {
@@ -139,8 +197,15 @@ HSlider::HSlider()
     setSliderStyle (LinearHorizontal);
     setTextBoxStyle (NoTextBox, true, 0, 0);
     setSliderSnapsToMousePosition (false);
-    setMouseDragSensitivity (264);
+    setUpFeel (*this, 264);
     setScrollWheelEnabled (true);
+}
+
+void HSlider::mouseDown (const MouseEvent& e) { if (! feel.down (*this, e, {})) Slider::mouseDown (e); }
+void HSlider::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e); else Slider::mouseDrag (e); }
+void HSlider::mouseUp (const MouseEvent& e)
+{
+    if (! feel.up (*this, e, { (float) getPositionOfValue (getValue()), y })) Slider::mouseUp (e);
 }
 
 void HSlider::paint (Graphics& g)
@@ -168,15 +233,22 @@ void HSlider::paint (Graphics& g)
 //==============================================================================
 void drawSlopeIcon (Graphics& g, Rectangle<float> r, int slope)
 {
+    // the reference's three pictures (measured at 10x): a straight 6 dB/oct ramp, a curved 12 dB/oct knee, a steep
+    // 24 dB/oct edge, each running into a flat top
     Path p;
     const float x = r.getX(), y = r.getY(), w = r.getWidth(), h = r.getHeight();
-    if (slope == 0)        { p.startNewSubPath (x, y + h); p.lineTo (x + w * 0.55f, y + h * 0.05f); p.lineTo (x + w, y); }
-    else if (slope == 1)   { p.startNewSubPath (x, y + h); p.quadraticTo (x + w * 0.22f, y + h * 0.05f, x + w * 0.45f, y); p.lineTo (x + w, y); }
-    else                   { p.startNewSubPath (x + w * 0.05f, y + h); p.quadraticTo (x + w * 0.15f, y + h * 0.1f, x + w * 0.28f, y); p.lineTo (x + w, y); }
-    g.setColour (kWhite.withAlpha (0.15f));
-    g.strokePath (p, PathStrokeType (4.0f, PathStrokeType::curved, PathStrokeType::rounded));
+    const float top = y + 0.5f, bottom = y + h - 0.5f;
+    if (slope == 0)      { p.startNewSubPath (x + 0.5f, bottom); p.lineTo (x + w * 0.44f, top); }
+    else if (slope == 1) { p.startNewSubPath (x + 0.5f, bottom); p.quadraticTo (x + w * 0.2f, top + h * 0.12f, x + w * 0.44f, top); }
+    else                 { p.startNewSubPath (x + w * 0.12f, bottom); p.lineTo (x + w * 0.28f, top); }
+    p.lineTo (x + w - 0.5f, top);
+    for (int k = 4; k >= 1; --k)                                                       // soft glow
+    {
+        g.setColour (kWhite.withAlpha (0.045f));
+        g.strokePath (p, PathStrokeType (1.6f + 1.6f * (float) k, PathStrokeType::mitered, PathStrokeType::rounded));
+    }
     g.setColour (kWhite);
-    g.strokePath (p, PathStrokeType (2.0f, PathStrokeType::curved, PathStrokeType::rounded));
+    g.strokePath (p, PathStrokeType (1.7f, PathStrokeType::mitered, PathStrokeType::butt));
 }
 
 void SlopeBox::mouseDown (const MouseEvent& e)
@@ -201,9 +273,9 @@ void SlopeBox::paint (Graphics& g)
     g.fillRoundedRectangle (r, r.getHeight() * 0.5f);
     g.setColour (isMouseOver() ? Colour (110, 111, 114) : Colour (80, 81, 84));
     g.drawRoundedRectangle (r, r.getHeight() * 0.5f, 1.0f);
-    drawSlopeIcon (g, { 8.5f, 5.5f, 15.0f, 10.0f }, jmax (0, getSelectedItemIndex()));
+    drawSlopeIcon (g, { 8.0f, 6.0f, 16.0f, 9.0f }, jmax (0, getSelectedItemIndex()));
     Path tri;
-    const float ax = r.getRight() - 15.0f, ay = r.getCentreY();
+    const float ax = r.getRight() - 11.5f, ay = r.getCentreY();
     tri.addTriangle (ax - 3.0f, ay - 2.0f, ax + 3.0f, ay - 2.0f, ax, ay + 2.5f);
     g.setColour (kWhite);
     g.fillPath (tri);
@@ -292,6 +364,12 @@ Label* FlatLook::createSliderTextBox (Slider& s)
 PopupMenu::Options FlatLook::getOptionsForComboBoxPopupMenu (ComboBox& box, Label& label)
 {
     return LookAndFeel_V4::getOptionsForComboBoxPopupMenu (box, label).withStandardItemHeight (20).withMinimumWidth (130);
+}
+
+void FlatLook::positionComboBoxText (ComboBox& box, Label& label)
+{
+    if (dynamic_cast<SlopeBox*> (&box) != nullptr) { label.setBounds ({}); return; }   // the slope box shows a picture, no text
+    LookAndFeel_V4::positionComboBoxText (box, label);
 }
 
 void FlatLook::drawPopupMenuBackground (Graphics& g, int w, int h)

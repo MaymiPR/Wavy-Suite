@@ -26,6 +26,22 @@ juce::String gainText (float db);                          // "-inf" below -99.9
 // reads plain numbers and "-inf"
 void applyFormat (juce::Slider&, std::function<juce::String (double)> format);
 
+// How the reference's controls follow the mouse (measured with tools/MeterCapture drag=..., see MEASUREMENTS.md
+// "Control feel"): the cursor is hidden while dragging and comes back where the control is; faders and the Freq
+// slider move 1:1 with the mouse; knobs take ~500 px for their full range, ~1000 px when the mouse moves slowly
+// (<= 3 px per move), and Ctrl gives a fine mode.
+struct WavesDrag
+{
+    enum Kind { Linear, Rotary };
+    explicit WavesDrag (Kind k) : kind (k) {}
+    bool down (juce::Slider&, const juce::MouseEvent&, juce::Rectangle<int> textArea);    // true: handled
+    void drag (juce::Slider&, const juce::MouseEvent&);
+    bool up (juce::Slider&, const juce::MouseEvent&, juce::Point<float> restoreAt);       // true: handled
+    const Kind kind;
+    bool active = false;
+    juce::Point<float> virt, last;
+};
+
 // vertical gain fader: dark track, 17 x 28 thumb with a coloured centre line, value text below
 class VFader : public juce::Slider
 {
@@ -33,7 +49,10 @@ public:
     explicit VFader (juce::Colour line);
     void paint (juce::Graphics&) override;
     bool hitTest (int x, int y) override;
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
+    WavesDrag feel { WavesDrag::Linear };
     std::function<juce::String (double)> format;
     juce::Colour lineColour;
     int travelTop = 27, travelBottom = 192;                // thumb centre range (local y)
@@ -46,7 +65,10 @@ class Knob : public juce::Slider
 public:
     Knob (juce::String label);
     void paint (juce::Graphics&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
+    WavesDrag feel { WavesDrag::Rotary };
     std::function<juce::String (double)> format;
     juce::String label;
     juce::Point<float> centre { 27.0f, 34.0f };            // local
@@ -60,6 +82,10 @@ class HSlider : public juce::Slider
 public:
     HSlider();
     void paint (juce::Graphics&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseDrag (const juce::MouseEvent&) override;
+    void mouseUp (const juce::MouseEvent&) override;
+    WavesDrag feel { WavesDrag::Linear };
     void mouseEnter (const juce::MouseEvent&) override { repaint(); }
     void mouseExit (const juce::MouseEvent&) override { repaint(); }
     std::function<juce::String (double)> format;
@@ -108,6 +134,7 @@ public:
                             bool isTicked, bool hasSubMenu, const juce::String& text, const juce::String& shortcut,
                             const juce::Drawable* icon, const juce::Colour* textColour) override;
     juce::Font getPopupMenuFont() override { return font (13.0f); }
+    void positionComboBoxText (juce::ComboBox&, juce::Label&) override;
 };
 
 // drawing helpers
