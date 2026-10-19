@@ -31,7 +31,8 @@ The installers are not code-signed or notarized; see [packaging/](packaging) for
 |---|---|---|
 | **WVox** | vocal compressor / gate / limiter (three-control) | released: steady material nulls, dynamic material is close (see below) |
 | **WBass** | psychoacoustic bass enhancer (harmonic generator) | ready for the next release: close, not a null (median −36.8 dB, see below) |
-| WMaxxBass, WComp, WDelay, WBass Ride, WVox Ride, WVox Chain, WVox Bend | | planned, one at a time |
+| **WBassX** | psychoacoustic bass enhancer with harmonics compressor, filters and monitor modes | in progress: UI done, DSP next |
+| WComp, WDelay, WBass Ride, WVox Ride, WVox Chain, WVox Bend | | planned, one at a time |
 
 ### WVox null test (honest numbers)
 

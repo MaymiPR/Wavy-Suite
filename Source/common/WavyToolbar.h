@@ -11,11 +11,15 @@ namespace wavy
 //   row 2: the preset bar across the full width (name, "*" when modified).
 // Setup A/B follows the reference: one Setup button toggles between two settings, the copy
 // button copies the current setup to the other one.
+// Style::Flat is the newer single-row WaveSystem bar (800 x 36 px, e.g. MaxxBass): mark | undo | redo | preset box |
+// Mode | prev | next | A>B copy | Setup A/B | save icon | menu; same behaviour.
 class Toolbar : public juce::Component
 {
 public:
+    enum class Style { Renaissance, Flat };
     Toolbar (juce::UndoManager& undo, juce::AudioProcessorValueTreeState& state, juce::StringArray modeNames,
-             juce::RangedAudioParameter* modeParam, juce::String productName, juce::String version);
+             juce::RangedAudioParameter* modeParam, juce::String productName, juce::String version,
+             Style style = Style::Renaissance);
 
     std::function<float()> getWindowScale;            // current window magnification (1 = 100 %)
     std::function<void (float)> setWindowScale;       // choose a magnification
@@ -27,9 +31,11 @@ public:
     void refresh();
     void setFactoryPresets (const std::vector<FactoryPreset>* list) { factory = list; }
 
-    static constexpr int width = 371, height = 36;
+    static constexpr int width = 371, height = 36, flatWidth = 800, flatHeight = 36;
+    const Style style;
 
 private:
+    void paintFlat (juce::Graphics&);
     enum Item { About, Skins, Mode, Undo, Redo, Prev, Next, Copy, Setup, Save, Menu, Preset, numItems };
     juce::Rectangle<int> rect (Item) const;
     int hitTest (juce::Point<int>) const;

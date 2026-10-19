@@ -11,6 +11,10 @@
   so a restored state always snaps to on or off. Meters move like the reference's (measured from its editor: instant
   rise, 0.325 s one-pole release, 26.7 dB/s in silence), independent of the host's buffer size; editors redraw at
   60 frames per second.
+- **WBassX** (in progress), a bass enhancer modelled on a harmonics-generator with its own compressor, filters and
+  monitor modes: the flat editor (800 x 395, resizable) on a new shared kit (`Source/common/WavyFlatUI`: gain faders
+  with the reference's taper, knobs, frequency slider, slope selector, monitor buttons, band graph) and the single-row
+  toolbar style; full parameter list; audio passes through until the DSP phase.
 - **WVox null**: the compressor's slow path gets a small learned correction (a GRU trained on renders of the
   reference, ~3.5 % of one core), guarded so steady signals keep the identified paths exactly. Worst case of the
   settings grid −10 → −23 dB; dense noise at heavy compression −10…−13 → −24…−27 dB, voice-like −21…−31 → −30…−40 dB;

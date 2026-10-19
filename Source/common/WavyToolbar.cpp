@@ -15,17 +15,33 @@ const float kScales[] = { 0.75f, 1.0f, 1.25f, 1.5f, 2.0f };
 }
 
 Toolbar::Toolbar (juce::UndoManager& u, juce::AudioProcessorValueTreeState& s, juce::StringArray m,
-                  juce::RangedAudioParameter* mp, juce::String name, juce::String ver)
-    : undo (u), apvts (s), modes (std::move (m)), modeParam (mp), product (std::move (name)), version (std::move (ver))
+                  juce::RangedAudioParameter* mp, juce::String name, juce::String ver, Style st)
+    : style (st), undo (u), apvts (s), modes (std::move (m)), modeParam (mp), product (std::move (name)), version (std::move (ver))
 {
     loadedValues = currentValues();
-    setSize (width, height);
+    if (style == Style::Flat) setSize (flatWidth, flatHeight); else setSize (width, height);
 }
 
 // Control rectangles: the reference's ToolbarXML rectangles, with the arrow / copy / setup
 // widths narrowed so the Mode drop-down fits next to Skins.
 juce::Rectangle<int> Toolbar::rect (Item i) const
 {
+    if (style == Style::Flat)      // the reference's ToolbarXML (MaxxBass), the preset box shortened for Mode
+        switch (i)
+        {
+            case About:  return { 4, 10, 19, 19 };
+            case Undo:   return { 36, 10, 19, 19 };
+            case Redo:   return { 60, 10, 19, 19 };
+            case Preset: return { 96, 8, 340, 22 };
+            case Mode:   return { 446, 8, 72, 22 };
+            case Prev:   return { 528, 10, 17, 19 };
+            case Next:   return { 552, 10, 17, 19 };
+            case Copy:   return { 581, 8, 57, 22 };
+            case Setup:  return { 659, 8, 57, 22 };
+            case Save:   return { 740, 10, 19, 19 };
+            case Menu:   return { 776, 10, 24, 17 };
+            default:     return {};
+        }
     switch (i)
     {
         case About:  return { 4, 2, 16, 15 };
@@ -291,8 +307,113 @@ void Toolbar::showToolbarMenu()
 }
 
 //==============================================================================
+void Toolbar::paintFlat (juce::Graphics& g)
+{
+    // measured on the reference: bar (16, 17, 19), pill boxes (29, 29, 29), text / icons (180, 180, 180)
+    const juce::Colour bar (16, 17, 19), pill (29, 29, 29), ink (180, 180, 180), inkHot (235, 235, 235);
+    g.fillAll (bar);
+    auto box = [&] (juce::Rectangle<int> r, bool hot)
+    {
+        g.setColour (hot ? pill.brighter (0.15f) : pill);
+        g.fillRoundedRectangle (r.toFloat(), (float) r.getHeight() * 0.5f);
+    };
+    auto label = [&] (juce::Rectangle<int> r, const juce::String& t, bool hot, float size = 11.5f)
+    {
+        g.setColour (hot ? inkHot : ink);
+        g.setFont (tbFont (size));
+        g.drawText (t, r, juce::Justification::centred);
+    };
+    for (int i = 0; i < numItems; ++i)
+    {
+        const auto r = rect ((Item) i);
+        if (r.isEmpty()) continue;
+        const bool hot = (i == this->hot);
+        const auto c = r.toFloat().getCentre();
+        switch ((Item) i)
+        {
+            case About: drawMark (g, r.toFloat().reduced (1.0f), hot); break;
+            case Undo: case Redo:
+            {
+                const bool can = i == Undo ? undo.canUndo() : undo.canRedo();
+                const float dir = i == Undo ? 1.0f : -1.0f, rad = 5.0f;
+                juce::Path arc;
+                for (int k = 0; k <= 24; ++k)
+                {
+                    const float a = juce::degreesToRadians (30.0f - 225.0f * (float) k / 24.0f);
+                    const juce::Point<float> p (c.x + dir * rad * std::cos (a), c.y + 1.0f + rad * std::sin (a));
+                    if (k == 0) arc.startNewSubPath (p); else arc.lineTo (p);
+                }
+                g.setColour ((hot && can ? inkHot : ink).withMultipliedAlpha (can ? 1.0f : 0.45f));
+                g.strokePath (arc, juce::PathStrokeType (1.3f));
+                const float a1 = juce::degreesToRadians (-195.0f);
+                const juce::Point<float> tip (c.x + dir * rad * std::cos (a1), c.y + 1.0f + rad * std::sin (a1));
+                juce::Path head;
+                head.addTriangle (tip.x - dir * 3.2f, tip.y + 0.5f, tip.x + dir * 1.6f, tip.y - 2.8f, tip.x + dir * 1.6f, tip.y + 3.4f);
+                g.fillPath (head);
+                break;
+            }
+            case Preset:
+            {
+                box (r, hot);
+                label (r.withTrimmedRight (20), juce::String (active == 0 ? "A: " : "B: ") + presetName + (isModified() ? "*" : ""), hot);
+                g.setColour (ink);
+                g.fillRect (r.getRight() - 15, r.getY() + 3, 1, r.getHeight() - 6);
+                juce::Path tri;
+                tri.addTriangle ((float) r.getRight() - 10.0f, c.y - 2.0f, (float) r.getRight() - 4.0f, c.y - 2.0f, (float) r.getRight() - 7.0f, c.y + 2.5f);
+                g.fillPath (tri);
+                break;
+            }
+            case Mode:
+            {
+                box (r, hot);
+                const auto name = modeParam != nullptr ? modes[(int) modeParam->convertFrom0to1 (modeParam->getValue())] : juce::String();
+                label (r.withTrimmedRight (12), name, hot);
+                juce::Path tri;
+                tri.addTriangle ((float) r.getRight() - 16.0f, c.y - 2.0f, (float) r.getRight() - 10.0f, c.y - 2.0f, (float) r.getRight() - 13.0f, c.y + 2.5f);
+                g.setColour (hot ? inkHot : ink);
+                g.fillPath (tri);
+                break;
+            }
+            case Prev: case Next:
+            {
+                const float s = i == Next ? 1.0f : -1.0f;
+                juce::Path tri;
+                tri.addTriangle (c.x + s * 4.5f, c.y, c.x - s * 3.5f, c.y - 5.5f, c.x - s * 3.5f, c.y + 5.5f);
+                g.setColour (hot ? inkHot : ink);
+                g.fillPath (tri);
+                break;
+            }
+            case Copy:
+                box (r, hot);
+                label (r, juce::String::fromUTF8 (active == 0 ? "A \xe2\x9e\x9e B" : "B \xe2\x9e\x9e A"), hot);
+                break;
+            case Setup: box (r, hot); label (r, active == 0 ? "Setup A" : "Setup B", hot); break;
+            case Save:
+            {
+                // floppy disk
+                const juce::Rectangle<float> d (c.x - 5.0f, c.y - 5.0f, 10.0f, 10.0f);
+                g.setColour (hot ? inkHot : ink);
+                juce::Path p;
+                p.startNewSubPath (d.getX(), d.getY()); p.lineTo (d.getRight() - 3.0f, d.getY()); p.lineTo (d.getRight(), d.getY() + 3.0f);
+                p.lineTo (d.getRight(), d.getBottom()); p.lineTo (d.getX(), d.getBottom()); p.closeSubPath();
+                g.fillPath (p);
+                g.setColour (bar);
+                g.fillRect (d.getX() + 2.5f, d.getY() + 1.0f, 4.5f, 2.5f);
+                g.fillRect (d.getX() + 2.0f, d.getY() + 5.5f, 6.0f, 3.0f);
+                break;
+            }
+            case Menu:
+                g.setColour (hot ? inkHot : ink);
+                for (int k = 0; k < 3; ++k) g.fillRect ((float) r.getX() + 3.0f, (float) r.getY() + 3.0f + (float) k * 5.0f, 14.0f, 1.3f);
+                break;
+            default: break;
+        }
+    }
+}
+
 void Toolbar::paint (juce::Graphics& g)
 {
+    if (style == Style::Flat) { paintFlat (g); return; }
     auto box = [&] (juce::Rectangle<int> r, bool hot)
     {
         g.setColour (hot ? juce::Colours::black : juce::Colour (34, 34, 34));

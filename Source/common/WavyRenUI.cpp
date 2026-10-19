@@ -186,10 +186,10 @@ public:
 };
 
 Editor::Editor (AudioProcessor& p, AudioProcessorValueTreeState& state, UndoManager& u, RangedAudioParameter* mode,
-                const String& product, const String& version, int designW, int designH)
+                const String& product, const String& version, int designW, int designH, wavy::Toolbar::Style tbStyle)
     : AudioProcessorEditor (&p), apvts (state), undo (u), W (designW), H (designH),
       contentComp (std::make_unique<Content> (*this)),
-      toolbar (std::make_unique<wavy::Toolbar> (u, state, StringArray { "Stereo", "Mono" }, mode, product, version)),
+      toolbar (std::make_unique<wavy::Toolbar> (u, state, StringArray { "Stereo", "Mono" }, mode, product, version, tbStyle)),
       modeParam (mode)
 {
     // never take the keyboard focus: the host keeps its shortcuts (space = play / pause) while the window is open
@@ -220,8 +220,9 @@ Editor::Editor (AudioProcessor& p, AudioProcessorValueTreeState& state, UndoMana
 Editor::~Editor()
 {
     stopTimer();
-    sliderAtts.clear(); buttonAtts.clear();
+    sliderAtts.clear(); buttonAtts.clear(); comboAtts.clear(); paramAtts.clear();
     for (auto* f : faders) f->setLookAndFeel (nullptr);
+    for (auto& c : owned) c->setLookAndFeel (nullptr);
     owned.clear();
 }
 
@@ -274,6 +275,28 @@ void Editor::attach (Fader& f, const char* paramID, Rectangle<int> bounds, doubl
     f.applyFormat();                                      // the attachment installs its own text functions
     f.setDoubleClickReturnValue (true, resetValue);
     faders.push_back (&f);
+}
+
+void Editor::addToContent (Component& c, Rectangle<int> bounds)
+{
+    c.setWantsKeyboardFocus (false);
+    c.setMouseClickGrabsKeyboardFocus (false);
+    if (auxLook != nullptr) c.setLookAndFeel (auxLook.get());
+    contentComp->addAndMakeVisible (c);
+    c.setBounds (bounds);
+}
+
+void Editor::attachSlider (Slider& s, const char* paramID, Rectangle<int> bounds, double resetValue)
+{
+    addToContent (s, bounds);
+    sliderAtts.push_back (std::make_unique<SliderParameterAttachment> (*apvts.getParameter (paramID), s, &undo));
+    s.setDoubleClickReturnValue (true, resetValue);
+}
+
+void Editor::attachCombo (ComboBox& c, const char* paramID, Rectangle<int> bounds)
+{
+    addToContent (c, bounds);
+    comboAtts.push_back (std::make_unique<ComboBoxParameterAttachment> (*apvts.getParameter (paramID), c, &undo));
 }
 
 void Editor::attach (Button& b, const char* paramID, Rectangle<int> bounds)

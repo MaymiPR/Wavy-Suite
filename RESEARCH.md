@@ -23,7 +23,7 @@ Sources
 |---|---|---|
 | Renaissance Vox (RVox) | **WVox** | WVox |
 | Renaissance Bass (RBass) | **WBass** | WBass |
-| MaxxBass | **WMaxxBass** | WMaxxBass |
+| MaxxBass | **WBassX** (renamed 2026-10-18: the first name held the whole product mark) | WBassX |
 | H-Comp | **WComp** | WComp |
 | H-Delay | **WDelay** | WDelay |
 | Bass Rider | **WBass Ride** | WBassRide |
@@ -128,7 +128,7 @@ reference's "States" presets use its linear scales, checked against the two it c
 
 ---
 
-## 3. WMaxxBass (MaxxBass)
+## 3. WBassX (MaxxBass)
 
 ### Sources
 - **M1** Local manual `Plug-Ins V17\Documents\MaxxBass.pdf` (13 pages, MaxxBass User Guide; the same file ships in the bundle).

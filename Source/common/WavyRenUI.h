@@ -65,7 +65,7 @@ class Editor : public juce::AudioProcessorEditor, private juce::Timer
 public:
     Editor (juce::AudioProcessor&, juce::AudioProcessorValueTreeState&, juce::UndoManager&,
             juce::RangedAudioParameter* modeParam, const juce::String& product, const juce::String& version,
-            int designW, int designH);
+            int designW, int designH, wavy::Toolbar::Style toolbarStyle = wavy::Toolbar::Style::Renaissance);
     ~Editor() override;
     void resized() override;
     void parentHierarchyChanged() override;
@@ -85,6 +85,20 @@ protected:
     bool isMono() const;
     void setFactoryPresets (const std::vector<wavy::FactoryPreset>& list) { toolbar->setFactoryPresets (&list); }
 
+    // for editors with their own widgets (e.g. the flat kit, WavyFlatUI.h): the editor owns them and their look,
+    // and keeps the parameter attachments; everything is torn down before the look
+    template <class T, class... Args> T& make (Args&&... args)
+    {
+        owned.push_back (std::make_unique<T> (std::forward<Args> (args)...));
+        return static_cast<T&> (*owned.back());
+    }
+    void setAuxLook (std::unique_ptr<juce::LookAndFeel> l) { auxLook = std::move (l); }
+    juce::LookAndFeel* getAuxLook() const { return auxLook.get(); }
+    void attachSlider (juce::Slider&, const char* paramID, juce::Rectangle<int> bounds, double resetValue);
+    void attachCombo (juce::ComboBox&, const char* paramID, juce::Rectangle<int> bounds);
+    void addToContent (juce::Component&, juce::Rectangle<int> bounds);
+    void keepAttachment (std::unique_ptr<juce::ParameterAttachment> a) { paramAtts.push_back (std::move (a)); }
+
     // common drawing
     void paintPanel (juce::Graphics&) const;                      // black background, panel, frame
     static void paintHousing (juce::Graphics&);                    // big rounded housing + inner frame
@@ -103,12 +117,15 @@ private:
     void timerCallback() override { toolbar->refresh(); tick(); }
 
     Look look;
+    std::unique_ptr<juce::LookAndFeel> auxLook;           // destroyed after the widgets that use it (declared first)
     std::unique_ptr<Content> contentComp;
     std::unique_ptr<wavy::Toolbar> toolbar;
     juce::RangedAudioParameter* modeParam;
     juce::ComponentBoundsConstrainer constrainer;
     std::vector<std::unique_ptr<juce::SliderParameterAttachment>> sliderAtts;
     std::vector<std::unique_ptr<juce::ButtonParameterAttachment>> buttonAtts;
+    std::vector<std::unique_ptr<juce::ComboBoxParameterAttachment>> comboAtts;
+    std::vector<std::unique_ptr<juce::ParameterAttachment>> paramAtts;
     std::vector<Fader*> faders;
     std::vector<std::unique_ptr<juce::Component>> owned;
 };
