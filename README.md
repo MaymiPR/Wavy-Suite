@@ -60,7 +60,7 @@ lower is better: **median −36.8 dB** on the whole output and **−31.5 dB** on
   Details: [docs/NULL_RESULTS_WBASS.md](docs/NULL_RESULTS_WBASS.md), [MEASUREMENTS.md](MEASUREMENTS.md#wbass-model-phase-4-identification).
 
 How it was worked out: [RESEARCH.md](RESEARCH.md) (documented behaviour), [MEASUREMENTS.md](MEASUREMENTS.md) (what was measured and identified),
-[docs/VALIDATION.md](docs/VALIDATION.md) (unit tests, pluginval, CI).
+[docs/VALIDATION.md](docs/VALIDATION.md) (unit tests, pluginval, CI), [docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md) (open items and the learned-block procedure).
 
 ## Build
 
