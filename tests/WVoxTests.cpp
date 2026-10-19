@@ -21,10 +21,11 @@ static std::vector<float> tone (double fs, double f, double secs, double db)
 }
 
 // renders x through the DSP, latency compensated (the output lines up with the input)
-static std::vector<float> run (const std::vector<float>& x, double fs, wvox::Processor::Params p, int block = 512)
+static std::vector<float> run (const std::vector<float>& x, double fs, wvox::Processor::Params p, int block = 512,
+                               const wvox::Tuning& t = {})
 {
     wvox::Processor proc;
-    proc.prepare (fs, 1);
+    proc.prepare (fs, 1, t);
     proc.setParams (p);
     const int lat = proc.getLatency();
     std::vector<float> in (x); in.resize (x.size() + (size_t) lat, 0.0f);
@@ -234,6 +235,32 @@ static void testFactoryPresets()
             CHECK (std::abs (rp->getValue() - rp->getDefaultValue()) < 1.0e-6f);   // program 0 = defaults
 }
 
+// the learned slow-path correction is guarded: steady tones and Compression 0 come out exactly as without it, while
+// on noise at heavy compression it is active
+static void testLearnedGuards()
+{
+    const double fs = 48000.0;
+    wvox::Tuning off; off.learned = false;
+    auto maxDiff = [] (const std::vector<float>& a, const std::vector<float>& b, size_t from)
+    { double m = 0; for (size_t i = from; i < a.size(); ++i) m = std::max (m, (double) std::fabs (a[i] - b[i])); return m; };
+    for (double comp : { -12.0, -24.0, -36.0 })
+        for (auto [f, level] : { std::pair<double, double> { 1000.0, -20.0 }, { 8000.0, -6.0 }, { 3000.0, -40.0 } })
+        {
+            const auto x = tone (fs, f, 2.5, level);
+            wvox::Processor::Params p; p.compDb = (float) comp;
+            CHECK (maxDiff (run (x, fs, p), run (x, fs, p, 512, off), (size_t) (fs * 1.2)) < 1.0e-5);
+        }
+    std::vector<float> z ((size_t) fs * 2); unsigned s = 1;
+    for (auto& v : z) { s = s * 1664525u + 1013904223u; v = 0.3f * ((float) (s >> 8) / 16777216.0f - 0.5f); }
+    wvox::Processor::Params p0; p0.compDb = 0.0f;
+    CHECK (maxDiff (run (z, fs, p0), run (z, fs, p0, 512, off), 0) < 1.0e-7);
+    wvox::Processor::Params p1; p1.compDb = -24.0f;
+    const auto a = run (z, fs, p1), b = run (z, fs, p1, 512, off);
+    bool finite = true; for (float v : a) finite = finite && std::isfinite (v);
+    CHECK (finite);
+    CHECK (maxDiff (a, b, (size_t) (fs * 0.2)) > 1.0e-4);
+}
+
 int main()
 {
     juce::ScopedJuceInitialiser_GUI init;
@@ -245,6 +272,7 @@ int main()
     testStereoLink();
     testProcessor();
     testFactoryPresets();
+    testLearnedGuards();
     std::printf ("%d checks, %d failed\n", checks, failures);
     return failures == 0 ? 0 : 1;
 }

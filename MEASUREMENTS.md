@@ -66,6 +66,41 @@ Phase 4 needed more than the Phase 3 numbers, so further experiments (`nulltest/
 - The exact time constants: the fitted values are the best fit over the signals in `tune_wvox.py`, not measurements.
 - The unexposed meters and the hidden GateRel parameter.
 
+### WVox learned slow path (Phase 4, second round)
+
+The reference's own gain can be read sample by sample (gate off: output / delayed input / fixed gain). Against it, the
+identified fast path is an upper bound (the reference gain is above it on 0.0 - 0.1 % of the samples), and where the
+two differ the reference compresses more than the fitted slow path. On dense noise at heavy compression it holds an
+almost constant gain 2 - 3 dB below even the fast ratio (the gain of the larger peaks over a long window); on a
+100 Hz tone it holds the fast ratio's value at the waveform peak with 0.02 dB ripple, where the fitted path sits
+0.5 dB too high. A plain peak hold of the fast ratio fits the low tone but loses 10 - 20 dB elsewhere, so the slow path
+is left to a small learned block, as for WBass:
+
+- **Structure.** slow = max(fitted slow ratio x exp(c), floor); gain = min(fast, slow). c comes from a GRU (48 units)
+  stepped every 1/12000 s (4 samples at 48 kHz, a phase accumulator at other rates) on: ln of the step's peak level,
+  smallest fast ratio and last fitted slow ratio, ln M, running minima of the fast ratio over 1 - 20 ms and running
+  maxima of the level over 10 - 300 ms. c is applied to the following samples, moving linearly between the last two
+  finished steps (causal).
+- **Two guards keep the identified cases exact.** The floor is the static-law ratio at the loudest level of the last
+  second, so a steady signal can never be compressed below its fast ratio; and while the fast ratio stays flat for
+  20 ms (a steady tone) the correction fades out over 20 ms. Without them the network cost 10 - 60 dB on steady
+  sines and level steps that the fitted path already nulled.
+- **Training.** 3600 random 2 s renders of RVox Mono (voice, speech-like noise, white / pink noise, tones 25 Hz -
+  10 kHz, steps, AM, sweeps, drums, mixes; peak -60 ... 0 dBFS; Compression 0 ... -36 dB, gate off) with the WVox
+  internals dumped by `WVoxRender dump=1` (`nulltest/render_trainset_wvox.py`); supervised on the reference's
+  sample-wise gain first, then on the null residual itself, with the compression settings balanced
+  (`nulltest/train_wvox.py`; exported by `tools/export_wvoxnet.py` to `plugins/WVox/WVoxNet.h`). Training straight on
+  the null residual did not move (the slow ratio gets no gradient while it is above the fast ratio).
+- **Result** (48 kHz unless noted; [docs/NULL_RESULTS.md](docs/NULL_RESULTS.md), [docs/NULL_GRID.md](docs/NULL_GRID.md)):
+  worst case of the 672-case grid -10.1 -> -22.8 dB (median -71.4 -> -70.2 dB, 396 cases below -60 dB either way);
+  null-test worst -9.3 -> -19.3 dB, 44 of 117 rows better by more than 1 dB, 4 worse. White / pink noise at
+  Compression -24 / -36: -13 / -10 -> -27 / -24 dB (the same at 44.1 - 192 kHz and in stereo); voice-like -31 / -21 ->
+  -40 / -30 dB; 100 Hz tone -30 / -24 -> -48 / -51 dB; sweeps -36 / -29 -> -49 / -48 dB. Worse: AM at Compression -12
+  (-59 -> -49 dB) and level steps at light compression (grid median at -6 dB: -105 -> -88 dB). Steady tones unchanged.
+- **Checks.** C++ against the trained model on the null-test signals: -70 dB or lower. At 44.1 and 96 kHz the gains
+  are the same as at 48 kHz. Cost: about 3.5 % of one core for linked stereo (twice that in dual mono).
+- This is a learned model of the reference's slow path, not an identification of it.
+
 ---
 
 # WBass: measurements of the reference (Phase 3)

@@ -39,9 +39,11 @@ Residual of WVox against the reference, `20 log10(rms(difference) / rms(referenc
 
 - **Steady tones, any setting** (Compression, Gate, Gain, input level, 44.1–192 kHz, mono and stereo): −95 to −120 dB (a null).
 - **Compression 0** with any Gate / Gain: −120 dB and below (a null).
-- **Level steps, sweeps, speech-like material:** −35 to −65 dB, worse at heavy compression.
-- **Dense noise at heavy compression:** −10 to −25 dB (audibly different gain movement).
-- Over a 672-case grid of settings: median −71 dB. Details: [docs/NULL_GRID.md](docs/NULL_GRID.md), [docs/NULL_RESULTS.md](docs/NULL_RESULTS.md).
+- **Level steps, sweeps, speech-like material:** −30 to −65 dB, worse at heavy compression.
+- **Dense noise at heavy compression:** −24 to −33 dB (was −10 to −25 dB before the learned slow path).
+- Over a 672-case grid of settings: median −70 dB, worst −23 dB. The compressor's slow path is the fitted model plus a
+  small learned correction (trained on renders of the reference, guarded so steady signals stay exact).
+  Details: [docs/NULL_GRID.md](docs/NULL_GRID.md), [docs/NULL_RESULTS.md](docs/NULL_RESULTS.md).
 
 ### WBass null test (honest numbers)
 

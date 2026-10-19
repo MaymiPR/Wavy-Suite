@@ -19,7 +19,7 @@ int main (int argc, char** argv)
     p.gateDb = (float) std::atof (argv[6]);
     p.gainDb = (float) std::atof (argv[7]);
     wvox::Tuning t;
-    bool compensate = true;
+    bool compensate = true, dump = false;
     for (int i = 8; i < argc; ++i)
     {
         const std::string a = argv[i];
@@ -31,6 +31,8 @@ int main (int argc, char** argv)
         else if (k == "gateRelMs") t.gateRelMs = v; else if (k == "band") t.band = v; else if (k == "slowWinMs") t.slowWinMs = v; else if (k == "slowMode") t.slowMode = (int) v; else if (k == "decayDbS") t.decayDbS = v;
         else if (k == "fixedGain") t.fixedGain = v;
         else if (k == "compensate") compensate = v != 0.0f;
+        else if (k == "dump") dump = v != 0.0f;
+        else if (k == "learned") t.learned = v != 0.0f;
     }
     FILE* f = std::fopen (argv[1], "rb");
     if (! f) { std::fprintf (stderr, "cannot read %s\n", argv[1]); return 1; }
@@ -43,6 +45,8 @@ int main (int argc, char** argv)
     wvox::Processor proc;
     proc.prepare (fs, ch, t);
     proc.setParams (p);
+    std::vector<float> trace;
+    if (dump) { trace.reserve ((size_t) frames * 4 + 4096); proc.trace = &trace; }
     const int lat = proc.getLatency();
     const int total = frames + lat;                       // feed zeros to flush the look-ahead
     std::vector<std::vector<float>> in ((size_t) ch, std::vector<float> ((size_t) total, 0.0f)), out = in;
@@ -62,6 +66,12 @@ int main (int argc, char** argv)
     f = std::fopen (argv[2], "wb");
     std::fwrite (inter.data(), sizeof (float), inter.size(), f);
     std::fclose (f);
+    if (dump)     // <out>.trace: per processed sample v, fast ratio, slow ratio, gate gain (index i + latency acts on input i)
+    {
+        f = std::fopen ((std::string (argv[2]) + ".trace").c_str(), "wb");
+        std::fwrite (trace.data(), sizeof (float), trace.size(), f);
+        std::fclose (f);
+    }
     std::printf ("latency %d\n", lat);
     return 0;
 }
