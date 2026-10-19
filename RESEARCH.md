@@ -125,3 +125,84 @@ reference's "States" presets use its linear scales, checked against the two it c
 - The Original Bass switch is not automatable through the VST3; Phase 3 must set it through the plugin state to measure both positions.
 - Hidden constants (Response, Ratio, Decay, smoothing) shape the sound; WBass keeps them as non-automatable parameters with these defaults so presets round-trip.
 - The harmonic generator (which harmonics, their phase, level dependence, the "clip-free" stage) is the part most likely to be hard to null; the filters and gains should null.
+
+---
+
+## 3. WMaxxBass (MaxxBass)
+
+### Sources
+- **M1** Local manual `Plug-Ins V17\Documents\MaxxBass.pdf` (13 pages, MaxxBass User Guide; the same file ships in the bundle).
+- **M2** Local `MaxxBass.bundle\Contents\Resources\ParamXML\1000.xml`, `GUIXML\1000.xml`, `ToolbarXML\1001.xml`,
+  `AlgXML\1001.xml` (algorithm `MXBS`), `ProcessXML\1000.xml`, `PageTable\3950.xml`, and the presets in
+  `Presets\1000.xml` (22 presets; there is no separate preset folder in `Waves\Data\Presets`). No skin folder: the
+  editor is the newer flat Waves design, one look.
+- **M3** The installed VST3 (`WaveShell1-VST3 17.1`) as seen by a host: components *MaxxBass Mono* and *MaxxBass
+  Stereo*; **every control is an automatable parameter** (input_gain, orig_bass_gain, harmonics_gain, ratio,
+  response, harmonics_decay, highpass, frequency, monitor); reported latency 0.
+- **M4** A screenshot of the real editor taken with `tools/MeterCapture` (kept in the git-ignored `build/`).
+
+### Documented behaviour (M1)
+- Psychoacoustic bass enhancer (the "missing fundamental"): below the crossover **Frequency** (32–256 Hz) the bass
+  gets harmonics generated for it; above it the signal passes unaltered. RBass is described as based on this
+  technology.
+- **Mix section:** Input (manual: 0 dB … −inf; the VST3 goes to +12 dB), **Original Bass** level of the low band
+  (+12 dB … −inf), **MaxxBass** (Harmonics) level of the generated harmonics (+12 dB … −inf; default −inf, so the
+  default preset adds nothing).
+- **Harmonics section:** high-pass on the generated harmonics: 6 dB/oct at 16 Hz ("wideband", mostly DC removal),
+  12 dB/oct at Frequency (default), 24 dB/oct at Frequency. **Decay** (−9 … −24 dB): the level step from each
+  harmonic to the next; nearer 0 is richer.
+- **Dynamics section:** an **upward compressor on the harmonics only**: **Ratio** 1:1 (none; the harmonics follow
+  the original bass's dynamics) to 4:1 (harmonics louder, less dynamic range); **Response** 10–30 ms sets attack and
+  release together, reacting to the original bass.
+- **Monitor** selector: Audio (the output), MaxxBass (harmonics solo), Original Bass (the low band being removed,
+  solo). It changes what is heard, not only the meter.
+- **Output meter** −40…0 dBFS for the monitored source, peak value under each bar (infinite hold), red clip light;
+  a click resets peak and clip. The graph shows the original-bass band (blue) and the harmonics band (orange) as
+  curves that follow Frequency, the levels, the high-pass and Decay.
+- Usage notes: harmonics typically −18 … −8 dB for mixing / mastering; Frequency 50–90 Hz; small speakers: original
+  bass off, high-pass 24 dB/oct, Ratio 2:1.
+
+### Parameters (M2, M3), in preset-array order
+| # | ID | Label | Range | Default | On GUI | In VST3 |
+|---|---|---|---|---|---|---|
+| 0 | PARAM_IN_GAIN | Input | gain scale −inf … +12 dB | 0 dB | vertical fader | input_gain |
+| 1 | PARAM_FREQ | Freq | 32 … 256 Hz, logarithmic, 1 Hz | 80 Hz | horizontal slider | frequency |
+| 2 | PARAM_FBF_GAIN | Decay | −24 … −9 dB, 0.1 | −15 dB | knob | harmonics_decay |
+| 3 | PARAM_ATTACK | Response | 10 … 30 ms, 0.1 | 20 ms | knob | response |
+| 4 | PARAM_AGC | Ratio | 1 … 4, logarithmic, 0.01 | 1.00:1 | knob | ratio |
+| 5 | PARAM_MONITOR | Monitor | Audio / MaxxBass / Original Bass | Audio | three buttons | monitor |
+| 6, 7 | PARAM_VU_L, PARAM_VU_R | output meters | −40 … 0 dB, clip at 0.999999, peak hold | display | yes | no |
+| 8, 9 | PARAM_LP_GRAPH, PARAM_HP_GRAPH | graph curves | display data | — | graph | no |
+| 10 | PARAM_OUTF_ORDER | HighPass | 6 / 12 / 24 dB/oct | 12 dB/oct | popup | highpass |
+| 11 | PARAM_CLIP | Clip | toggle | off | clip light | no |
+| 12 | PARAM_ORIG_GAIN | Original Bass | gain scale −inf … +12 dB | 0 dB | vertical fader | orig_bass_gain |
+| 13 | PARAM_MB_GAIN | MaxxBass | gain scale −inf … +12 dB | −inf | vertical fader | harmonics_gain |
+
+Presets do not change the Input fader (`IgnoreOnPresetLoad`). Some older factory presets hold values outside the
+0–2 range in the HighPass slot (3, 4, 5, 6, 17); they will be converted through the reference itself, as for RBass.
+
+### GUI geometry (M2, M4)
+View **800 × 395 px** including the toolbar strip (logo, undo / redo, preset box, previous / next, A→B, Setup A,
+save, menu; no Skins button). Graph 3, 38, 534 × 243 (dB grid +6 … −24, frequency marks 16 / 32 / 64 / 128 / 256);
+Frequency slider 86, 292, 278 × 20 (value text 380, 297); Ratio, Response and Decay knobs 50 × 50 at 108, 174 and
+420, 314 (values under them, Arial 12); HighPass popup 341, 327, 51 × 21; Input fader 31 px wide, Original Bass and
+MaxxBass faders 31 × 222 at 592 / 630, 89 (values under them); output meters 20 × 170 at 708 / 754, 118 (peak text
+above), clip light 718, 84; Monitor buttons 69 × 15 in a 82 × 74 box at 702, 298. Some rectangles are relative to
+their panel, so Phase 2 will measure positions on the screenshot.
+
+### Presets (M2)
+22 presets: 12 factory (Full Reset, PA Default, Ultralow Extender, Light, Medium, Aggressive, Multimedia, PC Laptop,
+an effects preset, BoomBaxx, Hi-fi / Lo-fi system enhancer) and 10 artist presets in six artist groups. They will
+be carried over by their setting values only, with new Wavy names (no artist names, no Waves product names).
+
+### Notes for the next phases
+- **Shared engine?** RBass is "based on MaxxBass technology", and its hidden parameters (Response, Ratio, Decay)
+  mirror MaxxBass's controls. If the structure identified for WBass (crossover, harmonic generator, gain block,
+  limiter) carries over with Ratio / Response / Decay / HighPass as variables, most of WBass can be reused. A first
+  quick comparison (`build/mb_vs_rb.py`, one bass line) was inconclusive; Phase 3 measures it properly. If the gain
+  block has to be learned again, Ratio and Response become inputs of the network.
+- At Original Bass 0 dB the dry path is not a plain pass-through (residual +4.7 dB against the input on a bass
+  line), consistent with an all-pass crossover sum like RBass's "Original Bass In".
+- Monitor modes change the audio output and must be implemented.
+- The editor needs widgets the Renaissance kit does not have: the band graph, vertical faders, rotary knobs, a popup
+  selector, radio buttons, and a toolbar without Skins. Phase 2 is larger than for WBass.
