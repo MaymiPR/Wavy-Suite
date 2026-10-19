@@ -68,12 +68,18 @@ public:
     juce::Rectangle<int> textArea;
 };
 
-// slope selector (Filter): rounded box with the slope icon and a menu arrow
+// slope selector (Filter): rounded box with the slope icon and a menu arrow. As in the reference, a click on the
+// slope picture steps to the next slope (6 -> 12 -> 24 -> 6 dB/oct); a click on the arrow opens the list.
 class SlopeBox : public juce::ComboBox
 {
 public:
     SlopeBox() { setWantsKeyboardFocus (false); }
     void paint (juce::Graphics&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseUp (const juce::MouseEvent&) override;
+    static constexpr int arrowWidth = 20;
+private:
+    bool stepping = false;
 };
 
 // radio buttons for a choice parameter (Monitor), one per row

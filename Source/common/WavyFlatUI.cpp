@@ -179,6 +179,21 @@ void drawSlopeIcon (Graphics& g, Rectangle<float> r, int slope)
     g.strokePath (p, PathStrokeType (2.0f, PathStrokeType::curved, PathStrokeType::rounded));
 }
 
+void SlopeBox::mouseDown (const MouseEvent& e)
+{
+    stepping = e.x < getWidth() - arrowWidth && getNumItems() > 0;
+    if (stepping)
+        setSelectedItemIndex ((getSelectedItemIndex() + 1) % getNumItems(), sendNotificationSync);
+    else
+        ComboBox::mouseDown (e);
+}
+
+void SlopeBox::mouseUp (const MouseEvent& e)
+{
+    if (! stepping) ComboBox::mouseUp (e);
+    stepping = false;
+}
+
 void SlopeBox::paint (Graphics& g)
 {
     const auto r = getLocalBounds().toFloat().reduced (0.5f);
@@ -276,7 +291,7 @@ Label* FlatLook::createSliderTextBox (Slider& s)
 
 PopupMenu::Options FlatLook::getOptionsForComboBoxPopupMenu (ComboBox& box, Label& label)
 {
-    return LookAndFeel_V4::getOptionsForComboBoxPopupMenu (box, label).withStandardItemHeight (20).withMinimumWidth (110);
+    return LookAndFeel_V4::getOptionsForComboBoxPopupMenu (box, label).withStandardItemHeight (20).withMinimumWidth (130);
 }
 
 void FlatLook::drawPopupMenuBackground (Graphics& g, int w, int h)
@@ -299,9 +314,17 @@ void FlatLook::drawPopupMenuItem (Graphics& g, const Rectangle<int>& area, bool 
         g.setColour (kWhite);
         g.strokePath (tick, PathStrokeType (1.6f));
     }
+    auto textArea = area.withTrimmedLeft (24);
+    if (text.endsWith ("dB/oct"))                  // slope entries show their picture, as in the reference
+    {
+        const int v = text.getIntValue();
+        drawSlopeIcon (g, Rectangle<float> ((float) textArea.getX(), (float) area.getCentreY() - 4.5f, 13.0f, 9.0f),
+                       v <= 6 ? 0 : v <= 12 ? 1 : 2);
+        textArea = textArea.withTrimmedLeft (20);
+    }
     g.setColour (isActive ? Colour (225, 225, 227) : Colour (110, 110, 112));
     g.setFont (font (13.0f));
-    g.drawText (text, area.withTrimmedLeft (24), Justification::centredLeft);
+    g.drawText (text, textArea, Justification::centredLeft);
 }
 
 //==============================================================================

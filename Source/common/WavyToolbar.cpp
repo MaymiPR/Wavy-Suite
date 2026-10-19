@@ -26,14 +26,14 @@ Toolbar::Toolbar (juce::UndoManager& u, juce::AudioProcessorValueTreeState& s, j
 // widths narrowed so the Mode drop-down fits next to Skins.
 juce::Rectangle<int> Toolbar::rect (Item i) const
 {
-    if (style == Style::Flat)      // the reference's ToolbarXML (MaxxBass), the preset box shortened for Mode
+    if (style == Style::Flat)      // the reference's ToolbarXML (MaxxBass), Mode first, the preset box shortened for it
         switch (i)
         {
             case About:  return { 4, 10, 19, 19 };
-            case Undo:   return { 36, 10, 19, 19 };
-            case Redo:   return { 60, 10, 19, 19 };
-            case Preset: return { 96, 8, 340, 22 };
-            case Mode:   return { 446, 8, 72, 22 };
+            case Mode:   return { 32, 8, 66, 22 };
+            case Undo:   return { 106, 10, 19, 19 };
+            case Redo:   return { 130, 10, 19, 19 };
+            case Preset: return { 158, 8, 356, 22 };
             case Prev:   return { 528, 10, 17, 19 };
             case Next:   return { 552, 10, 17, 19 };
             case Copy:   return { 581, 8, 57, 22 };
@@ -331,7 +331,7 @@ void Toolbar::paintFlat (juce::Graphics& g)
         const auto c = r.toFloat().getCentre();
         switch ((Item) i)
         {
-            case About: drawMark (g, r.toFloat().reduced (1.0f), hot); break;
+            case About: drawMark (g, r.toFloat().reduced (1.0f), hot, false); break;
             case Undo: case Redo:
             {
                 const bool can = i == Undo ? undo.canUndo() : undo.canRedo();

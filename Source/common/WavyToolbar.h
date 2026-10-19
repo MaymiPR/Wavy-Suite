@@ -11,8 +11,8 @@ namespace wavy
 //   row 2: the preset bar across the full width (name, "*" when modified).
 // Setup A/B follows the reference: one Setup button toggles between two settings, the copy
 // button copies the current setup to the other one.
-// Style::Flat is the newer single-row WaveSystem bar (800 x 36 px, e.g. MaxxBass): mark | undo | redo | preset box |
-// Mode | prev | next | A>B copy | Setup A/B | save icon | menu; same behaviour.
+// Style::Flat is the newer single-row WaveSystem bar (800 x 36 px, e.g. MaxxBass): mark | Mode | undo | redo |
+// preset box | prev | next | A>B copy | Setup A/B | save icon | menu; same behaviour.
 class Toolbar : public juce::Component
 {
 public:

@@ -6,7 +6,7 @@ using namespace wavy::flat;
 namespace
 {
 // design grid (measured on the reference, reference/wbassx)
-const Rectangle<int> kGraph (3, 38, 534, 243), kBottom (3, 285, 534, 107), kMix (541, 38, 134, 354), kOut (679, 38, 118, 354);
+const Rectangle<int> kGraph (3, 38, 534, 243), kBottom (3, 285, 534, 107), kMix (541, 38, 134, 354), kOut (679, 38, 118, 339);
 const Rectangle<int> kClip (718, 84, 46, 4);
 constexpr float kGraphDbTop = 118.0f, kPxPerDb = 40.0f / 6.0f;            // 0 dB at y 118, 6 dB per 40 px
 constexpr float kMeterTop = 119.0f, kMeterBottom = 283.0f;                 // 0 .. -40 dB
@@ -25,6 +25,9 @@ WBassXEditor::WBassXEditor (WBassXProcessor& p)
       freq (make<HSlider>()), slope (make<SlopeBox>())
 {
     setAuxLook (std::make_unique<FlatLook>());
+    // the window still resizes from its corner, but the grip is not drawn over the badge
+    for (auto* c : getChildren())
+        if (dynamic_cast<ResizableCornerComponent*> (c) != nullptr) c->setAlpha (0.0f);
     setFactoryPresets (wbassx::factoryPresets());
 
     auto gainFmt = [] (double v) { return gainText ((float) v); };
@@ -240,14 +243,29 @@ void WBassXEditor::paintContent (Graphics& g)
     g.drawText ("Output", Rectangle<int> (700, 56, 80, 15), Justification::centred);
     paintMeters (g);
 
-    // product badge, bottom right
+    // product badge, bottom right, drawn like the reference's: the output panel stops above it, a dark 1 px gap runs
+    // along its top and its slanted left edge (cut into the corner of the mix panel), flat blue fading into orange,
+    // spaced dark letters
+    const Colour gap (21, 23, 26);
+    Path cut;                                                       // gap + badge area, cut out of the mix panel corner
+    cut.startNewSubPath (655.5f, 393.0f); cut.lineTo (674.0f, 377.5f); cut.lineTo (799.0f, 377.5f); cut.lineTo (799.0f, 393.0f);
+    cut.closeSubPath();
+    g.setColour (gap);
+    g.fillPath (cut);
+    g.setColour (Colour (54, 56, 59));                              // the mix panel's frame follows the cut
+    g.drawLine (654.5f, 392.0f, 673.5f, 376.5f, 1.0f);
     Path badge;
-    badge.startNewSubPath (664.0f, 395.0f); badge.lineTo (677.0f, 378.0f); badge.lineTo (800.0f, 378.0f); badge.lineTo (800.0f, 395.0f);
+    badge.startNewSubPath (659.0f, 393.0f); badge.lineTo (676.0f, 379.0f); badge.lineTo (799.0f, 379.0f); badge.lineTo (799.0f, 393.0f);
     badge.closeSubPath();
-    ColourGradient bg (kBadgeBlue, 700.0f, 0.0f, kBadgeOrange, 770.0f, 0.0f, false);
+    ColourGradient bg (Colour (80, 142, 213), 713.0f, 0.0f, Colour (213, 140, 106), 743.0f, 0.0f, false);
     g.setGradientFill (bg);
     g.fillPath (badge);
-    g.setColour (Colour (20, 22, 26));
-    g.setFont (font (14.0f, true));
-    g.drawText ("W B a s s X", Rectangle<int> (684, 378, 112, 17), Justification::centred);
+    g.setColour (Colours::black.withAlpha (0.35f));                 // the reference's darker top row
+    g.fillRect (676.0f, 379.0f, 123.0f, 1.0f);
+    g.setColour (Colour (18, 20, 24));
+    g.setFont (font (13.5f, true));
+    const String name ("WBassX");
+    const float pitch = 12.4f, x0 = 739.0f - pitch * (float) (name.length() - 1) * 0.5f;
+    for (int i = 0; i < name.length(); ++i)
+        g.drawText (String::charToString (name[i]), Rectangle<float> (x0 + pitch * (float) i - 7.0f, 379.0f, 14.0f, 14.0f), Justification::centred);
 }

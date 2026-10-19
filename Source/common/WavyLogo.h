@@ -7,11 +7,14 @@ namespace wavy
 inline const char* const repoUrl = "https://github.com/MaymiPR/WavySuite";
 
 // The Wavy mark (docs/branding/wavy-icon.svg): three identical sine swells, stepped evenly down
-// and across, cyan into amber, each fainter than the last, on a black tile.
-inline void drawMark (juce::Graphics& g, juce::Rectangle<float> r, bool bright)
+// and across, cyan into amber, each fainter than the last, on a black tile (or on whatever is behind it).
+inline void drawMark (juce::Graphics& g, juce::Rectangle<float> r, bool bright, bool tile = true)
 {
-    g.setColour (juce::Colours::black);
-    g.fillRect (r);
+    if (tile)
+    {
+        g.setColour (juce::Colours::black);
+        g.fillRect (r);
+    }
 
     // design space: the three waves span x 28..172, y 31.5..168.5 (200 x 200 icon)
     constexpr float x0 = 28.0f, x1 = 172.0f, y0 = 31.5f, y1 = 168.5f;
