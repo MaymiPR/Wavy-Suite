@@ -32,10 +32,11 @@ static void apply (wbassx::Processor& p, const Settings& s)
     p.setOrigBassDb (s.orig); p.setHarmonicsDb (s.harm); p.setHighPass (s.highpass); p.setMonitor (s.monitor);
 }
 
-static std::vector<float> run (const std::vector<float>& x, Settings s, int block = 512, double fs = 48000.0)
+static std::vector<float> run (const std::vector<float>& x, Settings s, int block = 512, double fs = 48000.0, double fixedGain = -1.0)
 {
     wbassx::Processor p;
     apply (p, s);
+    p.fixedGain = fixedGain;
     p.prepare (fs, 1);
     std::vector<float> y (x);
     for (size_t i = 0; i < y.size(); i += (size_t) block)
@@ -178,6 +179,43 @@ static void testProcessor()
     CHECK_NEAR (other.apvts.getRawParameterValue (wbassx::freq)->load(), 120.0, 1e-3);
 }
 
+static void testAgainstReference()
+{
+    // the identified structure against the reference's own measurements (MEASUREMENTS.md "WBassX model"), with the
+    // level control held at its cap: the generated part at rest (impulse responses of MaxxBass at 1e-4, FFT magnitude)
+    struct Row { double freq; int hp; std::vector<std::pair<double, double>> mag; };
+    const Row rows[] = {
+        { 80, 1, { { 20, -12.52 }, { 40, 0.63 }, { 60, 6.2 }, { 80, 7.1 }, { 120, 1.41 }, { 240, -15.56 }, { 640, -41.07 } } },
+        { 80, 0, { { 20, 10.13 }, { 40, 12.83 }, { 80, 10.1 }, { 160, -5.0 }, { 640, -41.07 } } },
+        { 80, 2, { { 20, -27.36 }, { 40, -4.5 }, { 80, 7.13 }, { 160, -5.22 } } },
+        { 256, 1, { { 20, -30.88 }, { 60, -10.29 }, { 160, 5.92 }, { 240, 9.09 }, { 640, -9.06 } } } };
+    for (const auto& r : rows)
+        for (const auto& [f, ref] : r.mag)
+        {
+            Settings s; s.monitor = 1; s.freq = r.freq; s.highpass = r.hp;
+            const auto y = run (tone (f, 1.5, -100), s, 512, 48000.0, 1.0);
+            CHECK_NEAR (db (std::abs (component (y, f))) + 100.0, ref, 0.15);
+        }
+    // the same at 44.1 and 96 kHz: the reference designs its filters at the host rate (its K changes by under 0.3 %)
+    for (double sr : { 44100.0, 96000.0 })
+        for (const auto& [f, ref] : rows[0].mag)
+        {
+            Settings s; s.monitor = 1;
+            const auto y = run (tone (f, 1.5, -100, sr), s, 512, sr, 1.0);
+            CHECK_NEAR (db (std::abs (component (y, f, 0.5, sr))) + 100.0, ref, 0.15);
+        }
+    // the Decay feedback: a 50 Hz tone at -30 dBFS (Freq 80, gain at its cap, -0.04 dB as measured at Ratio 4), 2nd and
+    // 3rd harmonics re input as measured on the reference
+    const struct { double decay, h2, h3; } fb[] = { { -15, -22.2, -53.8 }, { -9, -16.2, -42.2 } };
+    for (const auto& c : fb)
+    {
+        Settings s; s.monitor = 1; s.decay = c.decay;
+        const auto y = run (tone (50, 1.5, -30), s, 512, 48000.0, std::pow (10.0, -0.04 / 20.0));
+        CHECK_NEAR (db (std::abs (component (y, 100))) + 30.0, c.h2, 0.3);
+        CHECK_NEAR (db (std::abs (component (y, 150))) + 30.0, c.h3, 0.6);
+    }
+}
+
 int main()
 {
     juce::ScopedJuceInitialiser_GUI init;
@@ -187,6 +225,7 @@ int main()
     testDecay();
     testHighPass();
     testClip();
+    testAgainstReference();
     testBlocksAndChannels();
     testProcessor();
     std::printf ("%d checks, %d failures\n", checks, failures);

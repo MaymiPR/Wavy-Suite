@@ -33,7 +33,13 @@ def lp3(F):
 def feat(v): return np.abs(np.arcsinh(v / 1e-3)) / 8.0
 
 
-FEAT = os.environ.get("MB_FEAT", "base")       # "env": three peak followers of |u| as extra inputs
+FEAT = os.environ.get("MB_FEAT", "base")
+ZENV_PEAK, ZENV_POW = (0.003, 0.01, 0.03, 0.1), (0.01, 0.05)
+import ctypes as _ctf
+_F = _ctf.CDLL(os.path.join(HERE, "mbfeat.dll")) if os.path.exists(os.path.join(HERE, "mbfeat.dll")) else None
+if _F is not None:
+    _F.mb_peak.argtypes = [_ctf.c_void_p, _ctf.c_void_p, _ctf.c_int, _ctf.c_double]
+    _F.mb_power.argtypes = [_ctf.c_void_p, _ctf.c_void_p, _ctf.c_int, _ctf.c_double]       # "env": three peak followers of |u| as extra inputs
 ENV_REL = (0.005, 0.03, 0.2)                     # release times (s); instant attack
 
 
@@ -49,10 +55,18 @@ def peak_follow(v, rel):
 def features(x, u, F, ratio, response, hp=1):
     n = len(x)
     cols = [feat(x), feat(u), np.full(n, math.log(ratio)), np.full(n, (response - 20.0) / 10.0), np.full(n, math.log(F / 80.0))]
-    if FEAT == "zlin":
+    if FEAT in ("zlin", "zenv"):
         # the level control listens after the generated part's high-pass: give it u through K(F) HP_G (and the setting)
         z = KT[int(F)] * sosfilt(g_highpass(F, hp), u)
         cols += [feat(z), np.full(n, float(hp - 1))]
+    if FEAT == "zenv":
+        # envelope followers of |z| (instant attack, release 3 / 10 / 30 / 100 ms) and power smoothers (10 / 50 ms): the
+        # slow time constants a GRU stepping at 48 kHz finds hard to hold
+        z = np.ascontiguousarray(z, np.float64)
+        for rel in ZENV_PEAK:
+            y = np.empty(n); _F.mb_peak(z.ctypes.data, y.ctypes.data, n, math.exp(-1.0 / (rel * FS))); cols.append(feat(y))
+        for tau in ZENV_POW:
+            y = np.empty(n); _F.mb_power(z.ctypes.data, y.ctypes.data, n, math.exp(-1.0 / (tau * FS))); cols.append(feat(np.sqrt(y)))
     if FEAT == "env":
         au = np.abs(u)
         cols += [feat(peak_follow(au, r)) for r in ENV_REL]
@@ -184,7 +198,7 @@ def load_light(split):
     for f in sorted(glob.glob(os.path.join(DATA, split + "_*.npz"))):
         z = np.load(f)
         ex.append(dict(name=os.path.basename(f), kind=str(z["kind"]), F=float(z["F"]), ratio=float(z["ratio"]), response=float(z["response"]),
-                       decay=float(z["decay"]), hp=int(z["hp"]), x=z["x"].astype(np.float32), G=z["G"].astype(np.float32)))
+                       decay=float(z["decay"]), hp=int(z["hp"]), x=z["x"].astype(np.float32), G=z["G"].astype(np.float16)))
     return ex
 
 
@@ -203,7 +217,7 @@ def e2e_batch(exs, idx):
     fe = torch.from_numpy(np.stack([p[0] for p in pp]).astype(np.float32)).to(dev)
     u = torch.from_numpy(np.stack([p[1] for p in pp])).to(dev)
     hk = torch.from_numpy(np.stack([p[2] for p in pp])).to(dev)
-    G = torch.from_numpy(np.stack([exs[i]["G"] for i in idx])).to(dev)
+    G = torch.from_numpy(np.stack([exs[i]["G"] for i in idx]).astype(np.float32)).to(dev)
     return fe, u, hk, G, [exs[i]["coefs"] for i in idx]
 
 
@@ -233,7 +247,7 @@ def main_e2e(steps, hidden, init):
     for e in tr + va:
         e["coefs"] = gen_coefs(e)
     print(len(tr), "train", len(va), "val (end-to-end)", flush=True)
-    nin = {"env": 8, "zlin": 7}.get(FEAT, 5)
+    nin = {"env": 8, "zlin": 7, "zenv": 13}.get(FEAT, 5)
     net = Net(hidden, nin).to(dev)
     if init:
         sd = torch.load(init)

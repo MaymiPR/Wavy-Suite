@@ -19,3 +19,4 @@ packaging/plugins.iss.inc
 dist/
 nulltest/fastdsp.dll
 nulltest/mbfast.dll
+nulltest/mbfeat.dll

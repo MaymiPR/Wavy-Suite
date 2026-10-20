@@ -195,6 +195,7 @@ public:
     void setMonitor (int m) { monitor = std::clamp (m, 0, 2); }
 
     float lastPeak[2] {};
+    double fixedGain = -1.0;     // tests only: >= 0 replaces the learned level control by this gain
 
     void process (float* const* io, int numChannels, int n)
     {
@@ -223,7 +224,7 @@ public:
                 }
                 if (s.tNow > 1.0e6) s.tNow -= std::floor (s.tNow);
                 std::copy (fCur, fCur + net::inputs, s.fPrev);
-                const double g = std::exp (s.net.lnGain());
+                const double g = fixedGain >= 0.0 ? fixedGain : std::exp (s.net.lnGain());
 
                 // the Decay feedback: y = w (1 + a HP_B(y) of the previous sample), held within +-1
                 const double y = std::clamp (g * lo * (1.0 + a * s.vPrev), -1.0, 1.0);

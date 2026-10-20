@@ -17,7 +17,7 @@
 
 | Check | Result |
 |---|---|
-| Unit tests (`WBassXTests`, 28 checks, 2026-10-20: original path and its all-pass, Original Bass monitor pre-fader, Input trim stops at 0 dB, Audio = original + Harmonics × G, monitor pre-fader, Harmonics capped at +10.96 dB, Decay on the even harmonics, High-pass on the generated part, output clip, block-size invariance, channels independent, 96 kHz, processor and state round trip) | all pass (Windows, local) |
+| Unit tests (`WBassXTests`, 67 checks, 2026-10-20: the identified structure against the reference's own measurements (generated part at rest, 4 settings, 48 / 44.1 / 96 kHz, within 0.15 dB; Decay feedback h2 / h3 within 0.3 / 0.6 dB), original path and its all-pass, Original Bass monitor pre-fader, Input trim stops at 0 dB, Audio = original + Harmonics × G, monitor pre-fader, Harmonics capped at +10.96 dB, Decay on the even harmonics, High-pass on the generated part, output clip, block-size invariance, channels independent, 96 kHz, processor and state round trip) | all pass (Windows, local) |
 | pluginval, strictness level 10, `--skip-gui-tests`, on `WBassX.vst3` (Windows, local, 2026-10-20) | SUCCESS, exit code 0 |
 | FocusCheck (the space bar reaches the host after clicks on the editor) | PASS |
 | Learned level control: C++ against the trained PyTorch model | −71 … −117 dB on most examples (−43 dB on a kick) |
