@@ -22,7 +22,7 @@ WBassXEditor::WBassXEditor (WBassXProcessor& p)
       proc (p),
       input (make<VFader> (kWhite)), origBass (make<VFader> (kBlue)), harmonics (make<VFader> (kOrange)),
       ratio (make<Knob> ("Ratio")), response (make<Knob> ("Response")), decay (make<Knob> ("Decay")),
-      freq (make<HSlider>()), slope (make<SlopeBox>())
+      freq (make<HSlider>()), slope (make<SlopeBox>()), lasso (make<LassoOverlay>())
 {
     setAuxLook (std::make_unique<FlatLook>());
     // the window still resizes from its corner, but the grip is not drawn over the badge
@@ -59,11 +59,14 @@ WBassXEditor::WBassXEditor (WBassXProcessor& p)
     slope.selection = &selection;
     attachCombo (slope, wbassx::highpass, { 340, 325, 57, 28 });              // box at 344, 329 (49 x 20)
 
-    auto& monitor = make<RadioColumn> (*p.apvts.getParameter (wbassx::monitor), &p.undo,
+    auto& mon = make<RadioColumn> (*p.apvts.getParameter (wbassx::monitor), &p.undo,
                                        StringArray { "Audio", "Harmonics", "Original Bass" },
                                        std::vector<Colour> { kWhite, kOrange, kBlue });
-    monitor.selection = &selection;
-    addToContent (monitor, { 708, 303, 69, 62 });
+    mon.selection = &selection;
+    addToContent (mon, { 708, 303, 69, 62 });
+    monitor = &mon;
+    setUpGroups();
+    addToContent (lasso, { 0, 0, W, H });                                     // on top of everything
 
     // the graph follows every control
     for (auto* s : std::initializer_list<Slider*> { &origBass, &harmonics, &decay, &freq })
@@ -84,6 +87,49 @@ void WBassXEditor::tick()
     content().repaint (kOut);
 }
 
+void WBassXEditor::setUpGroups()
+{
+    // the reference's control order (GUIXML ControlOrder); Freq does not take part in groups. Input's 0..1 covers only
+    // the lower 2/3 of the reference's scale (it stops at 0 dB)
+    groupable = { { &input, wbassx::input, 2.0f / 3.0f }, { &origBass, wbassx::origBass, 1.0f }, { &ratio, wbassx::ratio, 1.0f },
+                  { &harmonics, wbassx::harmonics, 1.0f }, { &decay, wbassx::decay, 1.0f }, { &response, wbassx::response, 1.0f },
+                  { monitor, wbassx::monitor, 1.0f }, { &slope, wbassx::highpass, 1.0f } };
+    input.feel.referenceScale = 2.0f / 3.0f;
+    auto paramOf = [this] (Component* c) -> RangedAudioParameter*
+    {
+        for (auto& m : groupable) if (m.c == c) return apvts.getParameter (m.id);
+        return nullptr;
+    };
+    selection.gangBegin = [this, paramOf] (Component* src)
+    {
+        gangStart.clear(); gangTotal = 0.0f;
+        for (auto* c : selection.members)
+            if (c != src)
+                if (auto* p = paramOf (c)) { p->beginChangeGesture(); gangStart[c] = p->getValue(); }
+    };
+    selection.gangEnd = [this, paramOf] (Component* src)
+    {
+        for (auto* c : selection.members) if (c != src) if (auto* p = paramOf (c)) p->endChangeGesture();
+    };
+    selection.gangMove = [this, paramOf] (Component* src, float step)
+    {
+        gangTotal += step;           // applied from each member's start value, so the parameters' rounding does not add up
+        for (auto& m : groupable)
+        {
+            if (m.c == src || ! selection.contains (m.c)) continue;
+            auto* p = paramOf (m.c);
+            if (p == nullptr) continue;
+            if (auto* choice = dynamic_cast<AudioParameterChoice*> (p))          // one setting per mouse move
+            {
+                const int n = choice->choices.size(), i = jlimit (0, n - 1, choice->getIndex() + (step > 0.0f ? 1 : -1));
+                p->setValueNotifyingHost (p->convertTo0to1 ((float) i));
+            }
+            else
+                p->setValueNotifyingHost (jlimit (0.0f, 1.0f, gangStart[m.c] + gangTotal / m.referenceScale));
+        }
+    };
+}
+
 void WBassXEditor::contentMouseDown (const MouseEvent& e)
 {
     // as in the reference: a click on the meters, readouts or the clip light clears the peaks and the clip light
@@ -92,6 +138,31 @@ void WBassXEditor::contentMouseDown (const MouseEvent& e)
         holdL = holdR = -100.0f; clip = false;
         content().repaint (kOut);
     }
+    // a click on the background clears the selection and starts a lasso
+    selection.clear();
+    lassoStart = e.getPosition();
+    lassoing = true;
+}
+
+void WBassXEditor::contentMouseDrag (const MouseEvent& e)
+{
+    if (! lassoing) return;
+    const auto r = Rectangle<int> (lassoStart, e.getPosition());
+    lasso.repaint (lasso.rect.expanded (2));
+    lasso.rect = r;
+    lasso.repaint (r.expanded (2));
+    std::vector<Component*> group;
+    for (auto& m : groupable)
+        if (m.c->getBounds().intersects (r)) group.push_back (m.c);
+    selection.setGroup (std::move (group));
+}
+
+void WBassXEditor::contentMouseUp (const MouseEvent&)
+{
+    if (! lassoing) return;
+    lassoing = false;
+    lasso.repaint (lasso.rect.expanded (2));
+    lasso.rect = {};
 }
 
 void WBassXEditor::paintGraph (Graphics& g)

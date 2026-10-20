@@ -2,6 +2,7 @@
 #include "WBassXProcessor.h"
 #include "WavyRenUI.h"
 #include "WavyFlatUI.h"
+#include <map>
 
 // WBassX editor: 800 x 395 px design grid (the reference's flat design), resizable at that aspect ratio.
 class WBassXEditor : public wavy::ren::Editor
@@ -14,6 +15,9 @@ public:
 private:
     void paintContent (juce::Graphics&) override;
     void contentMouseDown (const juce::MouseEvent&) override;
+    void contentMouseDrag (const juce::MouseEvent&) override;
+    void contentMouseUp (const juce::MouseEvent&) override;
+    void setUpGroups();
     void tick() override;
     void paintGraph (juce::Graphics&);
     void paintMeters (juce::Graphics&);
@@ -28,6 +32,15 @@ private:
     wavy::flat::Knob& decay;
     wavy::flat::HSlider& freq;
     wavy::flat::SlopeBox& slope;
+    wavy::flat::RadioColumn* monitor = nullptr;
+    wavy::flat::LassoOverlay& lasso;
+    juce::Point<int> lassoStart;
+    bool lassoing = false;
+    // the controls a lasso can take, in the reference's control order, with their parameters
+    struct Member { juce::Component* c; const char* id; float referenceScale; };
+    std::vector<Member> groupable;
+    std::map<juce::Component*, float> gangStart;          // each member's value when the group drag began
+    float gangTotal = 0.0f;
 
     wavy::flat::Selection selection;
     wavy::MeterBallistics barL, barR;

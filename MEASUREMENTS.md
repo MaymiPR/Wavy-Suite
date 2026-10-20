@@ -273,3 +273,22 @@ parameters read back, cursor visibility checked mid-drag):
   slowly (2 px or less per move); Ctrl about 3000 px. Shift does nothing special.
 - WBassX gives the same values as the reference on every test drag (e.g. Ratio 1.00 -> 1.12 -> 1.18, Decay -15.0 ->
   -16.2 -> -16.8, Input -4.8 vs -4.9 dB, Freq 80 -> 119 Hz).
+
+### Selection and groups (WBassX / MaxxBass)
+
+Measured with the MeterCapture drag script (screenshots on hover, press, drag, release, mouse away; parameters
+read back after each step):
+
+- A click marks a control until another one is clicked; hovering shows nothing. Marks: knobs a ring at radius 20.5
+  (yellow (241, 227, 7), brightest at 3 and 9 o'clock, gone at the top and bottom), the Freq thumb the same ring at
+  6 px, faders a 13 x 2 px bar under the thumb ((85, 81, 10)) plus a glow of the line's own colour over the thumb, the
+  Filter box a 2 px outline 2.5 px outside its border ((85, 82, 24) at the ends, fading toward the middle of the top
+  and bottom), the Monitor column a 1 px line under the buttons (pure yellow in the middle, cosine fade).
+- A lasso dragged on the background (1 px pure white rectangle) selects every control it touches, live; Freq is not
+  part of groups. The first in the control order (Input, Original Bass, Ratio, Harmonics, Decay, Response, Monitor,
+  Filter) is the primary (yellow), the others members (blue: knob ring (7, 168, 229), fader bar (9, 60, 80), Filter
+  outline (22, 66, 84)). Clicking a member makes it the primary and keeps the group; clicking the background clears.
+- Dragging a member moves the group by equal steps on the reference's 0..1 parameter scale (Original Bass +0.093,
+  Input +0.089, Harmonics +0.090 for a 15 px drag), each member clamped at its own ends (Input stops at 0 dB, the top
+  2/3 of its scale); choice members step one setting per mouse move. WBassX gives the same values on the same drags
+  (e.g. Ratio 1.12 -> 1.25 -> 1.00, Decay -16.2 -> -15.0 -> -17.4, Filter 12 -> 24 -> 6 dB/oct).

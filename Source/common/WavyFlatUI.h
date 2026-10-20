@@ -26,23 +26,41 @@ juce::String gainText (float db);                          // "-inf" below -99.9
 // reads plain numbers and "-inf"
 void applyFormat (juce::Slider&, std::function<juce::String (double)> format);
 
-// The selected control (the reference marks the last clicked fader, knob or slider in yellow, until another one is
-// clicked; hovering shows nothing). One per editor; widgets with a group call select() on mouse down.
+// The selection, as in the reference (MEASUREMENTS.md "Selection"): a click marks a control (the primary, yellow)
+// until another one is clicked; hovering shows nothing. A lasso dragged on the background selects every control it
+// touches (live, while dragging); the first in the editor's control order is the primary, the others are members
+// (blue). Clicking a member makes it the primary and keeps the group; clicking the background clears it. Dragging any
+// member moves the whole group: every member by the same step on its 0..1 parameter scale (each clamped at its own
+// ends), choice members (Filter, Monitor) one step per mouse move in the same direction.
 struct Selection
 {
-    juce::Component* current = nullptr;
-    void select (juce::Component* c)
-    {
-        if (c == current) return;
-        if (auto* old = current) old->repaint();
-        current = c;
-        if (c != nullptr) c->repaint();
-    }
-    bool is (const juce::Component* c) const { return c != nullptr && c == current; }
+    std::vector<juce::Component*> members;                    // in the editor's control order
+    juce::Component* primary = nullptr;
+    // installed by the editor: how a drag of one member moves the others
+    std::function<void (juce::Component* source)> gangBegin, gangEnd;
+    std::function<void (juce::Component* source, float stepOnReferenceScale)> gangMove;
+
+    void select (juce::Component*);                            // a click
+    void setGroup (std::vector<juce::Component*>);             // a lasso (first = primary)
+    void clear();
+    bool is (const juce::Component* c) const { return c != nullptr && c == primary; }
+    bool contains (const juce::Component*) const;
+    bool isMember (const juce::Component* c) const { return contains (c) && ! is (c); }
+    bool grouped() const { return members.size() > 1; }
+private:
+    void repaintAll();
 };
-inline const juce::Colour kSelect (241, 227, 7);
-// the selection ring of knobs and the Freq thumb: yellow, brightest at 3 and 9 o'clock, gone at the top and bottom
-void drawSelectRing (juce::Graphics&, juce::Point<float> centre, float radius);
+inline const juce::Colour kSelect (241, 227, 7), kMember (7, 168, 229);
+// the selection ring of knobs and the Freq thumb: brightest at 3 and 9 o'clock, gone at the top and bottom
+void drawSelectRing (juce::Graphics&, juce::Point<float> centre, float radius, juce::Colour = kSelect);
+// the lasso: a 1 px white rectangle over everything (does not take the mouse)
+class LassoOverlay : public juce::Component
+{
+public:
+    LassoOverlay() { setInterceptsMouseClicks (false, false); }
+    void paint (juce::Graphics&) override;
+    juce::Rectangle<int> rect;
+};
 
 // How the reference's controls follow the mouse (measured with tools/MeterCapture drag=..., see MEASUREMENTS.md
 // "Control feel"): the cursor is hidden while dragging and comes back where the control is; faders and the Freq
@@ -52,11 +70,12 @@ struct WavesDrag
 {
     enum Kind { Linear, Rotary };
     explicit WavesDrag (Kind k) : kind (k) {}
-    bool down (juce::Slider&, const juce::MouseEvent&, juce::Rectangle<int> textArea);    // true: handled
-    void drag (juce::Slider&, const juce::MouseEvent&);
-    bool up (juce::Slider&, const juce::MouseEvent&, juce::Point<float> restoreAt);       // true: handled
+    bool down (juce::Slider&, const juce::MouseEvent&, juce::Rectangle<int> textArea, Selection*);  // true: handled
+    void drag (juce::Slider&, const juce::MouseEvent&, Selection*);
+    bool up (juce::Slider&, const juce::MouseEvent&, juce::Point<float> restoreAt, Selection*);    // true: handled
     const Kind kind;
-    bool active = false;
+    bool active = false, ganged = false;
+    float referenceScale = 1.0f;     // this control's 0..1 range on the reference's scale (Input: 2/3, it stops at 0 dB)
     juce::Point<float> virt, last;
 };
 

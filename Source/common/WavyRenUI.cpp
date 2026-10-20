@@ -182,6 +182,8 @@ public:
     explicit Content (Editor& e) : ed (e) {}
     void paint (Graphics& g) override { ed.paintContent (g); }
     void mouseDown (const MouseEvent& e) override { ed.contentMouseDown (e); }
+    void mouseDrag (const MouseEvent& e) override { ed.contentMouseDrag (e); }
+    void mouseUp (const MouseEvent& e) override { ed.contentMouseUp (e); }
     Editor& ed;
 };
 

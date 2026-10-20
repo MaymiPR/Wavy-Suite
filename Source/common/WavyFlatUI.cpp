@@ -50,7 +50,44 @@ static void clickToType (Slider& s, Rectangle<int> textArea, const MouseEvent& e
 }
 
 //==============================================================================
-void drawSelectRing (Graphics& g, Point<float> c, float radius)
+void Selection::repaintAll()
+{
+    for (auto* m : members) m->repaint();
+}
+
+void Selection::select (Component* c)
+{
+    if (contains (c)) { if (primary != c) { primary = c; repaintAll(); } return; }
+    repaintAll();
+    members = { c };
+    primary = c;
+    repaintAll();
+}
+
+void Selection::setGroup (std::vector<Component*> list)
+{
+    if (list == members) return;
+    repaintAll();
+    members = std::move (list);
+    primary = members.empty() ? nullptr : members.front();
+    repaintAll();
+}
+
+void Selection::clear() { setGroup ({}); }
+
+bool Selection::contains (const Component* c) const
+{
+    return c != nullptr && std::find (members.begin(), members.end(), c) != members.end();
+}
+
+void LassoOverlay::paint (Graphics& g)
+{
+    if (rect.isEmpty()) return;
+    g.setColour (Colours::white);                                   // measured: pure white, 1 px
+    g.drawRect (rect.translated (-getX(), -getY()), 1);
+}
+
+void drawSelectRing (Graphics& g, Point<float> c, float radius, Colour colour)
 {
     constexpr int n = 96;
     for (int i = 0; i < n; ++i)
@@ -60,24 +97,27 @@ void drawSelectRing (Graphics& g, Point<float> c, float radius)
         if (w < 0.01f) continue;
         Path seg;
         seg.addCentredArc (c.x, c.y, radius, radius, 0.0f, a0, a1 + 0.01f, true);
-        g.setColour (kSelect.withAlpha (w));
+        g.setColour (colour.withAlpha (w));
         g.strokePath (seg, PathStrokeType (1.3f));
     }
 }
 
 //==============================================================================
-bool WavesDrag::down (Slider& s, const MouseEvent& e, Rectangle<int> textArea)
+bool WavesDrag::down (Slider& s, const MouseEvent& e, Rectangle<int> textArea, Selection* sel)
 {
     if (textArea.contains (e.getPosition()) || e.mods.isAltDown() || e.mods.isPopupMenu()) return false;
     active = true;
     virt = last = e.position;
     e.source.enableUnboundedMouseMovement (true, false);         // hide the cursor, no screen edge
     s.Slider::mouseDown (e);
+    ganged = sel != nullptr && sel->grouped() && sel->contains (&s);
+    if (ganged && sel->gangBegin) sel->gangBegin (&s);
     return true;
 }
 
-void WavesDrag::drag (Slider& s, const MouseEvent& e)
+void WavesDrag::drag (Slider& s, const MouseEvent& e, Selection* sel)
 {
+    const double before = s.valueToProportionOfLength (s.getValue());
     const auto d = e.position - last;
     last = e.position;
     float k = 1.0f;
@@ -90,13 +130,18 @@ void WavesDrag::drag (Slider& s, const MouseEvent& e)
         k = 0.25f;
     virt += d * k;
     s.Slider::mouseDrag (e.withNewPosition (virt));
+    const double step = s.valueToProportionOfLength (s.getValue()) - before;
+    if (ganged && sel != nullptr && sel->gangMove && std::abs (step) > 1.0e-9)
+        sel->gangMove (&s, (float) step * referenceScale);
 }
 
-bool WavesDrag::up (Slider& s, const MouseEvent& e, Point<float> restoreAt)
+bool WavesDrag::up (Slider& s, const MouseEvent& e, Point<float> restoreAt, Selection* sel)
 {
     if (! active) return false;
     active = false;
     s.Slider::mouseUp (e.withNewPosition (virt));
+    if (ganged && sel != nullptr && sel->gangEnd) sel->gangEnd (&s);
+    ganged = false;
     e.source.enableUnboundedMouseMovement (false);
     Desktop::setMousePosition (s.localPointToGlobal (restoreAt).roundToInt());   // the cursor comes back on the control
     return true;
@@ -127,12 +172,12 @@ bool VFader::hitTest (int x, int y)
 void VFader::mouseDown (const MouseEvent& e)
 {
     if (selection != nullptr) selection->select (this);
-    if (! feel.down (*this, e, textArea)) Slider::mouseDown (e);
+    if (! feel.down (*this, e, textArea, selection)) Slider::mouseDown (e);
 }
-void VFader::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e); else Slider::mouseDrag (e); }
+void VFader::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e, selection); else Slider::mouseDrag (e); }
 void VFader::mouseUp (const MouseEvent& e)
 {
-    if (feel.up (*this, e, { (float) getWidth() * 0.5f, (float) getPositionOfValue (getValue()) })) return;
+    if (feel.up (*this, e, { (float) getWidth() * 0.5f, (float) getPositionOfValue (getValue()) }, selection)) return;
     Slider::mouseUp (e);
     clickToType (*this, textArea, e);
 }
@@ -152,17 +197,31 @@ void VFader::paint (Graphics& g)
     ColourGradient grad (Colour (66, 67, 70), thumb.getX(), thumb.getY(), Colour (48, 49, 52), thumb.getX(), thumb.getBottom(), false);
     g.setGradientFill (grad);
     g.fillRoundedRectangle (thumb, 2.5f);
-    if (selection != nullptr && selection->is (this))                            // selected: a yellow bar under the thumb
+    const bool marked = selection != nullptr && selection->contains (this);
+    if (marked)
     {
-        ColourGradient bar (Colour (90, 86, 16).withAlpha (0.0f), cx - 7.0f, 0.0f, Colour (90, 86, 16).withAlpha (0.0f), cx + 7.0f, 0.0f, false);
-        bar.addColour (0.5, Colour (90, 86, 16));
-        bar.addColour (0.25, Colour (90, 86, 16).withAlpha (0.55f));
-        bar.addColour (0.75, Colour (90, 86, 16).withAlpha (0.55f));
+        // a short bar under the thumb: yellow on the primary, blue on a group member (measured (85, 81, 10) / (9, 60, 80))
+        const Colour bc = selection->is (this) ? Colour (90, 86, 16) : Colour (9, 62, 82);
+        ColourGradient bar (bc.withAlpha (0.0f), cx - 7.0f, 0.0f, bc.withAlpha (0.0f), cx + 7.0f, 0.0f, false);
+        bar.addColour (0.5, bc);
+        bar.addColour (0.25, bc.withAlpha (0.55f));
+        bar.addColour (0.75, bc.withAlpha (0.55f));
         g.setGradientFill (bar);
         g.fillRect (cx - 7.0f, pos + 16.0f, 14.0f, 2.0f);
+        // and the centre line lights the thumb (measured: tinted about 7 px around the line, across the whole thumb)
+        Graphics::ScopedSaveState s (g);
+        g.reduceClipRegion (thumb.toNearestInt());
+        ColourGradient glow (lineColour.withAlpha (0.0f), cx, pos - 8.0f, lineColour.withAlpha (0.0f), cx, pos + 8.0f, false);
+        glow.addColour (0.5, lineColour.withAlpha (0.24f));                 // measured: 0.16 at 2 px, 0.1 at 4, 0.05 at 6
+        glow.addColour (0.37, lineColour.withAlpha (0.15f));
+        glow.addColour (0.63, lineColour.withAlpha (0.15f));
+        glow.addColour (0.25, lineColour.withAlpha (0.1f));
+        glow.addColour (0.75, lineColour.withAlpha (0.1f));
+        glow.addColour (0.12, lineColour.withAlpha (0.045f));
+        glow.addColour (0.88, lineColour.withAlpha (0.045f));
+        g.setGradientFill (glow);
+        g.fillRect (thumb);
     }
-    g.setColour (lineColour.withAlpha (0.35f));
-    g.fillRoundedRectangle (cx - 7.0f, pos - 2.0f, 14.0f, 4.0f, 1.5f);
     g.setColour (lineColour);
     g.fillRoundedRectangle (cx - 6.0f, pos - 1.0f, 12.0f, 2.0f, 1.0f);
 }
@@ -180,12 +239,12 @@ Knob::Knob (String l) : label (std::move (l))
 void Knob::mouseDown (const MouseEvent& e)
 {
     if (selection != nullptr) selection->select (this);
-    if (! feel.down (*this, e, textArea)) Slider::mouseDown (e);
+    if (! feel.down (*this, e, textArea, selection)) Slider::mouseDown (e);
 }
-void Knob::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e); else Slider::mouseDrag (e); }
+void Knob::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e, selection); else Slider::mouseDrag (e); }
 void Knob::mouseUp (const MouseEvent& e)
 {
-    if (feel.up (*this, e, centre)) return;
+    if (feel.up (*this, e, centre, selection)) return;
     Slider::mouseUp (e);
     clickToType (*this, textArea, e);
 }
@@ -197,7 +256,7 @@ void Knob::paint (Graphics& g)
     g.fillEllipse (c.x - 1.3f, 9.5f, 2.6f, 2.6f);                                 // centre-position dot
     g.setColour (kRing);
     g.drawEllipse (c.x - radius, c.y - radius, radius * 2.0f, radius * 2.0f, 1.2f);
-    if (selection != nullptr && selection->is (this)) drawSelectRing (g, c, radius + 4.0f);
+    if (selection != nullptr && selection->contains (this)) drawSelectRing (g, c, radius + 4.0f, selection->is (this) ? kSelect : kMember);
 
     const auto rp = getRotaryParameters();
     const float frac = (float) valueToProportionOfLength (getValue());
@@ -238,12 +297,12 @@ HSlider::HSlider()
 void HSlider::mouseDown (const MouseEvent& e)
 {
     if (selection != nullptr) selection->select (this);
-    if (! feel.down (*this, e, {})) Slider::mouseDown (e);
+    if (! feel.down (*this, e, {}, selection)) Slider::mouseDown (e);
 }
-void HSlider::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e); else Slider::mouseDrag (e); }
+void HSlider::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e, selection); else Slider::mouseDrag (e); }
 void HSlider::mouseUp (const MouseEvent& e)
 {
-    if (! feel.up (*this, e, { (float) getPositionOfValue (getValue()), y })) Slider::mouseUp (e);
+    if (! feel.up (*this, e, { (float) getPositionOfValue (getValue()), y }, selection)) Slider::mouseUp (e);
 }
 
 void HSlider::paint (Graphics& g)
@@ -308,8 +367,9 @@ void SlopeBox::mouseUp (const MouseEvent& e)
 
 void SlopeBox::paint (Graphics& g)
 {
-    if (selection != nullptr && selection->is (this))
+    if (selection != nullptr && selection->contains (this))
     {
+        const Colour oc = selection->is (this) ? Colour (102, 97, 14) : Colour (13, 75, 99);   // lands on (85, 82, 24) / (22, 66, 84)
         // measured: 2 px, a dark yellow (85, 82, 24) at the left and right ends, fading out toward the middle of the top
         // and bottom edges
         const auto o = box.expanded (2.5f);
@@ -329,7 +389,7 @@ void SlopeBox::paint (Graphics& g)
                 const float t = std::abs ((a.x + b.x) * 0.5f - cx) / half;
                 const float w = std::pow (jlimit (0.0f, 1.0f, (t - 0.22f) / 0.5f), 1.3f);   // fitted to the reference's top edge
                 if (w < 0.01f) continue;
-                g.setColour (Colour (102, 97, 14).withAlpha (w));               // lands on the measured (85, 82, 24) after anti-aliasing
+                g.setColour (oc.withAlpha (w));
                 g.drawLine (Line<float> (a, b), 2.0f);
             }
         }
@@ -380,10 +440,10 @@ void RadioColumn::paint (Graphics& g)
         g.setFont (font (12.0f));
         g.drawText (labels[i], r, Justification::centred);
     }
-    if (selection != nullptr && selection->is (this))
+    if (selection != nullptr && selection->contains (this))
     {
-        // measured: 1 px, pure yellow (255, 242, 0) in the middle, fading as a cosine to nothing at both ends
-        const Colour y (255, 242, 0);
+        // measured: 1 px, pure yellow (255, 242, 0) in the middle (blue in a group), fading as a cosine to both ends
+        const Colour y = selection->is (this) ? Colour (255, 242, 0) : kMember;
         const float c = (float) getWidth() * 0.5f, half = c - 2.0f;
         for (int x = 0; x < getWidth(); ++x)
         {

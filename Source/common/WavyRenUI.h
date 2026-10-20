@@ -74,6 +74,8 @@ protected:
     // subclasses draw and react in design coordinates
     virtual void paintContent (juce::Graphics&) = 0;
     virtual void contentMouseDown (const juce::MouseEvent&) {}
+    virtual void contentMouseDrag (const juce::MouseEvent&) {}
+    virtual void contentMouseUp (const juce::MouseEvent&) {}
     virtual void tick() {}                                         // 60 Hz: read meters, repaint
 
     // controls are owned here, so they outlive their parameter attachments during teardown
