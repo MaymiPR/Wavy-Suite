@@ -17,12 +17,12 @@
 
 | Check | Result |
 |---|---|
-| Unit tests (`WBassXTests`, 28 checks: original path and its all-pass, Original Bass monitor pre-fader, Input trim stops at 0 dB, Audio = original + Harmonics × G, monitor pre-fader, Harmonics capped at +10.96 dB, Decay on the even harmonics, High-pass on the generated part, output clip, block-size invariance, channels independent, 96 kHz, processor and state round trip) | all pass (Windows, local) |
+| Unit tests (`WBassXTests`, 28 checks, 2026-10-20: original path and its all-pass, Original Bass monitor pre-fader, Input trim stops at 0 dB, Audio = original + Harmonics × G, monitor pre-fader, Harmonics capped at +10.96 dB, Decay on the even harmonics, High-pass on the generated part, output clip, block-size invariance, channels independent, 96 kHz, processor and state round trip) | all pass (Windows, local) |
 | pluginval, strictness level 10, `--skip-gui-tests`, on `WBassX.vst3` (Windows, local, 2026-10-20) | SUCCESS, exit code 0 |
 | FocusCheck (the space bar reaches the host after clicks on the editor) | PASS |
 | Learned level control: C++ against the trained PyTorch model | −71 … −117 dB on most examples (−43 dB on a kick) |
 | Sample rates: null at 96 kHz against 48 kHz (24 cases) | within 1.8 dB |
-| Null test against the reference | [NULL_RESULTS_WBASSX.md](NULL_RESULTS_WBASSX.md): median −47.0 dB (whole output), −38.8 dB (generated part); not a null, see MEASUREMENTS.md "WBassX model" |
+| Null test against the reference | [NULL_RESULTS_WBASSX.md](NULL_RESULTS_WBASSX.md): median −46.9 dB (whole output), −40.9 dB (generated part); not a null, see MEASUREMENTS.md "WBassX model" |
 
 ## WBass
 
