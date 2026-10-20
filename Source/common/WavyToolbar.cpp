@@ -310,7 +310,7 @@ void Toolbar::showToolbarMenu()
 void Toolbar::paintFlat (juce::Graphics& g)
 {
     // measured on the reference: bar (16, 17, 19), pill boxes (29, 29, 29), text / icons (180, 180, 180)
-    const juce::Colour bar (16, 17, 19), pill (29, 29, 29), ink (180, 180, 180), inkHot (235, 235, 235);
+    const juce::Colour bar (16, 17, 19), pill (29, 29, 29), ink (180, 180, 180), inkHot (235, 235, 235), icon (145, 145, 145);
     g.fillAll (bar);
     auto box = [&] (juce::Rectangle<int> r, bool hot)
     {
@@ -334,21 +334,16 @@ void Toolbar::paintFlat (juce::Graphics& g)
             case About: drawMark (g, r.toFloat().reduced (1.0f), hot, false); break;
             case Undo: case Redo:
             {
+                // measured glyph: an arc of radius 4.6 over the top, a solid right-triangle head at its lower end
                 const bool can = i == Undo ? undo.canUndo() : undo.canRedo();
-                const float dir = i == Undo ? 1.0f : -1.0f, rad = 5.0f;
+                const float dir = i == Undo ? 1.0f : -1.0f;
+                const juce::Point<float> ac (c.x + 0.5f * dir, c.y + 1.0f);
                 juce::Path arc;
-                for (int k = 0; k <= 24; ++k)
-                {
-                    const float a = juce::degreesToRadians (30.0f - 225.0f * (float) k / 24.0f);
-                    const juce::Point<float> p (c.x + dir * rad * std::cos (a), c.y + 1.0f + rad * std::sin (a));
-                    if (k == 0) arc.startNewSubPath (p); else arc.lineTo (p);
-                }
-                g.setColour ((hot && can ? inkHot : ink).withMultipliedAlpha (can ? 1.0f : 0.45f));
-                g.strokePath (arc, juce::PathStrokeType (1.3f));
-                const float a1 = juce::degreesToRadians (-195.0f);
-                const juce::Point<float> tip (c.x + dir * rad * std::cos (a1), c.y + 1.0f + rad * std::sin (a1));
+                arc.addCentredArc (ac.x, ac.y, 4.6f, 4.6f, 0.0f, dir * juce::degreesToRadians (110.0f), dir * juce::degreesToRadians (-62.0f), true);
+                g.setColour ((hot && can ? inkHot : icon).withMultipliedAlpha (can ? 1.0f : 0.7f));
+                g.strokePath (arc, juce::PathStrokeType (1.25f));
                 juce::Path head;
-                head.addTriangle (tip.x - dir * 3.2f, tip.y + 0.5f, tip.x + dir * 1.6f, tip.y - 2.8f, tip.x + dir * 1.6f, tip.y + 3.4f);
+                head.addTriangle (c.x - 5.5f * dir, c.y - 1.5f, c.x - 5.5f * dir, c.y + 3.0f, c.x - 1.0f * dir, c.y + 3.0f);
                 g.fillPath (head);
                 break;
             }
@@ -376,10 +371,10 @@ void Toolbar::paintFlat (juce::Graphics& g)
             }
             case Prev: case Next:
             {
-                const float s = i == Next ? 1.0f : -1.0f;
+                const float s = i == Next ? 1.0f : -1.0f;                // measured: 6 x 9 px
                 juce::Path tri;
-                tri.addTriangle (c.x + s * 4.5f, c.y, c.x - s * 3.5f, c.y - 5.5f, c.x - s * 3.5f, c.y + 5.5f);
-                g.setColour (hot ? inkHot : ink);
+                tri.addTriangle (c.x + s * 3.0f, c.y, c.x - s * 3.0f, c.y - 4.5f, c.x - s * 3.0f, c.y + 4.5f);
+                g.setColour (hot ? inkHot : icon);
                 g.fillPath (tri);
                 break;
             }
@@ -390,21 +385,20 @@ void Toolbar::paintFlat (juce::Graphics& g)
             case Setup: box (r, hot); label (r, active == 0 ? "Setup A" : "Setup B", hot); break;
             case Save:
             {
-                // floppy disk
-                const juce::Rectangle<float> d (c.x - 5.0f, c.y - 5.0f, 10.0f, 10.0f);
-                g.setColour (hot ? inkHot : ink);
+                // floppy disk, measured: solid 9 x 9, a 3 px slot at the top, the top-right corner cut
+                const juce::Rectangle<float> d (c.x - 4.5f, c.y - 4.5f, 9.0f, 9.0f);
+                g.setColour (hot ? inkHot : icon);
                 juce::Path p;
-                p.startNewSubPath (d.getX(), d.getY()); p.lineTo (d.getRight() - 3.0f, d.getY()); p.lineTo (d.getRight(), d.getY() + 3.0f);
+                p.startNewSubPath (d.getX(), d.getY()); p.lineTo (d.getRight() - 1.2f, d.getY()); p.lineTo (d.getRight(), d.getY() + 1.2f);
                 p.lineTo (d.getRight(), d.getBottom()); p.lineTo (d.getX(), d.getBottom()); p.closeSubPath();
                 g.fillPath (p);
                 g.setColour (bar);
-                g.fillRect (d.getX() + 2.5f, d.getY() + 1.0f, 4.5f, 2.5f);
-                g.fillRect (d.getX() + 2.0f, d.getY() + 5.5f, 6.0f, 3.0f);
+                g.fillRect (d.getX() + 2.4f, d.getY(), 4.2f, 3.0f);
                 break;
             }
             case Menu:
-                g.setColour (hot ? inkHot : ink);
-                for (int k = 0; k < 3; ++k) g.fillRect ((float) r.getX() + 3.0f, (float) r.getY() + 3.0f + (float) k * 5.0f, 14.0f, 1.3f);
+                g.setColour (hot ? inkHot : icon);
+                for (float yy : { 15.0f, 18.8f, 22.0f }) g.fillRect ((float) r.getX() + 3.0f, yy, 11.0f, 1.2f);   // measured
                 break;
             default: break;
         }

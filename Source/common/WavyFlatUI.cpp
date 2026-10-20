@@ -278,10 +278,10 @@ void Knob::paint (Graphics& g)
     g.drawLine (Line<float> (c + dir * radius, c + dir * (radius - 5.0f)), 2.2f);
 
     g.setColour (kLabel);
-    g.setFont (font (13.0f));
-    g.drawText (label, Rectangle<int> (0, 52, getWidth(), 16), Justification::centred);
+    g.setFont (font (12.0f));
+    g.drawText (label, Rectangle<int> (0, 51, getWidth(), 16), Justification::centred);
     g.setColour (Colour (82, 83, 86));
-    g.fillRect (2.0f, 68.0f, (float) getWidth() - 4.0f, 1.5f);
+    g.fillRect (2.0f, 67.0f, (float) getWidth() - 4.0f, 1.5f);
 }
 
 //==============================================================================
@@ -424,12 +424,15 @@ void RadioColumn::paint (Graphics& g)
         const auto acc = accents[(size_t) i];
         if (on)
         {
-            g.setColour (acc.withAlpha (0.25f));
-            g.drawRoundedRectangle (r.expanded (1.0f), 4.5f, 2.0f);                // glow
+            for (int k = 3; k >= 1; --k)                                             // soft glow, as the reference
+            {
+                g.setColour (acc.withAlpha (0.07f));
+                g.drawRoundedRectangle (r.expanded ((float) k), 4.0f + (float) k, 1.5f);
+            }
             g.setColour (acc.interpolatedWith (kPanel, 0.62f));
             g.fillRoundedRectangle (r, 4.0f);
-            g.setColour (acc);
-            g.drawRoundedRectangle (r, 4.0f, 1.0f);
+            g.setColour (acc.interpolatedWith (kPanel, 0.18f));
+            g.drawRoundedRectangle (r, 4.0f, 1.4f);
         }
         else
         {
@@ -437,7 +440,7 @@ void RadioColumn::paint (Graphics& g)
             g.fillRoundedRectangle (r, 4.0f);
         }
         g.setColour (on ? acc.interpolatedWith (Colours::white, 0.35f) : Colour (128, 129, 132));
-        g.setFont (font (12.0f));
+        g.setFont (font (11.0f));
         g.drawText (labels[i], r, Justification::centred);
     }
     if (selection != nullptr && selection->contains (this))
@@ -574,7 +577,7 @@ void drawBand (Graphics& g, const std::vector<Point<float>>& pts, float bottomY,
     fill.closeSubPath();
     float top = bottomY;
     for (auto& p : pts) top = std::min (top, p.y);
-    ColourGradient grad (c.withAlpha (0.62f), 0.0f, top, c.withAlpha (0.28f), 0.0f, bottomY, false);
+    ColourGradient grad (c.withAlpha (0.64f), 0.0f, top, c.withAlpha (0.14f), 0.0f, bottomY, false);   // fades toward the bottom
     g.setGradientFill (grad);
     g.fillPath (fill);
     g.setColour (c.withAlpha (0.3f));

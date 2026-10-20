@@ -221,16 +221,22 @@ void WBassXEditor::paintGraph (Graphics& g)
     drawBand (g, blue, area.getBottom(), kBlue);
 
     // frequency labels
-    g.setFont (font (10.5f));
+    g.setFont (font (10.0f));
     g.setColour (Colour (200, 204, 210));
     const std::pair<float, const char*> fl[] = { { 46.0f, "16" }, { 92.0f, "32" }, { 180.0f, "64" }, { 268.0f, "128" }, { 356.0f, "256" } };
     for (auto& [x, t] : fl) g.drawText (t, Rectangle<float> (x - 15.0f, 269.0f, 30.0f, 12.0f), Justification::centred);
 
     g.setFont (font (12.0f));
-    g.setColour (kBlue);
-    g.drawText ("Original Bass", Rectangle<int> (37, 49, 120, 16), Justification::centredLeft);
-    g.setColour (kOrange);
-    g.drawText ("Harmonics", Rectangle<int> (374, 49, 120, 16), Justification::centredRight);
+    auto glowText = [&g] (const String& t, Rectangle<int> r, Colour c, Justification j)
+    {
+        g.setColour (c.withAlpha (0.055f));                                  // the reference's soft halo
+        for (auto [dx, dy] : { std::pair<int, int> { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 }, { -1, -1 }, { 1, 1 }, { -1, 1 }, { 1, -1 } })
+            g.drawText (t, r.translated (dx, dy), j);
+        g.setColour (c);
+        g.drawText (t, r, j);
+    };
+    glowText ("Original Bass", Rectangle<int> (37, 49, 120, 16), kBlue, Justification::centredLeft);
+    glowText ("Harmonics", Rectangle<int> (374, 49, 120, 16), kOrange, Justification::centredRight);
 }
 
 void WBassXEditor::paintMeters (Graphics& g)
@@ -240,7 +246,7 @@ void WBassXEditor::paintMeters (Graphics& g)
     auto frac = [] (float db) { return jlimit (0.0f, 1.0f, (db + 40.0f) / 40.0f); };
     g.setFont (font (12.0f));
     g.setColour (kValue);
-    auto peakText = [] (float db) { return db <= -99.95f ? String ("-inf") : String (db, 1); };
+    auto peakText = [] (float db) { return db <= -99.95f ? String ("-Inf") : String (db, 1); };
     if (mono)
     {
         drawMeterBar (g, { 715.0f, kMeterTop, 6.0f, meterH }, frac (outL));
@@ -289,9 +295,10 @@ void WBassXEditor::paintContent (Graphics& g)
 
     // bottom section labels and connecting lines
     g.setColour (kLabel);
-    g.setFont (font (13.0f));
+    g.setFont (font (12.5f));
     g.drawText ("Dynamics", Rectangle<int> (20, 331, 75, 16), Justification::centredRight);
     g.drawText ("Harmonics", Rectangle<int> (240, 331, 80, 16), Justification::centredRight);
+    g.setFont (font (12.0f));
     g.drawText ("Filter", Rectangle<int> (341, 356, 51, 16), Justification::centred);
     g.setColour (Colour (96, 97, 97));                              // measured: the same grey as the Filter box border
     for (auto [x0, x1] : { std::pair<int, int> { 98, 113 }, { 156, 179 }, { 323, 340 }, { 397, 425 } })
@@ -299,13 +306,14 @@ void WBassXEditor::paintContent (Graphics& g)
 
     // mix panel: labels, fader scale ticks
     g.setColour (kLabel);
+    g.setFont (font (12.0f));                                               // measured: centres 566 / 603 / 640
+    g.drawText ("Input", Rectangle<int> (546, 57, 40, 15), Justification::centred);
+    g.drawText ("Original", Rectangle<int> (581, 57, 50, 15), Justification::centred);
+    g.drawText ("Bass", Rectangle<int> (582, 69, 50, 15), Justification::centred);
+    g.setFont (font (11.0f));
+    g.drawText ("Harmonic", Rectangle<int> (623, 57, 52, 15), Justification::centred);   // a little right, clear of "Original"
     g.setFont (font (12.0f));
-    g.drawText ("Input", Rectangle<int> (548, 56, 40, 15), Justification::centred);
-    g.setFont (font (11.5f));
-    g.drawText ("Original", Rectangle<int> (580, 56, 50, 15), Justification::centred);
-    g.drawText ("Bass", Rectangle<int> (580, 68, 50, 15), Justification::centred);
-    g.drawText ("Harmonic", Rectangle<int> (624, 56, 52, 15), Justification::centred);
-    g.drawText ("Bass", Rectangle<int> (624, 68, 52, 15), Justification::centred);
+    g.drawText ("Bass", Rectangle<int> (620, 69, 52, 15), Justification::centred);
     g.setColour (kTick);
     for (float db : kTicks)
     {

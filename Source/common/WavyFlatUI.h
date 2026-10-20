@@ -112,7 +112,7 @@ public:
     juce::String label;
     juce::Point<float> centre { 27.0f, 34.0f };            // local
     float radius = 16.5f;
-    juce::Rectangle<int> textArea { 0, 68, 54, 14 };
+    juce::Rectangle<int> textArea { 0, 67, 54, 14 };
 };
 
 // horizontal slider (Freq): ticks above, white line up to the thumb, ring thumb; value shown while hovered / dragged
