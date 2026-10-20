@@ -31,7 +31,7 @@ The installers are not code-signed or notarized; see [packaging/](packaging) for
 |---|---|---|
 | **WVox** | vocal compressor / gate / limiter (three-control) | released: steady material nulls, dynamic material is close (see below) |
 | **WBass** | psychoacoustic bass enhancer (harmonic generator) | ready for the next release: close, not a null (median −36.8 dB, see below) |
-| **WBassX** | psychoacoustic bass enhancer with harmonics compressor, filters and monitor modes | in progress: UI done, DSP next |
+| **WBassX** | psychoacoustic bass enhancer with harmonics compressor, filters and monitor modes | DSP done, testing: close, not a null (median −42.4 dB, see below) |
 | WComp, WDelay, WBass Ride, WVox Ride, WVox Chain, WVox Bend | | planned, one at a time |
 
 ### WVox null test (honest numbers)
@@ -45,6 +45,21 @@ Residual of WVox against the reference, `20 log10(rms(difference) / rms(referenc
 - Over a 672-case grid of settings: median −70 dB, worst −23 dB. The compressor's slow path is the fitted model plus a
   small learned correction (trained on renders of the reference, guarded so steady signals stay exact).
   Details: [docs/NULL_GRID.md](docs/NULL_GRID.md), [docs/NULL_RESULTS.md](docs/NULL_RESULTS.md).
+
+### WBassX null test (honest numbers)
+
+Residual of WBassX against the reference over 12 signals × 8 settings (Freq, Ratio, Response, Decay, High-pass, the
+Original Bass and Harmonics faders), lower is better: **median −42.4 dB** on the whole output and **−35.9 dB** on the
+created harmonics alone.
+
+- Per signal (created harmonics, median over the settings): white noise and quiet tones −48 to −52 dB; tones, sweeps and
+  pink noise −36 to −40 dB; level steps −30 dB; bass notes −25 dB; kick-like transients −16 dB.
+- Worst cases: loud material at extreme settings (Freq 256 with Ratio 4 and Decay −12, or Decay −9), where the
+  reference's own harmonic feedback goes unstable.
+- How: the filters, the harmonic generator with its Decay feedback, the faders, monitors and clip were identified
+  exactly; the harmonics compressor (Ratio, Response) is a small recurrent network (32 units, ~12 % of one core) trained
+  on renders of the reference, so it is a learned model of that part, not its algorithm.
+  Details: [docs/NULL_RESULTS_WBASSX.md](docs/NULL_RESULTS_WBASSX.md), [MEASUREMENTS.md](MEASUREMENTS.md#wbassx-model-phase-4-identification).
 
 ### WBass null test (honest numbers)
 

@@ -339,3 +339,45 @@ with an attack / release set by Response, and the High-pass on G.
 The WBass generator structure (an even product term with its own gain, high-passes at F, a level follower) is the
 starting point. Its constants and detector have to be fitted again: MaxxBass's generated part is weaker, per channel,
 and has an explicit Ratio. As for WBass, if no analytical detector matches, the level-to-gain block can be learned.
+
+## WBassX model (Phase 4 identification)
+
+Scripts: `nulltest/ident_mb_linear.py` (small-signal response), `ident_mb_k2.py` (two-tone kernels), `extract_g2.py` /
+`extract_g3.py` (the gain over time), `mbmodel.py` (Python model), `render_trainset_mb.py`, `train_wbassx.py`; data in
+`measurements/maxxbass/` (`g_small_signal.json`, `k_out_table.json`, `static_gain_50hz.json`, ...). F is the Freq
+setting, D = 10^(Decay/20).
+
+**Identified exactly** (residual given):
+
+| Part | Finding |
+|---|---|
+| Structure | Audio = HP3(F) x + OrigBass LP3(F) x + Harmonics G; per channel; G does not depend on either fader |
+| G at rest (very low level) | an exact LTI response: −K(F) LP3(F) HP_G (bilinear Butterworth sections). HP_G for 6 dB/oct: HP2(16 Hz)², 12 dB/oct: HP2(F) HP2(16 Hz), 24 dB/oct: HP2(0.8 F)² (0.009 … 0.035 dB, 0.2°; impulse responses at 1e-4, linear to −58 dB, bit-exact time-invariant). Below about 8 Hz the reference leaks a little DC (−50 … −98 dB), the mark of single-precision filter coefficients |
+| Output scale K(F) | smooth but no simple formula fits better than 0.9 %, so WBassX carries the measured value for each of the 225 whole-Hz settings (2.77 at 32 Hz, 4.53 at 80 Hz, 5.59 at 256 Hz; each fitted to −46 … −77 dB) |
+| Harmonic product | from 190 two-tone kernels per setting: 8 D · u · HP2_B(u), u = LP3(F) x, followed by the same HP_G, with HP2_B a Butterworth high-pass at F/3 held within 20 … 40 Hz. Sum and difference terms −46 … −50 dB at Freq 50 … 256 (difference terms only differ below 10 Hz, the DC-leak region). Decay is an exact gain on it (−9.00 / +6.00 dB for −24 / −9) |
+| Product / linear | 7.98 ± 0.01 × D at every Freq: the level control's ceiling is exactly 1, and K(F) is a separate output scale |
+| Decay feedback | the product feeds back: y = w (1 + 8 D HP2_B(y)); the 3rd harmonic grows with D², and the static harmonics match to h1 −56 … −62 dB, h2 −40 … −55 dB. The reference applies the loop with one sample of delay: when 8 D b0 \|w\| exceeds 1 (strong Decay, high Ratio, loud low bass) it oscillates at Nyquist, as seen in its own output, and y is held within ±1 |
+| Level control | a gain g ≤ 1 on u ahead of the generator (w = g u): the 2nd harmonic predicted from it matches to 0.05 dB over −84 … 0 dBFS. It does not depend on Decay, but it does depend on the High-pass setting (a 20 Hz
+tone at −6 dBFS: −10.7 / −1.7 / −0.4 dB for 6 / 12 / 24 dB/oct), and its level curves for different tone frequencies
+are shifted copies of each other by about G's own small-signal response: the level control listens after HP_G. Static law (50 Hz, Freq 80, gain re its cap): Ratio 1 falls from 0 dB below −102 dBFS to −8 dB at −60 dBFS, then −9 dB to −36 dBFS and −17 dB at 0 dBFS; above Ratio 1 the low-level knee moves up about 12 dB per doubling of ln Ratio, and the high-level slope tends to 1 − 1/Ratio. At low Freq (≤ 45 Hz) and Ratio 1 the resting gain is 1/8 of the cap |
+| Gain over time | extracted from renders by least squares through the exact structure (Gauss-Newton with the generator's exact Jacobian): the model then re-renders the reference's G at −50 dB median (−38 dB on bass notes, −27 … −33 dB on kicks). A fast drop at onsets, a release of hundreds of ms, and ripple within each cycle that adds odd harmonics at high level |
+
+**Learned level control (current).** No analytical detector was found for the gain law (its knee and slope both move with
+Ratio, plus the resting state). So WBassX keeps every identified part exact and learns only g: a GRU with 32 units reads
+|x|, |u| and |z| (compressed with asinh; z = K(F) HP_G(u), the signal the level control listens to), ln Ratio, Response,
+ln(F/80) and the High-pass setting, and gives ln g = −softplus(·) (so g ≤ 1). Without z and the High-pass input the
+same network stopped at −22 dB on the generated part. It runs
+on its own 48 kHz clock at any host rate. It was trained end-to-end on the reference's generated part: the generator's
+forward and adjoint recursions run in C (`nulltest/mbfast.c`), and HP_G is applied as FFT convolutions on the GPU.
+The training set has about 4900 reference renders (tones, steps, AM, two-tones, noise, kicks, bass lines, pinned
+pairs, sweeps) over random Freq, Ratio, Response, Decay and High-pass. The C++ matches the trained model to −71 …
+−117 dB on most examples (−43 dB on a kick). This is a learned model of the reference's gain control, not an
+identification of its algorithm. Cost: about 12 % of one core for real-time stereo.
+
+**Null test** ([docs/NULL_RESULTS_WBASSX.md](docs/NULL_RESULTS_WBASSX.md), 12 signals × 8 settings over Freq, Ratio,
+Response, Decay, High-pass and the faders): median residual −42.4 dB on the whole output and −35.9 dB on the
+generated part (Harmonics monitor). By signal (generated part): white noise −48 dB, quiet tones −52 dB, tones and sweeps
+−36 … −40 dB, pink noise −38 dB, level steps −30 dB, bass notes −25 dB, kick-like transients −16 dB. The worst cases are
+loud material at extreme settings (Freq 256 / Ratio 4 / Decay −12 with a −3 dBFS tone: +2.5 dB; Decay −9): there the
+reference's own Decay loop goes unstable, and the structure reproduces it only roughly (with the reference's own gain
+extracted it reaches −20 … −27 dB at Decay −9). At 96 kHz the null is within 1.8 dB of 48 kHz. This is not a null.

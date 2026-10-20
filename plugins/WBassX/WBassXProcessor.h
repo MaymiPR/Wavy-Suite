@@ -3,9 +3,10 @@
 #include <atomic>
 #include "WavyMeter.h"
 #include "WBassXPresets.h"
+#include "WBassXDsp.h"
 
 // Parameters follow the reference's parameter list (ParamXML order, ranges, tapers and defaults; see RESEARCH.md,
-// WMaxxBass / WBassX). Phase 2: the audio passes through unchanged; the DSP comes in Phase 4.
+// WBassX). The DSP is in WBassXDsp.h (MEASUREMENTS.md, "WBassX model").
 namespace wbassx
 {
 inline constexpr const char* input = "input";          // -inf..0 dB (gain fader taper), default 0
@@ -25,7 +26,7 @@ class WBassXProcessor : public juce::AudioProcessor
 public:
     WBassXProcessor();
 
-    void prepareToPlay (double, int) override {}
+    void prepareToPlay (double sampleRate, int) override;
     void releaseResources() override {}
     bool isBusesLayoutSupported (const BusesLayout&) const override;
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
@@ -65,5 +66,7 @@ public:
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout layout();
+    wbassx::Processor dsp;
+    float get (const char* id) const { return apvts.getRawParameterValue (id)->load(); }
     int currentProgram = 0;
 };

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **WBassX DSP** (Phase 4): the original path, the harmonic generator with its Decay feedback, the High-pass settings,
+  faders, monitors and output clip identified exactly; the harmonics compressor learned from renders of the reference
+  (median null −42.4 dB on the whole output, −35.9 dB on the harmonics; docs/NULL_RESULTS_WBASSX.md). Unit tests
+  (`WBassXTests`) and an offline renderer (`WBassXRender`) for the null test.
 - WBassX Phase 3: measurements of the reference MaxxBass (`nulltest/measure_maxxbass.py`, `measurements/maxxbass/`, MEASUREMENTS.md).
 - Meters: peak holds read -Inf in silence (an empty frame no longer counts as -80 dB).
 - **Factory presets** for WVox (21) and WBass (45), in two groups, *Essentials* and *Studio*, in the preset menu

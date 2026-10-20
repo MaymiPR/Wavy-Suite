@@ -51,10 +51,25 @@ bool WBassXProcessor::isBusesLayoutSupported (const BusesLayout& l) const
     return in == out && (in == AudioChannelSet::mono() || in == AudioChannelSet::stereo());
 }
 
+void WBassXProcessor::prepareToPlay (double sampleRate, int)
+{
+    dsp.prepare (sampleRate, jmin (2, getTotalNumInputChannels()));
+}
+
 void WBassXProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
 {
     ScopedNoDenormals nd;
     const int n = b.getNumSamples(), ch = jmin (2, b.getNumChannels());
+    dsp.setInputDb (get (wbassx::input));
+    dsp.setFreq (get (wbassx::freq));
+    dsp.setDecayDb (get (wbassx::decay));
+    dsp.setResponseMs (get (wbassx::response));
+    dsp.setRatio (get (wbassx::ratio));
+    dsp.setHighPass ((int) get (wbassx::highpass));
+    dsp.setOrigBassDb (get (wbassx::origBass));
+    dsp.setHarmonicsDb (get (wbassx::harmonics));
+    dsp.setMonitor ((int) get (wbassx::monitor));
+    dsp.process (b.getArrayOfWritePointers(), ch, n);
     auto toDb = [] (float v) { return v > 1.0e-5f ? Decibels::gainToDecibels (v) : -100.0f; };
     const float peakL = b.getMagnitude (0, 0, n), peakR = ch > 1 ? b.getMagnitude (1, 0, n) : peakL;
     outLDb.push (toDb (peakL));
