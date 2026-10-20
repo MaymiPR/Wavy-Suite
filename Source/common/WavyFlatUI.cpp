@@ -283,7 +283,7 @@ void drawSlopeIcon (Graphics& g, Rectangle<float> r, int slope)
     p.lineTo (x + w - 0.5f, top);
     for (int k = 4; k >= 1; --k)                                                       // soft glow
     {
-        g.setColour (kWhite.withAlpha (0.045f));
+        g.setColour (kWhite.withAlpha (0.014f));
         g.strokePath (p, PathStrokeType (1.6f + 1.6f * (float) k, PathStrokeType::mitered, PathStrokeType::rounded));
     }
     g.setColour (kWhite);
@@ -292,7 +292,8 @@ void drawSlopeIcon (Graphics& g, Rectangle<float> r, int slope)
 
 void SlopeBox::mouseDown (const MouseEvent& e)
 {
-    stepping = e.x < getWidth() - arrowWidth && getNumItems() > 0;
+    if (selection != nullptr) selection->select (this);
+    stepping = (float) e.x < box.getRight() - (float) arrowWidth && getNumItems() > 0;
     if (stepping)
         setSelectedItemIndex ((getSelectedItemIndex() + 1) % getNumItems(), sendNotificationSync);
     else
@@ -307,12 +308,38 @@ void SlopeBox::mouseUp (const MouseEvent& e)
 
 void SlopeBox::paint (Graphics& g)
 {
-    const auto r = getLocalBounds().toFloat().reduced (0.5f);
-    g.setColour (Colour (38, 39, 42));
+    if (selection != nullptr && selection->is (this))
+    {
+        // measured: 2 px, a dark yellow (85, 82, 24) at the left and right ends, fading out toward the middle of the top
+        // and bottom edges
+        const auto o = box.expanded (2.5f);
+        Path outlinePath;
+        outlinePath.addRoundedRectangle (o, o.getHeight() * 0.5f);
+        PathFlatteningIterator it (outlinePath, {}, 0.25f);
+        const float cx = o.getCentreX(), half = o.getWidth() * 0.5f;
+        while (it.next())
+        {
+            // in pieces of about 1 px, so the long straight edges fade along their length too
+            const Line<float> seg (it.x1, it.y1, it.x2, it.y2);
+            const int pieces = jmax (1, roundToInt (seg.getLength()));
+            for (int k = 0; k < pieces; ++k)
+            {
+                const auto a = seg.getPointAlongLineProportionally ((float) k / (float) pieces);
+                const auto b = seg.getPointAlongLineProportionally ((float) (k + 1) / (float) pieces);
+                const float t = std::abs ((a.x + b.x) * 0.5f - cx) / half;
+                const float w = std::pow (jlimit (0.0f, 1.0f, (t - 0.22f) / 0.5f), 1.3f);   // fitted to the reference's top edge
+                if (w < 0.01f) continue;
+                g.setColour (Colour (102, 97, 14).withAlpha (w));               // lands on the measured (85, 82, 24) after anti-aliasing
+                g.drawLine (Line<float> (a, b), 2.0f);
+            }
+        }
+    }
+    const auto r = box;
+    g.setColour (Colour (41, 42, 43));
     g.fillRoundedRectangle (r, r.getHeight() * 0.5f);
-    g.setColour (isMouseOver() ? Colour (110, 111, 114) : Colour (80, 81, 84));
+    g.setColour (Colour (96, 97, 97));                              // measured; the reference does not change it on hover
     g.drawRoundedRectangle (r, r.getHeight() * 0.5f, 1.0f);
-    drawSlopeIcon (g, { 8.0f, 6.0f, 16.0f, 9.0f }, jmax (0, getSelectedItemIndex()));
+    drawSlopeIcon (g, { 11.0f, 10.0f, 16.0f, 9.0f }, jmax (0, getSelectedItemIndex()));
     Path tri;
     const float ax = r.getRight() - 11.5f, ay = r.getCentreY();
     tri.addTriangle (ax - 3.0f, ay - 2.0f, ax + 3.0f, ay - 2.0f, ax, ay + 2.5f);
@@ -353,10 +380,24 @@ void RadioColumn::paint (Graphics& g)
         g.setFont (font (12.0f));
         g.drawText (labels[i], r, Justification::centred);
     }
+    if (selection != nullptr && selection->is (this))
+    {
+        // measured: 1 px, pure yellow (255, 242, 0) in the middle, fading as a cosine to nothing at both ends
+        const Colour y (255, 242, 0);
+        const float c = (float) getWidth() * 0.5f, half = c - 2.0f;
+        for (int x = 0; x < getWidth(); ++x)
+        {
+            const float d = std::abs ((float) x + 0.5f - c) / half;
+            if (d >= 1.0f) continue;
+            g.setColour (y.withAlpha (std::cos (d * MathConstants<float>::halfPi)));
+            g.fillRect ((float) x, (float) selectLineY, 1.0f, 1.0f);
+        }
+    }
 }
 
 void RadioColumn::mouseDown (const MouseEvent& e)
 {
+    if (selection != nullptr) selection->select (this);
     const int i = e.y / rowHeight;
     if (i >= 0 && i < labels.size() && e.y - i * rowHeight < buttonHeight)
         attachment->setValueAsCompleteGesture ((float) i);

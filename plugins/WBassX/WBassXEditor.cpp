@@ -56,12 +56,14 @@ WBassXEditor::WBassXEditor (WBassXProcessor& p)
     freq.selection = &selection;
 
     slope.addItemList ({ "6 dB/oct", "12 dB/oct", "24 dB/oct" }, 1);
-    attachCombo (slope, wbassx::highpass, { 343, 329, 50, 20 });
+    slope.selection = &selection;
+    attachCombo (slope, wbassx::highpass, { 340, 325, 57, 28 });              // box at 344, 329 (49 x 20)
 
     auto& monitor = make<RadioColumn> (*p.apvts.getParameter (wbassx::monitor), &p.undo,
                                        StringArray { "Audio", "Harmonics", "Original Bass" },
                                        std::vector<Colour> { kWhite, kOrange, kBlue });
-    addToContent (monitor, { 708, 303, 69, 55 });
+    monitor.selection = &selection;
+    addToContent (monitor, { 708, 303, 69, 62 });
 
     // the graph follows every control
     for (auto* s : std::initializer_list<Slider*> { &origBass, &harmonics, &decay, &freq })
@@ -220,8 +222,8 @@ void WBassXEditor::paintContent (Graphics& g)
     g.drawText ("Dynamics", Rectangle<int> (20, 331, 75, 16), Justification::centredRight);
     g.drawText ("Harmonics", Rectangle<int> (240, 331, 80, 16), Justification::centredRight);
     g.drawText ("Filter", Rectangle<int> (341, 356, 51, 16), Justification::centred);
-    g.setColour (Colour (82, 83, 86));
-    for (auto [x0, x1] : { std::pair<int, int> { 98, 113 }, { 156, 179 }, { 323, 343 }, { 393, 425 } })
+    g.setColour (Colour (96, 97, 97));                              // measured: the same grey as the Filter box border
+    for (auto [x0, x1] : { std::pair<int, int> { 98, 113 }, { 156, 179 }, { 323, 340 }, { 397, 425 } })
         g.fillRect (x0, 339, x1 - x0, 1);
 
     // mix panel: labels, fader scale ticks

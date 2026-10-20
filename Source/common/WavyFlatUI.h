@@ -125,6 +125,10 @@ public:
     void mouseDown (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
     static constexpr int arrowWidth = 20;
+    Selection* selection = nullptr;
+    // the centre line of the box's 1 px border inside the component's bounds (local); the 2 px selection outline runs
+    // 2.5 px outside it (measured: border at x 344.5 / 392.5, y 330 / 349; outline pixels 341-342 / 394-395)
+    juce::Rectangle<float> box { 4.5f, 5.0f, 48.0f, 19.0f };
 private:
     bool stepping = false;
 };
@@ -137,7 +141,9 @@ public:
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override;
     std::unique_ptr<juce::ParameterAttachment> attachment;
+    Selection* selection = nullptr;
     int rowHeight = 20, buttonHeight = 15;
+    int selectLineY = 61;                      // selected: a yellow line under the buttons (local y)
 private:
     juce::StringArray labels;
     std::vector<juce::Colour> accents;
