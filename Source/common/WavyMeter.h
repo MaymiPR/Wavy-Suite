@@ -13,14 +13,15 @@ namespace wavy
 // audio thread -> editor: the highest peak (dB) since the last take()
 struct PeakTap
 {
-    std::atomic<float> db { -80.0f };
+    static constexpr float kSilent = -100.0f;   // nothing since the last take(): -inf, so peak holds read "-Inf"
+    std::atomic<float> db { kSilent };
 
     void push (float v) noexcept
     {
         float old = db.load (std::memory_order_relaxed);
         while (v > old && ! db.compare_exchange_weak (old, v, std::memory_order_relaxed)) {}
     }
-    float take() noexcept { return db.exchange (-80.0f, std::memory_order_relaxed); }
+    float take() noexcept { return db.exchange (kSilent, std::memory_order_relaxed); }
 };
 
 // editor side: instant rise, one-pole release toward the current peak (linear amplitude); an optional second stage
