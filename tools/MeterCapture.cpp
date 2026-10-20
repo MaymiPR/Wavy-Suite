@@ -98,20 +98,60 @@ public:
     Component& editor; Feeder& feeder; File out; std::unique_ptr<FileOutputStream> stream; bool sizeWritten = false;
 };
 
+// grabs the component's screen area (also native child windows, e.g. a Waves editor) into a PNG
+static void grabPng (Component& c, const File& f)
+{
+    juce::Rectangle<int> r; double scale = 1.0;
+    {
+        MessageManagerLock mml;
+        r = c.getScreenBounds();
+        scale = Desktop::getInstance().getDisplays().getDisplayForRect (r)->scale;
+    }
+    const int x = roundToInt (r.getX() * scale), y = roundToInt (r.getY() * scale), w = roundToInt (r.getWidth() * scale), h = roundToInt (r.getHeight() * scale);
+    HDC screen = GetDC (nullptr), mem = CreateCompatibleDC (screen);
+    HBITMAP bmp = CreateCompatibleBitmap (screen, w, h);
+    auto old = SelectObject (mem, bmp);
+    BitBlt (mem, 0, 0, w, h, screen, x, y, SRCCOPY);
+    BITMAPINFO bi {}; bi.bmiHeader.biSize = sizeof (BITMAPINFOHEADER); bi.bmiHeader.biWidth = w; bi.bmiHeader.biHeight = -h;
+    bi.bmiHeader.biPlanes = 1; bi.bmiHeader.biBitCount = 32; bi.bmiHeader.biCompression = BI_RGB;
+    Image img (Image::ARGB, w, h, true);
+    {
+        Image::BitmapData bd (img, Image::BitmapData::writeOnly);
+        HeapBlock<uint8> px ((size_t) w * (size_t) h * 4);
+        GetDIBits (mem, bmp, 0, (UINT) h, px.get(), &bi, DIB_RGB_COLORS);
+        for (int row = 0; row < h; ++row)
+            for (int col = 0; col < w; ++col)
+            {
+                const uint8* q = px.get() + ((size_t) row * (size_t) w + (size_t) col) * 4;
+                bd.setPixelColour (col, row, Colour (q[2], q[1], q[0]));
+            }
+    }
+    SelectObject (mem, old); DeleteObject (bmp); DeleteDC (mem); ReleaseDC (nullptr, screen);
+    f.deleteFile();
+    FileOutputStream os (f);
+    PNGImageFormat().writeImageToStream (img, os);
+}
+
 // Drag script (drag=x,y,dx,dy[,ctrl|shift|alt] in the editor's design pixels, design=<design width>): moves the real
 // mouse over the editor, prints every parameter before and after each drag, and whether the cursor stayed visible
 // in the middle of the drag. Used to measure how far a control moves per pixel of mouse movement.
 class DragScript : public Thread
 {
 public:
-    DragScript (AudioPluginInstance& p, Component& ed, StringArray d, float designW)
-        : Thread ("drag"), plugin (p), editor (ed), drags (std::move (d)), design (designW) {}
+    DragScript (AudioPluginInstance& p, Component& ed, StringArray d, float designW, File shotBase)
+        : Thread ("drag"), plugin (p), editor (ed), drags (std::move (d)), design (designW), shots (shotBase) {}
     std::atomic<bool> done { false };
     void run() override
     {
         sleep (2000);
+        int n = 0;
+        auto shot = [this, &n] (const char* when)
+        {
+            if (shots != File()) grabPng (editor, shots.getSiblingFile (shots.getFileNameWithoutExtension() + "_" + String (n) + "_" + when + ".png"));
+        };
         for (auto& d : drags)
         {
+            ++n;
             auto t = StringArray::fromTokens (d, ",", "");
             const float x = t[0].getFloatValue(), y = t[1].getFloatValue(), dx = t[2].getFloatValue(), dy = t[3].getFloatValue();
             const String mod = t.size() > 4 ? t[4] : String();
@@ -129,8 +169,14 @@ public:
             }
             const WORD vk = mod == "ctrl" ? VK_CONTROL : mod == "shift" ? VK_SHIFT : mod == "alt" ? VK_MENU : 0;
             SetCursorPos (start.x, start.y); sleep (150);
+            if (mod == "hover")                                   // no click: what does hovering show?
+            {
+                sleep (400); shot ("hover");
+                std::printf ("hover\n"); continue;
+            }
             if (vk) { keybd_event ((BYTE) vk, 0, 0, 0); sleep (50); }
             mouse_event (MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0); sleep (80);
+            shot ("down");
             bool hidden = false;
             for (int i = 1; i <= steps; ++i)
             {
@@ -138,6 +184,7 @@ public:
                 sleep (12);
                 if (i == steps / 2)
                 {
+                    shot ("mid");
                     CURSORINFO ci { sizeof (CURSORINFO) };
                     GetCursorInfo (&ci);
                     hidden = (ci.flags & CURSOR_SHOWING) == 0 || ci.hCursor == nullptr;
@@ -147,6 +194,9 @@ public:
             mouse_event (MOUSEEVENTF_LEFTUP, 0, 0, 0, 0); sleep (50);
             if (vk) keybd_event ((BYTE) vk, 0, KEYEVENTF_KEYUP, 0);
             sleep (300);
+            shot ("after");
+            SetCursorPos (start.x + 400, start.y + 300); sleep (600);   // mouse away: does the highlight stay?
+            shot ("away");
             std::printf ("cursor during drag: %s\n", hidden ? "HIDDEN" : "visible");
             dump ("after");
         }
@@ -165,6 +215,7 @@ public:
     Component& editor;
     StringArray drags;
     float design, stepScale = 1.0f;
+    File shots;
 };
 
 class DragWatch : public Timer
@@ -252,7 +303,7 @@ public:
         }
         if (! drags.isEmpty())
         {
-            dragScript = std::make_unique<DragScript> (*plugin, *window->getContentComponent(), drags, design);
+            dragScript = std::make_unique<DragScript> (*plugin, *window->getContentComponent(), drags, design, File (args[2]));
             dragWatch = std::make_unique<DragWatch> (*dragScript);
             dragScript->startThread();
             dragWatch->startTimer (100);

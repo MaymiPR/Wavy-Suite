@@ -50,6 +50,22 @@ static void clickToType (Slider& s, Rectangle<int> textArea, const MouseEvent& e
 }
 
 //==============================================================================
+void drawSelectRing (Graphics& g, Point<float> c, float radius)
+{
+    constexpr int n = 96;
+    for (int i = 0; i < n; ++i)
+    {
+        const float a0 = MathConstants<float>::twoPi * (float) i / (float) n, a1 = MathConstants<float>::twoPi * (float) (i + 1) / (float) n;
+        const float w = std::pow (std::abs (std::sin ((a0 + a1) * 0.5f)), 4.0f);   // angles from 12 o'clock; 0.2 at 45 degrees
+        if (w < 0.01f) continue;
+        Path seg;
+        seg.addCentredArc (c.x, c.y, radius, radius, 0.0f, a0, a1 + 0.01f, true);
+        g.setColour (kSelect.withAlpha (w));
+        g.strokePath (seg, PathStrokeType (1.3f));
+    }
+}
+
+//==============================================================================
 bool WavesDrag::down (Slider& s, const MouseEvent& e, Rectangle<int> textArea)
 {
     if (textArea.contains (e.getPosition()) || e.mods.isAltDown() || e.mods.isPopupMenu()) return false;
@@ -108,7 +124,11 @@ bool VFader::hitTest (int x, int y)
     return textArea.contains (x, y) || Rectangle<float> (0.0f, pos - 16.0f, (float) getWidth(), 32.0f).contains ((float) x, (float) y);
 }
 
-void VFader::mouseDown (const MouseEvent& e) { if (! feel.down (*this, e, textArea)) Slider::mouseDown (e); }
+void VFader::mouseDown (const MouseEvent& e)
+{
+    if (selection != nullptr) selection->select (this);
+    if (! feel.down (*this, e, textArea)) Slider::mouseDown (e);
+}
 void VFader::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e); else Slider::mouseDrag (e); }
 void VFader::mouseUp (const MouseEvent& e)
 {
@@ -132,6 +152,15 @@ void VFader::paint (Graphics& g)
     ColourGradient grad (Colour (66, 67, 70), thumb.getX(), thumb.getY(), Colour (48, 49, 52), thumb.getX(), thumb.getBottom(), false);
     g.setGradientFill (grad);
     g.fillRoundedRectangle (thumb, 2.5f);
+    if (selection != nullptr && selection->is (this))                            // selected: a yellow bar under the thumb
+    {
+        ColourGradient bar (Colour (90, 86, 16).withAlpha (0.0f), cx - 7.0f, 0.0f, Colour (90, 86, 16).withAlpha (0.0f), cx + 7.0f, 0.0f, false);
+        bar.addColour (0.5, Colour (90, 86, 16));
+        bar.addColour (0.25, Colour (90, 86, 16).withAlpha (0.55f));
+        bar.addColour (0.75, Colour (90, 86, 16).withAlpha (0.55f));
+        g.setGradientFill (bar);
+        g.fillRect (cx - 7.0f, pos + 16.0f, 14.0f, 2.0f);
+    }
     g.setColour (lineColour.withAlpha (0.35f));
     g.fillRoundedRectangle (cx - 7.0f, pos - 2.0f, 14.0f, 4.0f, 1.5f);
     g.setColour (lineColour);
@@ -148,7 +177,11 @@ Knob::Knob (String l) : label (std::move (l))
     setRotaryParameters (MathConstants<float>::pi * 1.25f, MathConstants<float>::pi * 2.75f, true);
 }
 
-void Knob::mouseDown (const MouseEvent& e) { if (! feel.down (*this, e, textArea)) Slider::mouseDown (e); }
+void Knob::mouseDown (const MouseEvent& e)
+{
+    if (selection != nullptr) selection->select (this);
+    if (! feel.down (*this, e, textArea)) Slider::mouseDown (e);
+}
 void Knob::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e); else Slider::mouseDrag (e); }
 void Knob::mouseUp (const MouseEvent& e)
 {
@@ -164,6 +197,7 @@ void Knob::paint (Graphics& g)
     g.fillEllipse (c.x - 1.3f, 9.5f, 2.6f, 2.6f);                                 // centre-position dot
     g.setColour (kRing);
     g.drawEllipse (c.x - radius, c.y - radius, radius * 2.0f, radius * 2.0f, 1.2f);
+    if (selection != nullptr && selection->is (this)) drawSelectRing (g, c, radius + 4.0f);
 
     const auto rp = getRotaryParameters();
     const float frac = (float) valueToProportionOfLength (getValue());
@@ -201,7 +235,11 @@ HSlider::HSlider()
     setScrollWheelEnabled (true);
 }
 
-void HSlider::mouseDown (const MouseEvent& e) { if (! feel.down (*this, e, {})) Slider::mouseDown (e); }
+void HSlider::mouseDown (const MouseEvent& e)
+{
+    if (selection != nullptr) selection->select (this);
+    if (! feel.down (*this, e, {})) Slider::mouseDown (e);
+}
 void HSlider::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e); else Slider::mouseDrag (e); }
 void HSlider::mouseUp (const MouseEvent& e)
 {
@@ -222,6 +260,7 @@ void HSlider::paint (Graphics& g)
     g.fillEllipse (pos - 5.0f, y - 5.0f, 10.0f, 10.0f);
     g.setColour (kWhite);
     g.drawEllipse (pos - 4.5f, y - 4.5f, 9.0f, 9.0f, 1.6f);
+    if (selection != nullptr && selection->is (this)) drawSelectRing (g, { pos, y }, 6.2f);
     if ((isMouseOverOrDragging() || isMouseButtonDown()) && format && ! textArea.isEmpty())
     {
         g.setColour (kValue);

@@ -26,6 +26,24 @@ juce::String gainText (float db);                          // "-inf" below -99.9
 // reads plain numbers and "-inf"
 void applyFormat (juce::Slider&, std::function<juce::String (double)> format);
 
+// The selected control (the reference marks the last clicked fader, knob or slider in yellow, until another one is
+// clicked; hovering shows nothing). One per editor; widgets with a group call select() on mouse down.
+struct Selection
+{
+    juce::Component* current = nullptr;
+    void select (juce::Component* c)
+    {
+        if (c == current) return;
+        if (auto* old = current) old->repaint();
+        current = c;
+        if (c != nullptr) c->repaint();
+    }
+    bool is (const juce::Component* c) const { return c != nullptr && c == current; }
+};
+inline const juce::Colour kSelect (241, 227, 7);
+// the selection ring of knobs and the Freq thumb: yellow, brightest at 3 and 9 o'clock, gone at the top and bottom
+void drawSelectRing (juce::Graphics&, juce::Point<float> centre, float radius);
+
 // How the reference's controls follow the mouse (measured with tools/MeterCapture drag=..., see MEASUREMENTS.md
 // "Control feel"): the cursor is hidden while dragging and comes back where the control is; faders and the Freq
 // slider move 1:1 with the mouse; knobs take ~500 px for their full range, ~1000 px when the mouse moves slowly
@@ -53,6 +71,7 @@ public:
     void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
     WavesDrag feel { WavesDrag::Linear };
+    Selection* selection = nullptr;
     std::function<juce::String (double)> format;
     juce::Colour lineColour;
     int travelTop = 27, travelBottom = 192;                // thumb centre range (local y)
@@ -69,11 +88,12 @@ public:
     void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
     WavesDrag feel { WavesDrag::Rotary };
+    Selection* selection = nullptr;
     std::function<juce::String (double)> format;
     juce::String label;
     juce::Point<float> centre { 27.0f, 34.0f };            // local
     float radius = 16.5f;
-    juce::Rectangle<int> textArea { 0, 66, 54, 14 };
+    juce::Rectangle<int> textArea { 0, 68, 54, 14 };
 };
 
 // horizontal slider (Freq): ticks above, white line up to the thumb, ring thumb; value shown while hovered / dragged
@@ -86,6 +106,7 @@ public:
     void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
     WavesDrag feel { WavesDrag::Linear };
+    Selection* selection = nullptr;
     void mouseEnter (const juce::MouseEvent&) override { repaint(); }
     void mouseExit (const juce::MouseEvent&) override { repaint(); }
     std::function<juce::String (double)> format;

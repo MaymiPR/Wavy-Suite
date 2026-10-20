@@ -29,6 +29,7 @@ private:
     wavy::flat::HSlider& freq;
     wavy::flat::SlopeBox& slope;
 
+    wavy::flat::Selection selection;
     wavy::MeterBallistics barL, barR;
     double lastTick = 0.0;
     float outL = -100.0f, outR = -100.0f, holdL = -100.0f, holdR = -100.0f;

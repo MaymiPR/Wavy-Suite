@@ -51,6 +51,10 @@ WBassXEditor::WBassXEditor (WBassXProcessor& p)
     freq.textArea = { 284, 10, 50, 13 };
     attachSlider (freq, wbassx::freq, { 86, 286, 340, 26 }, 80.0);
 
+    for (auto* f : { &input, &origBass, &harmonics }) f->selection = &selection;
+    for (auto* k : { &ratio, &response, &decay }) k->selection = &selection;
+    freq.selection = &selection;
+
     slope.addItemList ({ "6 dB/oct", "12 dB/oct", "24 dB/oct" }, 1);
     attachCombo (slope, wbassx::highpass, { 343, 329, 50, 20 });
 
