@@ -292,3 +292,50 @@ read back after each step):
   Input +0.089, Harmonics +0.090 for a 15 px drag), each member clamped at its own ends (Input stops at 0 dB, the top
   2/3 of its scale); choice members step one setting per mouse move. WBassX gives the same values on the same drags
   (e.g. Ratio 1.12 -> 1.25 -> 1.00, Decay -16.2 -> -15.0 -> -17.4, Filter 12 -> 24 -> 6 dB/oct).
+
+# WBassX: measurements of the reference (Phase 3)
+
+Measured on the user's own install (*MaxxBass Stereo* / *MaxxBass Mono* from the WaveShell, pedalboard, 512-sample
+buffers, 48 kHz). Data and plots are in `measurements/maxxbass/`; reproduce with `python -I nulltest/measure_maxxbass.py`.
+
+## Method
+
+- Every control is a VST3 parameter, so no state writing was needed (unlike RBass); `nulltest/refhost.py`
+  `render_mb` sets them all, the rest at their defaults.
+- **G** below is the generated part: what the MaxxBass monitor plays. Sine tones are analysed by synchronous
+  detection over whole periods; level steps by the Hilbert envelope; the linear path by impulse responses.
+
+## Results
+
+| Item | Measured |
+|---|---|
+| Latency | 0 samples at 44.1, 48, 96 and 192 kHz (reported and measured), with Harmonics off and on |
+| Structure | **Audio = HP3(F)·x + OrigBass·LP3(F)·x + Harmonics·G(x)**, exact to −148 … −152 dB; G does not depend on either fader (−277 dB) |
+| Original path | HP3(F) and LP3(F) are bilinear Butterworth filters: the Audio path matches HP3 + g·LP3 to −78 … −101 dB for every Freq and Original Bass setting tried (32 / 80 / 256 Hz; −inf, −6, 0, +12 dB). At Original Bass 0 dB it is a flat all-pass (an impulse response with sum 1 and energy 1); linear (−93 dB between levels 0.01 and 0.5) |
+| Monitors | Original Bass plays LP3(F)·x and MaxxBass plays G, both **pre-fader** (not changed by the Original Bass or Harmonics faders) |
+| Input | a plain trim up to 0 dB; +6 and +12 act as 0 dB, as WBassX's fader already does. G follows it nonlinearly (−6 dB input → −4.4 dB G) |
+| Harmonics fader | an exact gain on G up to **+10.96 dB**; settings above that give the same output (+11 and +12 → +10.96) |
+| G content | a strong component at the input frequency itself plus mostly 2nd and 3rd harmonics. For example, −20 dBFS tones at Freq 80 and Decay −15, in dB re input: 40 Hz h1 −10.3, h2 −35.6, h3 −50.9, h4 −66; 60 Hz −6.6 / −37.8 / −47.0; 100 Hz −7.5 / −48.3 / −53.1 (`harmonics.csv`, 105 rows over Freq, Decay and f0) |
+| Decay | acts mainly on the **even** harmonics, about 1 dB per dB: at 40 Hz h2 is −44.6 / −35.6 / −29.6 dB and h4 −75 / −66 / −60 for Decay −24 / −15 / −9, while h1 and h3 barely move (−10.3; −51 … −49). RBass's hidden Decay also scaled the even-harmonic product |
+| Level and Ratio | at Ratio 1 G is compressed: h1 goes from −4.1 dB re input at −60 dBFS to −13.1 at 0 dBFS (50 Hz). Ratio above 1 is upward compression: quiet input gets G at up to +4 dB re input (a ceiling reached at −60 … −36 dBFS for Ratio 2 and 4), and loud input less. The harmonics grow faster than the input (`level.csv`, `level_ratio.png`) |
+| Dynamics | a 50 Hz step −40 → −10 → −40 dBFS. At Ratio 1, G settles within 1 dB in 34 / 51 / 72 ms after the rise for Response 10 / 20 / 30, overshooting +1.5 / +3.0 / +3.8 dB; after the fall it undershoots −6 … −10 dB and settles in 48 … 58 ms. At Ratio 4 the rise settles faster (16 … 40 ms) with less overshoot (`dynamics_steps.png`) |
+| Response | on a steady amplitude-modulated bass, 10 or 30 ms vs 20 ms changes G by −25 … −29 dB re G (an attack / release time, small on steady material) |
+| High-pass | applies to G (not to the original path). At Freq 80, h1 of G is −4.1 / −21.6 / −36.1 dB at 20 Hz and −2.2 / −10.3 / −14.3 at 40 Hz for 6 / 12 / 24 dB/oct; equal above Freq |
+| Stereo | each channel is processed on its own: a left-only input leaves the right output silent (−300 dB); a loud left channel does not change a quiet right channel's G (−47.98 dB both ways, h2 −90.2 both ways); Mono equals each Stereo channel (−274 dB). This differs from RBass, whose generated bass is a shared mono sum |
+| Output clip | a hard clip at exactly ±1.0 on the final output (−89.5 dB against an ideal clip of the unclipped output; RBass clips at 32767/32768). G alone is never limited |
+| Smoothing | none: Input, Original Bass and Harmonics changes take effect at the block boundary. A Freq change settles within about 4 ms (filter state); Input shows a 2 % settling of G over 5 ms (its dynamics) |
+| vs RBass | not the same tuning. On the same tones (Freq 80), RBass's generated fundamental is 8 … 15 dB stronger and its harmonics 15 … 25 dB stronger (40 Hz at −30 dBFS: h2 −19.4 vs −42.3 dB re input) |
+
+## What this means for Phase 4
+
+The original path is exact and simple: the same bilinear HP3 / LP3 Butterworth pair WBass uses, with the Original
+Bass gain on LP3 and no smoothing. The two monitors play LP3·x and G pre-fader. The Harmonics fader multiplies G,
+capped at +10.96 dB. The output is hard-clipped at ±1. Processing is per channel, with no latency.
+
+The identification work is G: a band below Freq feeding a generator that keeps a strong fundamental and adds mostly
+2nd and 3rd harmonics. Decay is the gain of the even-harmonic term. G has an upward-compressing level control (Ratio)
+with an attack / release set by Response, and the High-pass on G.
+
+The WBass generator structure (an even product term with its own gain, high-passes at F, a level follower) is the
+starting point. Its constants and detector have to be fitted again: MaxxBass's generated part is weaker, per channel,
+and has an explicit Ratio. As for WBass, if no analytical detector matches, the level-to-gain block can be learned.

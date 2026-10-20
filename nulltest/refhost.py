@@ -83,3 +83,36 @@ def render_rbass(x, fs, freq=80.0, intensity=0.0, gain=0.0, hp=0, extra=None, na
             break
         STATS["silent_retries"] += 1
     return y
+
+
+# ---- MaxxBass ---------------------------------------------------------------------------------------------------
+# every control is a VST3 parameter; pedalboard snaps values to the plug-in's own steps
+MB_DEFAULTS = dict(input_gain=0.0, orig_bass_gain=0.0, harmonics_gain=float("-inf"), ratio=1.0, response=20.0,
+                   harmonics_decay=-15.0, highpass=1, frequency=80.0, monitor=0)
+_MB_HP = ['6dB/Octave ', '12dB/Octave ', '24dB/Octave ']
+_MB_MON = ['Audio ', 'MaxxBass ', 'OrigBass ']
+
+
+def set_mb(p, **kw):
+    v = {**MB_DEFAULTS, **kw}
+    for k in ("input_gain", "orig_bass_gain", "harmonics_gain", "harmonics_decay", "response", "frequency"):
+        setattr(p, k, float(v[k]))
+    p.ratio = '%.2f:1 ' % float(v["ratio"])
+    p.highpass = _MB_HP[int(v["highpass"])]
+    p.monitor = _MB_MON[int(v["monitor"])]
+    return v
+
+
+def render_mb(x, fs, name="MaxxBass Stereo", buffer=512, **kw):
+    """Render through MaxxBass with the given parameters (the rest at their defaults)."""
+    p = load(name)
+    set_mb(p, **kw)
+    x = np.asarray(x, np.float32)
+    if x.ndim == 1: x = x[None, :]
+    if name.endswith('Stereo') and x.shape[0] == 1: x = np.concatenate([x, x])
+    for attempt in range(8):
+        y = p(x, fs, buffer_size=buffer, reset=True)
+        if not _dropout(x, y, fs):
+            break
+        STATS["silent_retries"] += 1
+    return y
