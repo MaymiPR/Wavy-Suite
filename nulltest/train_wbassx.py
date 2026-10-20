@@ -52,13 +52,16 @@ def peak_follow(v, rel):
     return out
 
 
-def features(x, u, F, ratio, response, hp=1):
+def features(x, u, F, ratio, response, hp=1, Gprev=None):
     n = len(x)
     cols = [feat(x), feat(u), np.full(n, math.log(ratio)), np.full(n, (response - 20.0) / 10.0), np.full(n, math.log(F / 80.0))]
-    if FEAT in ("zlin", "zenv"):
+    if FEAT in ("zlin", "zenv", "zfb"):
         # the level control listens after the generated part's high-pass: give it u through K(F) HP_G (and the setting)
         z = KT[int(F)] * sosfilt(g_highpass(F, hp), u)
         cols += [feat(z), np.full(n, float(hp - 1))]
+    if FEAT == "zfb":
+        # the previous output sample (teacher forcing with the reference's G; WBassX feeds back its own)
+        cols += [feat(np.r_[0.0, Gprev[:-1]] if Gprev is not None else np.zeros(n))]
     if FEAT == "zenv":
         # envelope followers of |z| (instant attack, release 3 / 10 / 30 / 100 ms) and power smoothers (10 / 50 ms): the
         # slow time constants a GRU stepping at 48 kHz finds hard to hold
@@ -207,7 +210,7 @@ def prep(e):
     if key not in _hk: _hk[key] = hpg_ir(e)
     if "fe" in e: return e["fe"], e["u"], _hk[key]
     x = e["x"].astype(np.float64); u = sosfilt(lp3(e["F"]), x)
-    fe = features(x, u, e["F"], e["ratio"], e["response"], e["hp"])
+    fe = features(x, u, e["F"], e["ratio"], e["response"], e["hp"], e["G"].astype(np.float64))
     if FEAT == "env": e["fe"], e["u"] = fe.astype(np.float16), u.astype(np.float32)     # cache (half precision features)
     return fe, u.astype(np.float32), _hk[key]
 
@@ -247,7 +250,7 @@ def main_e2e(steps, hidden, init):
     for e in tr + va:
         e["coefs"] = gen_coefs(e)
     print(len(tr), "train", len(va), "val (end-to-end)", flush=True)
-    nin = {"env": 8, "zlin": 7, "zenv": 13}.get(FEAT, 5)
+    nin = {"env": 8, "zlin": 7, "zenv": 13, "zfb": 8}.get(FEAT, 5)
     net = Net(hidden, nin).to(dev)
     if init:
         sd = torch.load(init)

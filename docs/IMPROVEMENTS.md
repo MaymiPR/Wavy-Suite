@@ -3,7 +3,7 @@
 Things that are good enough for now but could be pushed further later, and how. Each item says where it stands and
 what the next step would be.
 
-## The learned-block procedure (used for WBass and WVox)
+## The learned-block procedure (used for WBass, WVox and WBassX)
 
 When part of a reference resists identification, keep everything that *is* identified exact and learn only that part:
 
@@ -20,7 +20,11 @@ When part of a reference resists identification, keep everything that *is* ident
 5. **Add structural guards** so the network cannot spoil cases the identified model already nulls (WVox: a floor at
    the static-law ratio of the loudest level of the last second, and the correction fades out while the fast ratio
    is flat). Without them the network cost 10–60 dB on steady tones.
-6. **Export to a header** (`tools/export_gainnet.py`, `tools/export_wvoxnet.py`), run it on a fixed virtual clock so
+6. **Train end-to-end through the exact structure when it is recursive** (WBassX): run the identified recursion and its
+   exact adjoint in C (`nulltest/mbfast.c`) as a PyTorch autograd function, the filters as FFT convolutions; then no
+   gain targets are needed, renders cost 0.1 s each, and thousands of them are cheap. Give the network the signal the
+   reference listens to (WBassX: after the high-pass) — that alone was worth 14 dB.
+7. **Export to a header** (`tools/export_gainnet.py`, `tools/export_wvoxnet.py`), run it on a fixed virtual clock so
    it behaves the same at every sample rate, check C++ against PyTorch (better than −70 dB), then the full null
    suite, the settings grid, other sample rates, unit tests and pluginval.
 
@@ -36,6 +40,20 @@ When part of a reference resists identification, keep everything that *is* ident
 - **Dense material at the heaviest settings** is close but not a null (noise −24 to −33 dB, voice about −30 dB at
   Comp −36). The slow path itself is still not understood (see MEASUREMENTS.md, "What is still not understood").
 - Ideas not yet tried: a longer training run with more data, a larger network, input features from the gate.
+
+### WBassX
+- **The learned level control is about 8 dB short of the structure's ceiling** (random grid: −28 dB median against
+  −37 dB with the reference's own extracted gain; `nulltest/oracle_grid_mb.py`). More data, more units and long
+  fine-tunes gave a few dB each; envelope-follower inputs and feeding back the output gave nothing. Next ideas: a
+  supervised pretraining stage on constrained extracted gains (`extract_g3.py`) mixed with the output loss, or an
+  explicit attack / release detector with a learned static law (the recovery probe `probe_recovery_mb.py` gives the
+  shape: full recovery in 0.1 … 0.3 s of silence, attack over about 4 × Response).
+- **Kicks** (−19 dB on the harmonics) are close to what the structure reaches with the reference's own gain (−21 …
+  −28 dB). The rest is spread over all bands; part of it is the reference's monitor clipping at ±1 on the first peak.
+- **Extreme settings** (strong Decay, high Ratio, loud low bass near Freq): the reference's Decay loop turns chaotic
+  (Nyquist oscillation). Not reproducible sample by sample; WBassX goes unstable under the same condition and stays
+  bounded (y within ±1).
+- **Real material** (bass stems, full mixes) has not been null-tested; all signals are synthetic.
 
 ### WBass
 - **Weak spots:** Freq 256 (created harmonics about −17 dB median), kick-like transients (about −22 dB), and Freq 160

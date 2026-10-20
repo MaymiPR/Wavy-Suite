@@ -376,15 +376,22 @@ identification of its algorithm. Cost: about 7 % of one core for real-time stere
 level control recovers fully within 0.1 … 0.3 s of silence and, after silence, attacks over a time set by Response
 (at Ratio 1, 10 ms into a burst the gain is still −6.9 / −3.9 / −2.7 dB for Response 10 / 20 / 30, settling in about
 4 × Response; `probe_recovery_mb.py`, `recovery_F80.json`); onset-heavy training material (kicks, steps, bass lines,
-a third of it at Ratio 1), a 48-unit network and a fine-tune at a lower learning rate brought kicks and steps 3 … 5 dB
-closer and the generated part from −35.9 to −40.9 dB.
+a third of it at Ratio 1), a 48-unit network, about 13 900 training renders and long fine-tunes at a lower learning
+rate brought kicks and steps 3 … 5 dB closer and the generated part from −35.9 to −42.7 dB.
 
 **Null test** ([docs/NULL_RESULTS_WBASSX.md](docs/NULL_RESULTS_WBASSX.md), 12 signals × 8 settings over Freq, Ratio,
-Response, Decay, High-pass and the faders): median residual −46.9 dB on the whole output and −40.9 dB on the
-generated part (Harmonics monitor). By signal (generated part): white noise −50 dB, quiet tones −59 dB, tones and sweeps
-−40 … −48 dB, pink noise −43 dB, level steps −35 dB, bass notes −27 dB, kick-like transients −19 dB. Against the
-reference's own extracted gain (the ceiling of the structure) kicks reach −26 … −30 dB and bass notes −31 … −65 dB, so
-most of what is left there is the learned level control. The worst cases are
+Response, Decay, High-pass and the faders): median residual −48.5 dB on the whole output and −42.7 dB on the
+generated part (Harmonics monitor). By signal (generated part): white noise −49 dB, quiet tones −59 dB, tones and sweeps
+−40 … −49 dB, pink noise −43 dB, level steps −34 dB, bass notes −27 dB, kick-like transients −19 dB. A grid of 120
+random settings over every control with the four hardest signals (`nullgrid_wbassx.py`, `docs/NULL_GRID_WBASSX.json`):
+median −35.2 dB whole output, −29.2 dB generated part (p90 −19 dB), with no parameter range standing out (generated
+part −26 … −31 dB median in every Freq, Ratio, Decay and High-pass band). Against the
+reference's own extracted gain (the ceiling of the structure) the grid reaches −37.1 dB median against the network's
+−28.1 dB on the same 36 cases (`oracle_grid_mb.py`): bass notes −31 vs −24, pink noise −46 vs −36, the tone −39 vs
+−31, but kicks −21 vs −18, so kicks are mostly a limit of the structure (part of it the reference's own monitor
+clipping at ±1 on the first kick peak), the rest mostly the learned level control. Tried without gain: explicit
+envelope followers of |z| as inputs (3 … 100 ms peak, 10 / 50 ms power), and the previous output sample as an input
+(teacher-forced; worse in closed loop) — the network does not lack those. The worst cases are
 loud material at extreme settings (Freq 256 / Ratio 4 / Decay −12 with a −3 dBFS tone: +2.5 dB; Decay −9): there the
 reference's own Decay loop goes unstable and turns chaotic (Nyquist content −7 dB, h2 above h1, output pinned at ±1;
 even the reference's own extracted gain reproduces it only to −4 dB), and the structure reproduces it only roughly (with the reference's own gain

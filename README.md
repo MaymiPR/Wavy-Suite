@@ -31,7 +31,7 @@ The installers are not code-signed or notarized; see [packaging/](packaging) for
 |---|---|---|
 | **WVox** | vocal compressor / gate / limiter (three-control) | released: steady material nulls, dynamic material is close (see below) |
 | **WBass** | psychoacoustic bass enhancer (harmonic generator) | ready for the next release: close, not a null (median −36.8 dB, see below) |
-| **WBassX** | psychoacoustic bass enhancer with harmonics compressor, filters and monitor modes | DSP done, testing: close, not a null (median −46.9 dB, see below) |
+| **WBassX** | psychoacoustic bass enhancer with harmonics compressor, filters and monitor modes | DSP done, testing: close, not a null (median −48.5 dB, see below) |
 | WComp, WDelay, WBass Ride, WVox Ride, WVox Chain, WVox Bend | | planned, one at a time |
 
 ### WVox null test (honest numbers)
@@ -49,11 +49,13 @@ Residual of WVox against the reference, `20 log10(rms(difference) / rms(referenc
 ### WBassX null test (honest numbers)
 
 Residual of WBassX against the reference over 12 signals × 8 settings (Freq, Ratio, Response, Decay, High-pass, the
-Original Bass and Harmonics faders), lower is better: **median −46.9 dB** on the whole output and **−40.9 dB** on the
+Original Bass and Harmonics faders), lower is better: **median −48.5 dB** on the whole output and **−42.7 dB** on the
 created harmonics alone.
 
-- Per signal (created harmonics, median over the settings): white noise and quiet tones −50 to −59 dB; tones, sweeps and
-  pink noise −40 to −48 dB; level steps −35 dB; bass notes −27 dB; kick-like transients −19 dB.
+- Per signal (created harmonics, median over the settings): white noise and quiet tones −49 to −59 dB; tones, sweeps and
+  pink noise −40 to −49 dB; level steps −34 dB; bass notes −27 dB; kick-like transients −19 dB.
+- Over 120 random settings of every control with the hardest signals (bass notes, kicks, a loud tone, pink noise):
+  median −35.2 dB on the whole output, −29.2 dB on the harmonics (`nulltest/nullgrid_wbassx.py`).
 - Worst cases: loud material at extreme settings (Freq 256 with Ratio 4 and Decay −12, or Decay −9), where the
   reference's own harmonic feedback goes unstable.
 - How: the filters, the harmonic generator with its Decay feedback, the faders, monitors and clip were identified
