@@ -21,7 +21,7 @@ if __name__ == "__main__":
     rng = np.random.default_rng(seed)
     for i in range(count):
         F = int(round(np.exp(rng.uniform(np.log(32), np.log(256)))))
-        ratio = 1.0 if rng.random() < 0.2 else round(float(np.exp(rng.uniform(0, np.log(4)))), 2)
+        ratio = 1.0 if rng.random() < float(os.environ.get("MB_R1P", "0.2")) else round(float(np.exp(rng.uniform(0, np.log(4)))), 2)
         response = 20.0 if rng.random() < 0.25 else round(float(rng.uniform(10, 30)), 1)
         decay = round(float(rng.uniform(-24, -9)), 1)
         hp = int(rng.choice([0, 1, 1, 2]))

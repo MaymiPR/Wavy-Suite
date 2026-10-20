@@ -22,7 +22,7 @@
 | FocusCheck (the space bar reaches the host after clicks on the editor) | PASS |
 | Learned level control: C++ against the trained PyTorch model | −71 … −117 dB on most examples (−43 dB on a kick) |
 | Sample rates: null at 96 kHz against 48 kHz (24 cases) | within 1.8 dB |
-| Null test against the reference | [NULL_RESULTS_WBASSX.md](NULL_RESULTS_WBASSX.md): median −42.4 dB (whole output), −35.9 dB (generated part); not a null, see MEASUREMENTS.md "WBassX model" |
+| Null test against the reference | [NULL_RESULTS_WBASSX.md](NULL_RESULTS_WBASSX.md): median −47.0 dB (whole output), −38.8 dB (generated part); not a null, see MEASUREMENTS.md "WBassX model" |
 
 ## WBass
 

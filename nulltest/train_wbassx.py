@@ -194,7 +194,7 @@ def prep(e):
     if "fe" in e: return e["fe"], e["u"], _hk[key]
     x = e["x"].astype(np.float64); u = sosfilt(lp3(e["F"]), x)
     fe = features(x, u, e["F"], e["ratio"], e["response"], e["hp"])
-    if FEAT in ("env", "zlin"): e["fe"], e["u"] = fe.astype(np.float16), u.astype(np.float32)     # cache (half precision features)
+    if FEAT == "env": e["fe"], e["u"] = fe.astype(np.float16), u.astype(np.float32)     # cache (half precision features)
     return fe, u.astype(np.float32), _hk[key]
 
 
@@ -240,11 +240,25 @@ def main_e2e(steps, hidden, init):
         w = sd["gru.weight_ih_l0"]
         if w.shape[1] < nin:
             sd["gru.weight_ih_l0"] = torch.cat([w, torch.zeros(w.shape[0], nin - w.shape[1], device=w.device)], 1)
+        h0 = sd["gru.weight_hh_l0"].shape[1]
+        if h0 < hidden:
+            # grow the hidden layer without changing the function: new units take small random input weights, but no old
+            # unit reads them and the output ignores them at first
+            cur = net.state_dict()
+            for k in ("gru.weight_ih_l0", "gru.weight_hh_l0", "gru.bias_ih_l0", "gru.bias_hh_l0"):
+                old, new = sd[k].to(dev), cur[k].clone() * 0.3
+                for gte in range(3):
+                    rows_o, rows_n = slice(gte * h0, (gte + 1) * h0), slice(gte * hidden, gte * hidden + h0)
+                    if old.dim() == 1: new[rows_n] = old[rows_o]
+                    elif k.endswith("hh_l0"): new[rows_n, :h0] = old[rows_o]; new[rows_n, h0:] = 0.0
+                    else: new[rows_n] = old[rows_o]
+                sd[k] = new
+            w = torch.zeros(1, hidden, device=dev); w[:, :h0] = sd["out.weight"].to(dev); sd["out.weight"] = w
         net.load_state_dict(sd)
     v = e2e_eval(net, va); print(f"start: val median {np.median(v):.2f} mean {v.mean():.2f}", flush=True)
-    opt = torch.optim.Adam(net.parameters(), 1e-3)
+    opt = torch.optim.Adam(net.parameters(), float(os.environ.get("MB_LR", "1e-3")))
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, steps)
-    rng = np.random.default_rng(1); best = np.median(v); t0 = time.time()
+    rng = np.random.default_rng(int(os.environ.get("MB_SEED", "1"))); best = np.median(v); t0 = time.time()
     torch.save(net.state_dict(), os.path.join(OUTD, f"net_h{hidden}_e2e{TAG}.pt"))
     for it in range(1, steps + 1):
         idx = rng.choice(len(tr), 16, replace=False)

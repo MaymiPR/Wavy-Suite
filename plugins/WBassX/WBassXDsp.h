@@ -23,6 +23,13 @@
 #include <algorithm>
 #include <cmath>
 #include "WBassXNet.h"
+#if defined (__SSE2__) || defined (_M_X64) || (defined (_M_IX86_FP) && _M_IX86_FP >= 2)
+ #include <emmintrin.h>
+ #define WBASSX_SIMD_SSE 1
+#elif defined (__ARM_NEON) || defined (__ARM_NEON__) || defined (_M_ARM64)
+ #include <arm_neon.h>
+ #define WBASSX_SIMD_NEON 1
+#endif
 
 namespace wbassx
 {
@@ -64,7 +71,24 @@ struct Butter3
     double run (double x) { return second.run (first.run (x)); }
 };
 
-// the learned level control: one GRU step per 48 kHz tick
+// the learned level control: one GRU step per 48 kHz tick. The weights are transposed once so the inner loops are
+// contiguous multiply-adds (they vectorise without fast-math reassociation).
+struct NetWeights
+{
+    static constexpr int H = net::hidden, I = net::inputs;
+    alignas (16) float wih[I][3 * H];
+    alignas (16) float whh[H][3 * H];
+    NetWeights()
+    {
+        for (int j = 0; j < 3 * H; ++j)
+        {
+            for (int k = 0; k < I; ++k) wih[k][j] = net::Wih[j * I + k];
+            for (int m = 0; m < H; ++m) whh[m][j] = net::Whh[j * H + m];
+        }
+    }
+    static const NetWeights& get() { static const NetWeights w; return w; }
+};
+
 class GainNet
 {
 public:
@@ -72,13 +96,52 @@ public:
     void step (const float* in)
     {
         constexpr int H = net::hidden, I = net::inputs;
-        float gi[3 * H], gh[3 * H];
-        for (int j = 0; j < 3 * H; ++j)
+        const auto& W = NetWeights::get();
+        alignas (16) float gi[3 * H], gh[3 * H];
+        static_assert ((3 * H) % 16 == 0, "blocks of 16 outputs");
+        for (int jb = 0; jb < 3 * H; jb += 16)         // 16 outputs kept in registers over all inputs
         {
-            float a = net::bih[j], c = net::bhh[j];
-            for (int k = 0; k < I; ++k) a += net::Wih[j * I + k] * in[k];
-            for (int m = 0; m < H; ++m) c += net::Whh[j * H + m] * h[m];
-            gi[j] = a; gh[j] = c;
+#if WBASSX_SIMD_SSE
+            __m128 i0 = _mm_loadu_ps (net::bih + jb), i1 = _mm_loadu_ps (net::bih + jb + 4), i2 = _mm_loadu_ps (net::bih + jb + 8), i3 = _mm_loadu_ps (net::bih + jb + 12);
+            for (int k = 0; k < I; ++k)
+            {
+                const __m128 v = _mm_set1_ps (in[k]); const float* w = &W.wih[k][jb];
+                i0 = _mm_add_ps (i0, _mm_mul_ps (_mm_load_ps (w), v));      i1 = _mm_add_ps (i1, _mm_mul_ps (_mm_load_ps (w + 4), v));
+                i2 = _mm_add_ps (i2, _mm_mul_ps (_mm_load_ps (w + 8), v));  i3 = _mm_add_ps (i3, _mm_mul_ps (_mm_load_ps (w + 12), v));
+            }
+            __m128 h0 = _mm_loadu_ps (net::bhh + jb), h1 = _mm_loadu_ps (net::bhh + jb + 4), h2 = _mm_loadu_ps (net::bhh + jb + 8), h3 = _mm_loadu_ps (net::bhh + jb + 12);
+            for (int m = 0; m < H; ++m)
+            {
+                const __m128 v = _mm_set1_ps (h[m]); const float* w = &W.whh[m][jb];
+                h0 = _mm_add_ps (h0, _mm_mul_ps (_mm_load_ps (w), v));      h1 = _mm_add_ps (h1, _mm_mul_ps (_mm_load_ps (w + 4), v));
+                h2 = _mm_add_ps (h2, _mm_mul_ps (_mm_load_ps (w + 8), v));  h3 = _mm_add_ps (h3, _mm_mul_ps (_mm_load_ps (w + 12), v));
+            }
+            _mm_store_ps (gi + jb, i0); _mm_store_ps (gi + jb + 4, i1); _mm_store_ps (gi + jb + 8, i2); _mm_store_ps (gi + jb + 12, i3);
+            _mm_store_ps (gh + jb, h0); _mm_store_ps (gh + jb + 4, h1); _mm_store_ps (gh + jb + 8, h2); _mm_store_ps (gh + jb + 12, h3);
+#elif WBASSX_SIMD_NEON
+            float32x4_t i0 = vld1q_f32 (net::bih + jb), i1 = vld1q_f32 (net::bih + jb + 4), i2 = vld1q_f32 (net::bih + jb + 8), i3 = vld1q_f32 (net::bih + jb + 12);
+            for (int k = 0; k < I; ++k)
+            {
+                const float v = in[k]; const float* w = &W.wih[k][jb];
+                i0 = vmlaq_n_f32 (i0, vld1q_f32 (w), v); i1 = vmlaq_n_f32 (i1, vld1q_f32 (w + 4), v);
+                i2 = vmlaq_n_f32 (i2, vld1q_f32 (w + 8), v); i3 = vmlaq_n_f32 (i3, vld1q_f32 (w + 12), v);
+            }
+            float32x4_t h0 = vld1q_f32 (net::bhh + jb), h1 = vld1q_f32 (net::bhh + jb + 4), h2 = vld1q_f32 (net::bhh + jb + 8), h3 = vld1q_f32 (net::bhh + jb + 12);
+            for (int m = 0; m < H; ++m)
+            {
+                const float v = h[m]; const float* w = &W.whh[m][jb];
+                h0 = vmlaq_n_f32 (h0, vld1q_f32 (w), v); h1 = vmlaq_n_f32 (h1, vld1q_f32 (w + 4), v);
+                h2 = vmlaq_n_f32 (h2, vld1q_f32 (w + 8), v); h3 = vmlaq_n_f32 (h3, vld1q_f32 (w + 12), v);
+            }
+            vst1q_f32 (gi + jb, i0); vst1q_f32 (gi + jb + 4, i1); vst1q_f32 (gi + jb + 8, i2); vst1q_f32 (gi + jb + 12, i3);
+            vst1q_f32 (gh + jb, h0); vst1q_f32 (gh + jb + 4, h1); vst1q_f32 (gh + jb + 8, h2); vst1q_f32 (gh + jb + 12, h3);
+#else
+            float ai[16], ah[16];
+            for (int q = 0; q < 16; ++q) { ai[q] = net::bih[jb + q]; ah[q] = net::bhh[jb + q]; }
+            for (int k = 0; k < I; ++k) { const float v = in[k]; const float* w = &W.wih[k][jb]; for (int q = 0; q < 16; ++q) ai[q] += w[q] * v; }
+            for (int m = 0; m < H; ++m) { const float v = h[m]; const float* w = &W.whh[m][jb]; for (int q = 0; q < 16; ++q) ah[q] += w[q] * v; }
+            for (int q = 0; q < 16; ++q) { gi[jb + q] = ai[q]; gh[jb + q] = ah[q]; }
+#endif
         }
         for (int j = 0; j < H; ++j)
         {

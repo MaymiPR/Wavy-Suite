@@ -363,7 +363,7 @@ are shifted copies of each other by about G's own small-signal response: the lev
 | Gain over time | extracted from renders by least squares through the exact structure (Gauss-Newton with the generator's exact Jacobian): the model then re-renders the reference's G at −50 dB median (−38 dB on bass notes, −27 … −33 dB on kicks). A fast drop at onsets, a release of hundreds of ms, and ripple within each cycle that adds odd harmonics at high level |
 
 **Learned level control (current).** No analytical detector was found for the gain law (its knee and slope both move with
-Ratio, plus the resting state). So WBassX keeps every identified part exact and learns only g: a GRU with 32 units reads
+Ratio, plus the resting state). So WBassX keeps every identified part exact and learns only g: a GRU with 48 units reads
 |x|, |u| and |z| (compressed with asinh; z = K(F) HP_G(u), the signal the level control listens to), ln Ratio, Response,
 ln(F/80) and the High-pass setting, and gives ln g = −softplus(·) (so g ≤ 1). Without z and the High-pass input the
 same network stopped at −22 dB on the generated part. It runs
@@ -372,12 +372,17 @@ forward and adjoint recursions run in C (`nulltest/mbfast.c`), and HP_G is appli
 The training set has about 4900 reference renders (tones, steps, AM, two-tones, noise, kicks, bass lines, pinned
 pairs, sweeps) over random Freq, Ratio, Response, Decay and High-pass. The C++ matches the trained model to −71 …
 −117 dB on most examples (−43 dB on a kick). This is a learned model of the reference's gain control, not an
-identification of its algorithm. Cost: about 12 % of one core for real-time stereo.
+identification of its algorithm. Cost: about 7 % of one core for real-time stereo (SSE2 / NEON inner loops). The
+level control recovers fully within 0.1 … 0.3 s of silence and, after silence, attacks over a time set by Response
+(at Ratio 1, 10 ms into a burst the gain is still −6.9 / −3.9 / −2.7 dB for Response 10 / 20 / 30, settling in about
+4 × Response; `probe_recovery_mb.py`, `recovery_F80.json`); onset-heavy training material (kicks, steps, bass lines,
+a third of it at Ratio 1) and a 48-unit network brought kicks and steps 3 … 5 dB closer.
 
 **Null test** ([docs/NULL_RESULTS_WBASSX.md](docs/NULL_RESULTS_WBASSX.md), 12 signals × 8 settings over Freq, Ratio,
-Response, Decay, High-pass and the faders): median residual −42.4 dB on the whole output and −35.9 dB on the
-generated part (Harmonics monitor). By signal (generated part): white noise −48 dB, quiet tones −52 dB, tones and sweeps
-−36 … −40 dB, pink noise −38 dB, level steps −30 dB, bass notes −25 dB, kick-like transients −16 dB. The worst cases are
+Response, Decay, High-pass and the faders): median residual −47.0 dB on the whole output and −38.8 dB on the
+generated part (Harmonics monitor). By signal (generated part): white noise −49 dB, quiet tones −59 dB, tones and sweeps
+−39 … −45 dB, pink noise −42 dB, level steps −34 dB, bass notes −27 dB, kick-like transients −19 dB. The worst cases are
 loud material at extreme settings (Freq 256 / Ratio 4 / Decay −12 with a −3 dBFS tone: +2.5 dB; Decay −9): there the
-reference's own Decay loop goes unstable, and the structure reproduces it only roughly (with the reference's own gain
+reference's own Decay loop goes unstable and turns chaotic (Nyquist content −7 dB, h2 above h1, output pinned at ±1;
+even the reference's own extracted gain reproduces it only to −4 dB), and the structure reproduces it only roughly (with the reference's own gain
 extracted it reaches −20 … −27 dB at Decay −9). At 96 kHz the null is within 1.8 dB of 48 kHz. This is not a null.
