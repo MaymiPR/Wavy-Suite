@@ -208,3 +208,106 @@ be carried over by their setting values only, with new Wavy names (no artist nam
 - Monitor modes change the audio output and must be implemented.
 - The editor needs widgets the Renaissance kit does not have: the band graph, vertical faders, rotary knobs, a popup
   selector, radio buttons, and a toolbar without Skins. Phase 2 is larger than for WBass.
+
+---
+
+## 4. WComp (H-Comp)
+
+### Sources
+- **C1** Local manual `H-Comp.bundle\Contents\Resources\H-Comp.pdf` (10 pages, H-Comp Hybrid Compressor User Guide).
+- **C2** Local `H-Comp.bundle\Contents\Resources\ParamXML\1000.xml` (44 parameters), `GUIXML\1000.xml`,
+  `ToolbarXML\1001.xml`, `AlgXML\1001.xml` (algorithm `HCMP`, a tempo listener), `ProcessXML\1000.xml` / `1001.xml`,
+  `PageTable\3950.xml`, presets in `Presets\1000.xml` (26 presets).
+- **C3** The installed VST3 (`WaveShell1-VST3 17.1`) as seen by a host: components *H-Comp Mono* and *H-Comp Stereo*;
+  automatable parameters threshold, ratio, mix, attack, punch, release, sync, analog, output, limiter, meter_select,
+  releasebpm; a **side-chain input bus** ("Stereo SideChain", disabled by default).
+- **C4** A screenshot of the real editor taken with `tools/MeterCapture` (git-ignored `reference/wcomp/`).
+
+### Documented behaviour (C1)
+- A "hybrid" compressor: modelled transformer / tube / transistor behaviour plus plug-in precision.
+- **Threshold** 0 … −48 dB (default −18), **Ratio** 1 … 50 (default 3), **Attack** 0.5 … 100 ms (default 7),
+  **Release** 3 ms … 3 s (default 100 ms) or note values when synced.
+- **Automatic makeup gain** keeps the compressed and uncompressed levels about the same.
+- **Punch** 0 … 30 (default 1): lets transients through the compressor even with very fast attack (internally
+  `PARAM_SIDE_CHAIN_DELAY`, so a delay of the detector against the audio).
+- **Mix** 0 … 100 (default 100): parallel compression with the dry input.
+- **Sync**: ms (manual release), Host (release in note values of the host tempo), BPM (note values of a BPM set in the
+  plug-in, 30 … 300 or Off).
+- **Analog** Off / 1 … 4 (default 2): 1 transformer or tube, 2 transistor, 3 driven tube / transistor tone 1,
+  4 driven tone 2 **without noise**; modes 1–3 add harmonics and a small amount of noise.
+- **Limiter** On: an output peak limiter; Off (default): a clipper instead.
+- **Output** ±18 dB (default 0). **Meter**: In / GR / Out (default GR), a VU needle 0 … −48 dB; GR shows the total
+  attenuation including mix and limiter.
+
+### Specifications (C3, measured)
+- Latency 64 samples at 44.1 / 48 kHz, 128 at 88.2 / 96 kHz, 256 at 192 kHz (1.33 ms), reported and compensated
+  exactly (an impulse comes out at 0 after compensation).
+- Mono and stereo components (WComp: one plug-in with a Mode switch), plus the side-chain bus.
+
+### Parameters (C2, C3), in preset-array order
+| # | ID | Label | Range | Default | In VST3 |
+|---|---|---|---|---|---|
+| 0 | PARAM_THRESH | Threshold | 0 … −48 dB, 0.1 | −18 | threshold |
+| 1 | PARAM_RATIO | Ratio | 1 … 50, "RatioScale", 0.01 | 3 | ratio |
+| 2 | PARAM_KNEE | Knee | 0 … 1 (display only) | 0.2 | — |
+| 3 | PARAM_SIDE_CHAIN_DELAY | Punch | 0 … 30, 0.1 | 1 | punch |
+| 4 | PARAM_MIX | Mix | 0 … 100, 0.1 (not changed by presets) | 100 | mix |
+| 5 | PARAM_OUTPUT | Gain | ±18 dB, 0.1 | 0 | output |
+| 6 | PARAM_ATTACK | Attack | 0.5 … 100 ms, log | 7 | attack |
+| 7 | PARAM_RELEASE | Release | 3 … 3000 ms, log | 100.25 | release |
+| 8 | PARAM_RELEASE_TIME_BPM | ReleaseBars | 20 note values (1/64T … 2 bars) | 5 (1/32D) | releasebpm |
+| 9 | PARAM_SYNC_ON | Sync | BPM / Host / ms | ms | sync |
+| 10 | PARAM_BPM | BPM | 30 … 300 | 120 | — |
+| 11–18 | PEAK, LIM_COUNT, METER_TYPE, METER_DISPLAY, IN/OUT_VU L/R | meters, limiter LED, meter select (In / GR / Out) | | GR | meter_select |
+| 19–21 | PDR_REL_SEED, PDR_RAT, PDR_ATT_SEED | program-dependent release: release seed 56.23 ms, ratio 10, "Crest" 149.62 ms (display only) | | | — |
+| 22, 23 | FREQ, NUM_FILTERS | side-chain filter, 120 Hz (reset; initial 102), order switch "Warm / Smooth" | | | — |
+| 24 | MODE | detector "Fast / Slow", designer switch "ARC / Manual" | | 1 | — |
+| 25, 26 | LIM_RELEASE, INV_REL | limiter release 23.99 ms; release type "Electro / Opto" | | 0 | — |
+| 27 | PARAM_LIMIT_CLIP | Limiter On / Off | | Off | limiter |
+| 28 | PARAM_ANALOG | Analog Off / 1 … 4 | | 2 | analog |
+| 29–33 | DITHER_NORM / GAIN1 / FREQ1 / GAIN2 / FREQ2 | analog noise: −98 dB, shaped (+30 dB at 200 Hz, −12.1 dB at 11.2 kHz) | | | — |
+| 34–40 | THD, THD_SUB / LOW / HF FREQ / GAIN | analog harmonics −29.5 dB, shaped: sub 125 Hz +22.3 dB, low 250 Hz 0 dB, HF 8.9 kHz +7.1 dB | | | — |
+| 41–43 | ATHD_GAIN / THRESH / NORM | even harmonics −8.3 dB above a −20.1 dB threshold | | | — |
+
+The display-only parameters (2, 19–26, 29–43) are never stored in a preset; their reset and initial values differ for
+some of them (PDR release 56.23 vs 750, side-chain filter 120 vs 102 Hz), so the Analog mode or the release type
+probably sets them internally. Phase 3 measures what each mode does rather than trusting these numbers. The GUIXML
+places designer controls for all of them below the visible area (y 550 … 690 of a 643 × 699 developer view), with
+three toggles at y 472: "ARC / Manual" (PARAM_MODE), "Electro / Opto" (PARAM_INV_REL), "Warm / Smooth"
+(PARAM_NUM_FILTERS).
+
+### GUI geometry (C2, C4)
+View **643 × 454 px** including the toolbar (logo "WAVES HYBRID LINE", undo / redo, preset box, previous / next, A→B,
+Setup A, Save, menu). A skeuomorphic orange panel with photographic knobs (bitmap sequences), all to be drawn by
+WComp itself:
+- Analog stepped knob (5 positions) 39, 30, 97 × 107; Output knob 505, 30 (value text 599, 85 on hover).
+- Meter select In / GR / Out radio 243, 23, 156 × 33; Limiter toggle 414, 23, 56 × 34 with a limiter LED at 436, 67.
+- **VU meter** 224, 105, 199 × 116: a backlit cream dial (scale 48 … 0 in GR), a red needle, a screw-head pivot,
+  chrome screws in the black housing; separate needle images for GR (`PARAM_PEAK`) and In / Out
+  (`PARAM_METER_DISPLAY`), 71 steps each.
+- Ratio big knob 6, 142, 161 × 143 (scale 1 … 50, angles 40 … 320); Mix big knob 473, 142 (Dry 0 … 100 Wet).
+- **Threshold** large knob 238, 249, 169 × 180 (0 … −48, angles 53 … 307).
+- Punch 9, 294, Attack 114, 295, Release 431, 294 (97 × 107 each, angles 39 … 321); Release and ReleaseBPM share the
+  same knob; Sync radio BPM / HOST / MS 542, 310, 59 × 71; BPM LED display 507, 405 ("BPM OFF", digit bitmaps).
+- Value texts appear on hover (`ShowOnHover`), 37 × 13 px below each knob; Alt resets (`OptionReset`); text entry on
+  all knobs (`ReciveTextEntery`).
+
+### Presets (C2)
+26 presets, all RealWorld arrays: Full Reset, PA Default, 21 genre / instrument presets (drums, kick, bass, piano,
+guitars, strings, vocal, mastering, parallel, "Broken Radio"), and presets carrying artist names or other products'
+names ("Dave Aron - Rock Vocal", "FOHDave Kit Parallel Comp", "160 Style Drum Crunch"). They will be carried over by
+their values with Wavy names. The default preset stores the limiter slot as 1 while the manual gives Off as the
+default: the slot's polarity is checked in Phase 3.
+
+### Notes for the next phases
+- **Noise:** Analog modes 1–3 add noise, which cannot null sample by sample; nulls use Analog Off and 4, and the noise
+  is matched in level and spectrum (the dither parameters give a starting point).
+- **Punch** is a detector-versus-audio delay: the 64-sample latency is probably the audio delay that lets the
+  detector look ahead (Punch then moves the detector back), to be confirmed.
+- **Program-dependent release** ("PDR", "Crest", "Electro / Opto"): the release is likely not a plain one-pole; WVox's
+  identification tools (static law, attack / release probes, the learned-block procedure) apply.
+- **Automatic makeup gain** is a function of threshold and ratio, to be measured on the static curve.
+- **Side-chain bus:** pedalboard cannot feed it; Phase 3 needs a JUCE host (MeterCapture or a small tool) to measure it.
+- **Tempo sync:** release note values from the host's tempo (AlgXML `IsTempoListener`) or the BPM setting.
+- **UI:** the largest yet: procedurally drawn photoreal knobs, a backlit VU meter with needle ballistics, chrome toggle
+  buttons, an LED digit display, on the toolbar layout of the Hybrid line.

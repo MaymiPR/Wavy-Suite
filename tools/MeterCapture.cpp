@@ -305,6 +305,11 @@ public:
     }
     void setUp (const StringArray& args)
     {
+        for (int io = 0; io < 2; ++io)                       // bus layout (main / side-chain)
+            for (int b = 0; b < plugin->getBusCount (io == 0); ++b)
+                if (auto* bus = plugin->getBus (io == 0, b))
+                    std::printf ("  %s bus %d '%s': %d ch, enabled %d\n", io == 0 ? "input" : "output", b, bus->getName().toRawUTF8(),
+                                 bus->getNumberOfChannels(), (int) bus->isEnabled());
         plugin->setPlayConfigDetails (2, 2, fs, block);
         plugin->prepareToPlay (fs, block);
         for (int i = 3; i < args.size(); ++i)
