@@ -430,10 +430,13 @@ void Toolbar::paint (juce::Graphics& g)
     if (hybrid) g.fillAll (juce::Colour (2, 2, 2));
     auto box = [&] (juce::Rectangle<int> r, bool hot)
     {
-        // the Hybrid bar: (39, 39, 39) boxes with a light (210, 203, 203) outline (measured)
-        g.setColour (hot ? juce::Colours::black : hybrid ? juce::Colour (39, 39, 39) : juce::Colour (34, 34, 34));
+        // the Hybrid bar (measured): (35, 35, 35) boxes outlined in (180, 180, 180); the preset box in (170, 170, 170),
+        // undo and redo in (210, 203, 203)
+        const auto outline = r == rect (Preset) ? juce::Colour (170, 170, 170)
+                           : (r == rect (Undo) || r == rect (Redo)) ? juce::Colour (210, 203, 203) : juce::Colour (180, 180, 180);
+        g.setColour (hot ? juce::Colours::black : hybrid ? juce::Colour (35, 35, 35) : juce::Colour (34, 34, 34));
         g.fillRect (r);
-        g.setColour (hot ? juce::Colours::white : hybrid ? juce::Colour (210, 203, 203) : juce::Colour (128, 128, 128));
+        g.setColour (hot ? juce::Colours::white : hybrid ? outline : juce::Colour (128, 128, 128));
         g.drawRect (r, 1);
     };
 
@@ -525,7 +528,7 @@ void Toolbar::paint (juce::Graphics& g)
             case Menu:
                 box (r, hot);
                 g.setColour (kInk);
-                for (int k = 0; k < 3; ++k) g.fillRect (r.getX() + 4, r.getY() + 4 + k * 3, 9, 1);
+                for (int k = 0; k < 3; ++k) g.fillRect (r.getX() + 3, r.getY() + 4 + k * 3, 9, 1);    // centred, as measured
                 break;
             case Preset:
                 box (r, hot);

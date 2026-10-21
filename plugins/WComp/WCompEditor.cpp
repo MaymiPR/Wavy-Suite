@@ -7,7 +7,8 @@ namespace
 {
 // design grid (the reference's GUIXML and screenshot, reference/wcomp)
 const Rectangle<float> kHousing (174.5f, 52.5f, 295.0f, 228.0f);   // its outline, bevels included
-constexpr float kArch = 82.5f;                                  // the housing's arch around Threshold (centred on the knob)
+constexpr float kArch = 83.2f;                                  // the housing's arch around Threshold (measured: half a pixel
+const Point<float> kArchCentre (320.15f, 333.35f);              // left of the knob's centre)
 const Rectangle<int> kDial (197, 73, 251, 170);                 // the dial's window frame, and the pivot's bump below it
 const Point<float> kVuPivot (320.7f, 220.9f);                  // the scale's centre
 const Rectangle<float> kLed (506.0f, 404.0f, 90.5f, 34.0f);
@@ -107,7 +108,7 @@ void WCompEditor::tick()
 void WCompEditor::paintContent (Graphics& g)
 {
     drawPanel (g, { 0, 19, W, H - 19 }, panelCache);
-    drawVuHousing (g, kHousing, kThreshold, kArch);
+    drawVuHousing (g, kHousing, kArchCentre, kArch);
     // the limiter lamp in the housing's corner (lit while the limiter acts; Phase 4), measured: a black glass dome of
     // radius 8.6 at (444.5, 75.5) in a bezel to 11.2, a bright crescent on its upper left fading to a dull reddish rim on
     // its lower right; two small reflections on the dome

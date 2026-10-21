@@ -312,8 +312,8 @@ WComp itself:
   at r 117.2; numbers Times bold italic 14.5 px turned along the arc (48 −58.6° r 116.3, 24 −49.6° 116.4,
   12 −29.9° 116, 6 0.2° 115.5, 3 24.9° 116.8, 0 59° 117.1). The needle turns about (321.3, 222.1) (58.2° at rest):
   (124, 0, 0), 2 px, 114 px long, a cream rivet at 109 px, a soft shadow 5 px below it. Housing 174.5, 52.5 to
-  469.5, 280.5, a raised box (light top and left faces, 5–6 px dark right and bottom faces), arched (r 82.5) around
-  Threshold; screws (head 9, recess 11.2) at (198.4, 75.95), (196.6, 261.05), (449.2, 260.95); the limiter lamp at
+  469.5, 280.5, a raised box (light top and left faces, 5–6 px dark right and bottom faces), arched around Threshold
+  (r 83.2 about (320.15, 333.35), a 5.6 px dark lip, 6 px fillets into the bottom edge, the panel inside shaded); screws (head 9, recess 11.2) at (198.4, 75.95), (196.6, 261.05), (449.2, 260.95); the limiter lamp at
   (444.5, 75.5), a black dome (r 8.6) in a bezel (r 11.2) bright on its upper left.
 - **Buttons**: 1 px black frames: In / GR / Out 245, 27, 151 × 21; Limiter 417, 27, 52 × 21; Sync 547, 315, 50 × 61;
   19 px faces. **Display** 506, 404, 90.5 × 34, a segment font (6 × 9 px cells; tempo digits 12 × 20).

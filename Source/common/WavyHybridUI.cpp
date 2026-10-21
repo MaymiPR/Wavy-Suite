@@ -602,23 +602,43 @@ void VuMeter::paint (Graphics& g)
 
 void drawVuHousing (Graphics& g, Rectangle<float> h, Point<float> archCentre, float archRadius)
 {
-    // the housing's outline: a rounded rectangle whose bottom edge arches up around the Threshold knob
-    const float R = 12.0f, x0 = h.getX(), y0 = h.getY(), x1 = h.getRight(), y1 = h.getBottom();
-    const float dy = y1 - archCentre.y, dx = std::sqrt (jmax (0.0f, archRadius * archRadius - dy * dy));
+    // the housing's outline: a rounded rectangle whose bottom edge arches up around the Threshold knob, the arch
+    // joining the edge in small round fillets (measured)
+    const float R = 12.0f, F = 6.0f, x0 = h.getX(), y0 = h.getY(), x1 = h.getRight(), y1 = h.getBottom(), hp = MathConstants<float>::halfPi;
+    const auto C = archCentre;
+    const float fy = y1 - F, fdx = std::sqrt (jmax (0.0f, square (archRadius + F) - square (fy - C.y)));
+    const Point<float> fR (C.x + fdx, fy), fL (C.x - fdx, fy);                  // the fillets' centres
+    auto towards = [] (Point<float> from, Point<float> to) { return std::atan2 (to.x - from.x, -(to.y - from.y)); };
     Path p;
     p.startNewSubPath (x0 + R, y0);
     p.lineTo (x1 - R, y0);
-    p.quadraticTo (x1, y0, x1, y0 + R);
+    p.addCentredArc (x1 - R, y0 + R, R, R, 0.0f, 0.0f, hp);
     p.lineTo (x1, y1 - R);
-    p.quadraticTo (x1, y1, x1 - R, y1);
-    p.lineTo (archCentre.x + dx, y1);
-    const float aR = std::atan2 (dx, -dy), aL = std::atan2 (-dx, -dy);
-    p.addCentredArc (archCentre.x, archCentre.y, archRadius, archRadius, 0.0f, aR, aL, false);
+    p.addCentredArc (x1 - R, y1 - R, R, R, 0.0f, hp, 2.0f * hp);
+    p.lineTo (fR.x, y1);
+    p.addCentredArc (fR.x, fR.y, F, F, 0.0f, 2.0f * hp, towards (fR, C) + MathConstants<float>::twoPi);
+    p.addCentredArc (C.x, C.y, archRadius, archRadius, 0.0f, towards (C, fR), towards (C, fL));
+    p.addCentredArc (fL.x, fL.y, F, F, 0.0f, towards (fL, C), 2.0f * hp);
     p.lineTo (x0 + R, y1);
-    p.quadraticTo (x0, y1, x0, y1 - R);
+    p.addCentredArc (x0 + R, y1 - R, R, R, 0.0f, 2.0f * hp, 3.0f * hp);
     p.lineTo (x0, y0 + R);
-    p.quadraticTo (x0, y0, x0 + R, y0);
+    p.addCentredArc (x0 + R, y0 + R, R, R, 0.0f, 3.0f * hp, 4.0f * hp);
     p.closeSubPath();
+
+    // inside the arch, the panel lies in the housing's shadow (measured: from 6.9 px inside the edge, about 0.7 soon after,
+    // 0.4 at the edge)
+    {
+        g.saveState();
+        g.reduceClipRegion (Rectangle<float> (x0, y0, h.getWidth(), y1 - y0).toNearestInt());
+        ColourGradient sh (Colours::transparentBlack, C.x, C.y, Colours::black.withAlpha (0.62f), C.x + archRadius, C.y, true);
+        sh.addColour ((archRadius - 6.9f) / archRadius, Colours::transparentBlack);
+        sh.addColour ((archRadius - 5.3f) / archRadius, Colours::black.withAlpha (0.30f));
+        sh.addColour ((archRadius - 3.0f) / archRadius, Colours::black.withAlpha (0.38f));
+        sh.addColour ((archRadius - 1.6f) / archRadius, Colours::black.withAlpha (0.46f));
+        g.setGradientFill (sh);
+        g.fillEllipse (C.x - archRadius, C.y - archRadius, archRadius * 2.0f, archRadius * 2.0f);
+        g.restoreState();
+    }
 
     // its shadow on the panel (measured: about 4 px below and to the right)
     for (int k = 5; k >= 1; --k)
@@ -639,6 +659,17 @@ void drawVuHousing (Graphics& g, Rectangle<float> h, Point<float> archCentre, fl
     ColourGradient hg (Colour (43, 43, 43), 0.0f, y1 - 30.0f, Colour (52, 52, 52), 0.0f, y1 - 6.0f, false);
     g.setGradientFill (hg);
     g.fillPath (p, AffineTransform::translation (2.5f, 6.0f));
+    // the arch's edge faces down toward the knob: an even 5.6 px dark lip all round it (measured), outlined
+    {
+        const float lw = 5.6f, rl = archRadius + lw;
+        Path lip;
+        lip.addEllipse (C.x - rl, C.y - rl, rl * 2.0f, rl * 2.0f);
+        g.reduceClipRegion (lip);
+        g.setColour (Colour (26, 26, 27));
+        g.fillPath (p);
+        g.setColour (Colour (17, 17, 17));
+        g.drawEllipse (C.x - rl + 0.5f, C.y - rl + 0.5f, rl * 2.0f - 1.0f, rl * 2.0f - 1.0f, 1.2f);
+    }
     g.restoreState();
     g.setColour (Colour (30, 30, 30));
     g.strokePath (p, PathStrokeType (1.2f));
