@@ -3,9 +3,11 @@
 #include <atomic>
 #include "WavyMeter.h"
 #include "WCompPresets.h"
+#include "WCompDsp.h"
+#include "WCompAnalog.h"
 
 // Parameters follow the reference's parameter list (ParamXML order, ranges, tapers and defaults; see RESEARCH.md,
-// WComp). Phase 2: the audio passes through unchanged; the DSP comes in Phase 4.
+// WComp); the DSP is in WCompDsp.h.
 namespace wcomp
 {
 inline constexpr const char* threshold = "threshold";  // 0 .. -48 dB, default -18
@@ -28,6 +30,8 @@ float ratioFromNorm (float v);
 float ratioToNorm (float r);
 // "0.50 ms", "12.0 ms", "100 ms": three significant digits, as the reference shows times
 juce::String timeText (float ms);
+// the Release (ms) a Release Note gives at a tempo (0: none, 120 BPM), with the reference's fallback for long notes
+float syncedReleaseMs (int note, double tempo);
 }
 
 class WCompProcessor : public juce::AudioProcessor
@@ -35,7 +39,7 @@ class WCompProcessor : public juce::AudioProcessor
 public:
     WCompProcessor();
 
-    void prepareToPlay (double, int) override {}
+    void prepareToPlay (double, int) override;
     void releaseResources() override {}
     bool isBusesLayoutSupported (const BusesLayout&) const override;
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
@@ -69,13 +73,20 @@ public:
     juce::UndoManager undo { 32, 32 };
     juce::AudioProcessorValueTreeState apvts;
 
-    // meters (dB, highest peak since the editor last read them): input, output and gain reduction
-    wavy::PeakTap inLDb, inRDb, outLDb, outRDb, grDb;
+    // meters (dB, highest peak since the editor last read them): input, output; the compressor's and the limiter's
+    // gain reduction (positive dB)
+    wavy::PeakTap inLDb, inRDb, outLDb, outRDb, grDb, limDb;
     std::atomic<int> blocks { 0 };
     std::atomic<double> hostBpm { 0.0 };                  // 0: the host gives no tempo
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout layout();
     float get (const char* id) const { return apvts.getRawParameterValue (id)->load(); }
+    void configure();
+    wcomp::Compressor::Settings settings() const;
     int currentProgram = 0;
+    wcomp::Compressor comps[2];
+    wcomp::Analog analogStage;
+    double sr = 44100.0;
+    bool prepared = false, layoutDual = false;
 };

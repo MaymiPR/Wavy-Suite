@@ -20,3 +20,9 @@ dist/
 nulltest/fastdsp.dll
 nulltest/mbfast.dll
 nulltest/mbfeat.dll
+nulltest/hcfast.dll
+nulltest/hcfast2.dll
+nulltest/hcfast3.dll
+nulltest/hcfast*.obj
+nulltest/hcfast*.lib
+nulltest/hcfast*.exp

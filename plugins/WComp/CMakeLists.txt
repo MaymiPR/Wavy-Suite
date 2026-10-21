@@ -15,3 +15,20 @@ target_compile_definitions(WCompSnapshot PRIVATE
     JucePlugin_Name="WComp" JucePlugin_IsSynth=0 JucePlugin_WantsMidiInput=0
     JucePlugin_ProducesMidiOutput=0 JucePlugin_IsMidiEffect=0 JucePlugin_VersionString="0.1.0")
 target_link_libraries(WCompSnapshot PRIVATE WavyCommon juce::juce_recommended_config_flags)
+
+# Offline renderer of the DSP for the null tests (nulltest/nulltest_wcomp.py).
+add_executable(WCompRender ${CMAKE_SOURCE_DIR}/tools/WCompRender.cpp)
+target_include_directories(WCompRender PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+# Unit tests (DSP + processor):  cmake --build build --target WCompTests, then ctest --test-dir build -C Release
+juce_add_console_app(WCompTests PRODUCT_NAME "WCompTests")
+target_sources(WCompTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/tests/WCompTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/WCompProcessor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/WCompEditor.cpp)
+target_include_directories(WCompTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(WCompTests PRIVATE
+    JucePlugin_Name="WComp" JucePlugin_IsSynth=0 JucePlugin_WantsMidiInput=0
+    JucePlugin_ProducesMidiOutput=0 JucePlugin_IsMidiEffect=0 JucePlugin_VersionString="0.1.0")
+target_link_libraries(WCompTests PRIVATE WavyCommon juce::juce_recommended_config_flags)
+add_test(NAME WCompTests COMMAND WCompTests)

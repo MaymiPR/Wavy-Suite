@@ -1,5 +1,16 @@
 # Validation
 
+## WComp
+
+| Check | Result |
+|---|---|
+| Unit tests (`WCompTests`, 43 checks, 2026-10-21: latency at 44.1 … 192 kHz, idle identity, static curve and makeup, block-size invariance, stereo link, limiter Off / On ceiling, Mix 0, tempo sync and the long-note fallback, Analog Off identity, Analog noise levels and independent channels, Analog 4 crossover offset, processor: side-chain ignored, state round trip, Mode Mono) | all pass (Windows, local) |
+| pluginval, strictness level 10, `--skip-gui-tests`, on `WComp.vst3` (Windows, local, 2026-10-21) | SUCCESS, exit code 0 |
+| The built VST3 (hosted by `tools/RefRender`) against the offline renderer, 5 signals × 5 settings, sync BPM / Host / no host tempo (`nulltest/check_wcomp_plugin.py`) | identical (−85 … −230 dB; the larger values from Release 100.25 against 100) |
+| Analog stage: C++ against the fitted model | the difference is the added noise alone (−82.9 … −109.3 dBFS) |
+| Null test against the reference | [NULL_RESULTS_WCOMP.md](NULL_RESULTS_WCOMP.md): median −37.2 dB over 168 cases; defaults (Analog Off) median −62.2 dB, voice-like −62, bass −59, drums −21; not a null on noise, drums and deep slow settings, see MEASUREMENTS.md "WComp model" |
+| VU needle against the reference | not measured (the reference's editor does not paint while the desktop is locked) |
+
 ## WVox
 
 | Check | Result |

@@ -483,5 +483,50 @@ The Analog modes are separate nonlinear colourations (level-dependent EQ, harmon
 noise in modes 1–3). Mode 4 has no noise, so it can be nulled sample by sample; modes 1–3 will be matched in response,
 harmonics and noise spectrum.
 
-Not measured yet: the VU needle's ballistics on In / GR / Out (MeterCapture, as for the other plug-ins), and how the
-Analog stage sits against the compressor (before or after it) — both for Phase 4.
+## WComp model (Phase 4 identification)
+
+Scripts: `nulltest/ident_hc_detector.py`, `ident_hc_struct.py` (detector, smoothing, order of the stages),
+`ident_hc_release*.py`, `ident_hc_w0.py`, `ident_hc_real.py`, `ident_hc_rel3.py` (release), `ident_hc_analog.py`,
+`fit_hc_analog*.py` (Analog stage); the C models `hcfast*.c`; tables in `measurements/hcomp/` (`static_h.npz`,
+`makeup*.csv`, `release_law*.json`, `release_w0.json`, `analog_model.json`, `analog_noise.csv`), exported to
+`plugins/WComp/WCompTables.h` by `tools/export_wcomp_tables.py`. All on the alternating probe (the gain is `y / x`
+exactly) unless stated.
+
+| Part | Finding |
+|---|---|
+| Detector | max of \|L\|, \|R\| (linked), held over the **next 64 samples** of the delayed audio (`h[t] = max a[t+1 .. t+64]`); Punch delays it by round(P · fs / 1000) samples; sizes ×2 at 88.2–96 kHz, ×4 at 176.4–192 kHz |
+| Static curve | `x = (1 − 1/r) · max(0, 20 log10(peak + 0.001) − T)`, `GR = h(x)` with one measured table h: all 42 measured curves collapse onto it to **0.014 dB RMS** (x − h saturates at about 0.55–0.6 dB, the knee) |
+| Makeup | `k(r) · max(0, −9 − T) · f(Release)`: k per ratio (interpolated in 1/r, 0.47 at 50, 0 at 1.1), f a table over the release time (0.257 at 3 ms, 1 at 100 ms, 1.041 at 3 s), independent of threshold, ratio and attack |
+| Attack | a one-pole on the linear gain, falling only, time constant 0.99 × Attack, after the release stage (better than before it) |
+| Smoothing | two moving averages of 38 and 27 samples on the gain (a free FIR fit leaves 6e-4 RMS) |
+| Mix, Output | linear dry (no makeup) / wet blend, then the output gain |
+| Limiter | a 64-sample look-ahead (lead 1) of the would-be output, `min(1, 1 / held)`, the same two moving averages. With a constant compressor gain this is exact (worst 0.0002; a spike overshoots to 1.002). When the compressor gain moves, the reference's limiter sees the true future output, which a 64-sample latency cannot give; the best estimate found (the current compressor gain times the peak of the pending input) nulls heavy limiting (+12 dB into it) at −16 … −43 dB. On: the same onset, recovers later (approximated by a 7-sample longer hold) |
+| Analog stage | the **last** stage: after the output gain and the limiter, applied to the dry part too, per channel (its offsets stay the same in output units under Output −18 / +12, Mix 0 and heavy compression; applied to the Analog-Off output it nulls the reference at −73 dB with the limiter working) |
+| Analog model | `y = (1 + gain) L(x) + H2( g( H1(x) ) ) + noise`: first-order sections (mode 3: a band-pass biquad first, f0 183 Hz, Q 0.52), g a measured table with free odd and even parts. Memoryless in level (a level step changes mode 3's dip at once, both ways). Nulls on loud material (peaks 0.3–0.7): mode 4 **−82 … −100 dB**, mode 1 −72 … −78, mode 2 −44 … −56 (its noise alone limits it to about −54 … −69), mode 3 −29 … −64 (median −40). Quiet signals null less (mode 4 at −60 dBFS: −40 dB), the offset being of the order of 0.001 |
+| Analog noise | stationary, independent per channel (L / R correlation ≤ 0.05), unchanged under a tone: white Gaussian noise shaped to the measured spectrum (`analog_noise.csv`, 40 bands): −101.7 / −82.7 / −101.2 / −108.8 dBFS for modes 1–4 |
+| Release | see below |
+
+**Release.** In the gain-reduction domain, two states (`ident_hc_release2.py`, `ident_hc_w0.py`): a slow state S
+charges toward the output R as a one-pole on the linear gain (142 ms; the reference's own "Crest" is 149.6 ms) and
+releases at `Fs(S) / Release + As(S)` dB/s; R falls by the same law at an effective release time
+`min(Release, Release · w0(S), K / (R − S)^p)` and never below S. This is what WComp uses: at the default settings
+it nulls a voice-like signal at −62 dB and a bass line at −59 dB, but noise and drums only at −21 … −28 dB, and deep,
+slow settings far less (threshold −24, ratio 10, Release 300: −10 … −17 dB). What is known about the mismatch:
+
+- The rate is a function of the gain reduction itself, the same at every ratio (after a 1 s charge at Release 300 the
+  reduction falls 86 / 110 / 167 / 306 / 1364 dB/s at 17 / 19 / 23 / 29 / 39 dB, ratios 10, 2, 50, 50, 50), not of
+  the level over the threshold.
+- After a short charge (10–50 ms) the reduction falls along one curve whatever its depth (to about 15.8 dB 4 ms after
+  the end, 12.9 at 8 ms, 11 at 20 ms, from 23, 29 or 39 dB); longer charges slow that fast part (500 ms: down to
+  27 dB at 4 ms from 29). Below about 12 dB there is no fast part. This fast part barely depends on the Release time.
+- A steady 100 Hz tone keeps its reduction almost still between peaks (0.05 dB ripple at Release 300), where the
+  model's w0 term releases ten times faster; setting w0 = 1 fixes tones but loses the voice-like signal (−62 → −8 dB).
+- A third form fitted on 400 single-burst release traces (`ident_hc_rel3.py`: the slow law plus a fast part
+  Ff(R, S) on a grid) fits those traces better (0.36 dB RMS against 0.48) but loses program material in the same
+  way (voice −8 dB). Single bursts with quiet gaps do not show what decides the release on syllables and drum hits;
+  the next attempt needs repeated events (bursts with gaps of 5–200 ms, re-attacks during the release) in the fit.
+
+**Not done.** The VU needle's ballistics: MeterCapture films the reference's editor, but H-Comp's editor is a web
+view that does not paint while the desktop is locked or the window is covered; the capture has to be repeated with
+the screen in use. WComp's needle uses VU-like ballistics (99 % in about 300 ms) until then, In / Out reading the level
+below full scale on the printed scale. The limiter lamp's lit appearance was not seen on the reference either.

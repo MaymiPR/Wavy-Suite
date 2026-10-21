@@ -33,5 +33,6 @@ private:
     wavy::flat::Selection selection;
     juce::Image panelCache;
     int lastSync = -1;
-    double lastTick = 0.0;
+    double lastTick = 0.0, needleAng = wavy::hybrid::VuMeter::angleForGr (0.0f), needleVel = 0.0, limHold = 0.0;
+    bool lampLit = false;
 };

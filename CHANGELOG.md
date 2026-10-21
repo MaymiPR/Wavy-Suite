@@ -6,8 +6,16 @@
   drawn entirely by Wavy on a new shared kit (`Source/common/WavyHybridUI`: the orange panel, bakelite and chrome
   knobs with printed scales, ivory buttons, a VU meter with needle, the amber BPM display) and a Hybrid toolbar style;
   the reference's parameter list and tapers (Ratio's own curve, log Attack / Release, Threshold 0 at the left), a
-  side-chain input bus; selection, value entry, Alt-click reset and drag feel as measured on the reference; audio
-  passes through until the DSP phase.
+  side-chain input bus (ignored, as the reference does); selection, value entry, Alt-click reset and drag feel as
+  measured on the reference.
+- **WComp DSP** (Phase 4): the look-ahead peak compressor identified on the reference (detector, static curve to
+  0.014 dB, makeup, attack, smoothing, mix, output, a 64-sample look-ahead limiter, tempo-synced release with the
+  long-note fallback, linked stereo, Mode Mono), the two-state program-dependent release, and the four Analog modes
+  (the last stage: filtered nonlinearity and shaped noise; mode 4 nulls at −82 … −100 dB on loud material). Null test
+  median −37.2 dB (defaults −62 dB; noise, drums and deep slow settings are not nulls yet;
+  docs/NULL_RESULTS_WCOMP.md). VU needle and limiter lamp driven (provisional VU ballistics). Unit tests (`WCompTests`),
+  offline renderer (`WCompRender`).
+- WComp Phase 3: measurements of the reference H-Comp (`nulltest/measure_hcomp.py`, `measurements/hcomp/`, MEASUREMENTS.md).
 - **WBassX presets, value entry and meters** (Phase 5): 22 factory presets (*Essentials* and *Studio*, settings
   from the reference's own set converted by the reference itself, Wavy names), which leave Input alone as the
   reference does; double-click a knob, fader or the Freq slider to type a value, Alt-click to reset (measured on the

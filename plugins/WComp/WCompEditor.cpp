@@ -103,13 +103,40 @@ void WCompEditor::tick()
 {
     updateReleaseKnob();
     content().repaint (kLed.toNearestInt().expanded (2));
+
+    const double now = Time::getMillisecondCounterHiRes() * 1.0e-3;
+    const double dt = lastTick > 0.0 ? jlimit (0.0, 0.1, now - lastTick) : 1.0 / 60.0;
+    lastTick = now;
+
+    // the needle: GR reads the compressor's reduction on the printed scale; In / Out read the level below full scale on
+    // the same scale (0 dBFS at the right end). Provisional ballistics (not measured yet): a VU-like damped movement,
+    // 99 % in about 300 ms
+    const float gr = jmax (0.0f, proc.grDb.take());
+    const float in = jmax (proc.inLDb.take(), proc.inRDb.take()), out = jmax (proc.outLDb.take(), proc.outRDb.take());
+    const int m = roundToInt (value (wcomp::meter));
+    const float shown = m == 1 ? gr : jlimit (0.0f, 48.0f, -(m == 0 ? in : out));
+    const double target = VuMeter::angleForGr (shown);
+    constexpr double w = 22.0, zeta = 0.8;
+    for (int k = 0; k < 4; ++k)                           // a few sub-steps for stability at the 60 Hz frame rate
+    {
+        const double h = dt / 4.0;
+        needleVel += (w * w * (target - needleAng) - 2.0 * zeta * w * needleVel) * h;
+        needleAng += needleVel * h;
+    }
+    vu.setNeedle ((float) needleAng);
+
+    // the limiter lamp: lit while the limiter reduces, held briefly so short catches show
+    const float lim = proc.limDb.take();
+    limHold = lim > 0.05f ? 0.15 : jmax (0.0, limHold - dt);
+    const bool lit = limHold > 0.0;
+    if (lit != lampLit) { lampLit = lit; content().repaint (Rectangle<float> (kLimLamp.x - 12.0f, kLimLamp.y - 12.0f, 24.0f, 24.0f).toNearestInt()); }
 }
 
 void WCompEditor::paintContent (Graphics& g)
 {
     drawPanel (g, { 0, 19, W, H - 19 }, panelCache);
     drawVuHousing (g, kHousing, kArchCentre, kArch);
-    // the limiter lamp in the housing's corner (lit while the limiter acts; Phase 4), measured: a black glass dome of
+    // the limiter lamp in the housing's corner (lit while the limiter acts), measured: a black glass dome of
     // radius 8.6 at (444.5, 75.5) in a bezel to 11.2, a bright crescent on its upper left fading to a dull reddish rim on
     // its lower right; two small reflections on the dome
     {
@@ -123,6 +150,12 @@ void WCompEditor::paintContent (Graphics& g)
         g.drawEllipse (c.x - 11.2f, c.y - 11.2f, 22.4f, 22.4f, 0.7f);
         g.setColour (Colour (2, 2, 2));
         g.fillEllipse (c.x - 8.6f, c.y - 8.6f, 17.2f, 17.2f);
+        if (lampLit)                                      // lit: a red glow in the dome (the lit look is not measured)
+        {
+            ColourGradient glow (Colour (255, 92, 60), c.x - 1.5f, c.y - 1.5f, Colour (120, 10, 4), c.x + 8.6f, c.y + 8.6f, true);
+            g.setGradientFill (glow);
+            g.fillEllipse (c.x - 8.6f, c.y - 8.6f, 17.2f, 17.2f);
+        }
         g.setColour (Colour (232, 228, 220));
         g.fillEllipse (c.x - 5.0f, c.y - 4.4f, 3.6f, 3.0f);
         g.setColour (Colour (150, 148, 144));
