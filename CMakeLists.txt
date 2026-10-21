@@ -30,7 +30,8 @@ endif()
 add_library(WavyCommon STATIC
     Source/common/WavyToolbar.cpp
     Source/common/WavyRenUI.cpp
-    Source/common/WavyFlatUI.cpp)
+    Source/common/WavyFlatUI.cpp
+    Source/common/WavyHybridUI.cpp)
 target_include_directories(WavyCommon PUBLIC Source/common)
 set_target_properties(WavyCommon PROPERTIES POSITION_INDEPENDENT_CODE ON)   # linked into shared plugins (Linux)
 target_compile_definitions(WavyCommon PUBLIC
@@ -78,6 +79,7 @@ enable_testing()
 add_subdirectory(plugins/WVox)
 add_subdirectory(plugins/WBass)
 add_subdirectory(plugins/WBassX)
+add_subdirectory(plugins/WComp)
 
 # Offline renderer of the WVox DSP (null test, tuning). No JUCE needed.
 add_executable(WVoxRender tools/WVoxRender.cpp)

@@ -419,3 +419,13 @@ Alt-click resets to the default. The box: white, black text, a 1 px (100, 100, 1
 the system's blue selection (0, 120, 215); knob value x 106 … 159, y 374 … 387 (13 px text), fader x 553 … 583,
 y 320 … 337 (15 px text), Freq x 380 … 429, y 297 … 309, showing the bare number. WBassX matches the boxes to the pixel
 and the text within 1 … 2 px.
+
+### Control feel and selection (WComp / H-Comp)
+
+Measured with the MeterCapture drag / click scripts on the reference editor: knobs turn clockwise when dragged up
+(Threshold toward −48 dB, since 0 dB sits on the left), at about 1000 px for the full range on slow moves (−18 →
+−19.4 dB for 30 px), as WBassX's knobs; hovering shows nothing; a click selects a control (a thin yellow ring, colour
+(222, 222, 6), on the knob's cap at radius 21 for the small knobs) and shows its value in a dark box (fill
+(65, 49, 36), a light 1 px frame) on the value slot under the small knobs or on the cap of the large ones; a
+double-click opens the white entry box there; Alt-click resets. WComp gives the same values on the same script.
+

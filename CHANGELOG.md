@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **WComp** (in progress), a hybrid compressor modelled on H-Comp: the Hybrid-line editor (643 x 454, resizable)
+  drawn entirely by Wavy on a new shared kit (`Source/common/WavyHybridUI`: the orange panel, bakelite and chrome
+  knobs with printed scales, ivory buttons, a VU meter with needle, the amber BPM display) and a Hybrid toolbar style;
+  the reference's parameter list and tapers (Ratio's own curve, log Attack / Release, Threshold 0 at the left), a
+  side-chain input bus; selection, value entry, Alt-click reset and drag feel as measured on the reference; audio
+  passes through until the DSP phase.
 - **WBassX presets, value entry and meters** (Phase 5): 22 factory presets (*Essentials* and *Studio*, settings
   from the reference's own set converted by the reference itself, Wavy names), which leave Input alone as the
   reference does; double-click a knob, fader or the Freq slider to type a value, Alt-click to reset (measured on the

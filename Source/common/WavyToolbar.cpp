@@ -19,7 +19,9 @@ Toolbar::Toolbar (juce::UndoManager& u, juce::AudioProcessorValueTreeState& s, j
     : style (st), undo (u), apvts (s), modes (std::move (m)), modeParam (mp), product (std::move (name)), version (std::move (ver))
 {
     loadedValues = currentValues();
-    if (style == Style::Flat) setSize (flatWidth, flatHeight); else setSize (width, height);
+    if (style == Style::Flat) setSize (flatWidth, flatHeight);
+    else if (style == Style::Hybrid) setSize (hybridWidth, hybridHeight);
+    else setSize (width, height);
 }
 
 // Control rectangles: the reference's ToolbarXML rectangles, with the arrow / copy / setup
@@ -40,6 +42,22 @@ juce::Rectangle<int> Toolbar::rect (Item i) const
             case Setup:  return { 659, 8, 57, 22 };
             case Save:   return { 740, 10, 19, 19 };
             case Menu:   return { 776, 10, 24, 17 };
+            default:     return {};
+        }
+    if (style == Style::Hybrid)    // measured on the reference (H-Comp): boxes on y 2 ... 16
+        switch (i)
+        {
+            case About:  return { 2, 2, 98, 15 };       // the orange logo block (the reference's is 2 ... 156)
+            case Mode:   return { 102, 2, 55, 15 };
+            case Undo:   return { 159, 2, 32, 15 };
+            case Redo:   return { 193, 2, 32, 15 };
+            case Preset: return { 227, 2, 191, 15 };
+            case Prev:   return { 420, 2, 32, 15 };
+            case Next:   return { 454, 2, 32, 15 };
+            case Copy:   return { 488, 2, 44, 15 };
+            case Setup:  return { 534, 2, 44, 15 };
+            case Save:   return { 580, 2, 44, 15 };
+            case Menu:   return { 626, 2, 15, 15 };
             default:     return {};
         }
     switch (i)
@@ -408,11 +426,14 @@ void Toolbar::paintFlat (juce::Graphics& g)
 void Toolbar::paint (juce::Graphics& g)
 {
     if (style == Style::Flat) { paintFlat (g); return; }
+    const bool hybrid = style == Style::Hybrid;
+    if (hybrid) g.fillAll (juce::Colour (2, 2, 2));
     auto box = [&] (juce::Rectangle<int> r, bool hot)
     {
-        g.setColour (hot ? juce::Colours::black : juce::Colour (34, 34, 34));
+        // the Hybrid bar: (39, 39, 39) boxes with a light (210, 203, 203) outline (measured)
+        g.setColour (hot ? juce::Colours::black : hybrid ? juce::Colour (39, 39, 39) : juce::Colour (34, 34, 34));
         g.fillRect (r);
-        g.setColour (hot ? juce::Colours::white : juce::Colour (128, 128, 128));
+        g.setColour (hot ? juce::Colours::white : hybrid ? juce::Colour (210, 203, 203) : juce::Colour (128, 128, 128));
         g.drawRect (r, 1);
     };
 
@@ -462,7 +483,20 @@ void Toolbar::paint (juce::Graphics& g)
         switch ((Item) i)
         {
             case About:
-                drawMark (g, r.toFloat(), hot);
+                if (hybrid)
+                {
+                    // orange logo block (measured (255, 170, 0) with a darker lower half), the mark and the suite name
+                    juce::ColourGradient og (juce::Colour (255, 196, 60), 0.0f, (float) r.getY(), juce::Colour (232, 150, 0), 0.0f, (float) r.getBottom(), false);
+                    g.setGradientFill (og);
+                    g.fillRect (r);
+                    g.setColour (hot ? juce::Colours::white : juce::Colour (90, 60, 10));
+                    g.drawRect (r, 1);
+                    drawMark (g, juce::Rectangle<float> ((float) r.getX() + 3.0f, (float) r.getY() + 1.0f, 13.0f, 13.0f), hot, false);
+                    g.setColour (juce::Colour (24, 16, 4));
+                    g.setFont (tbFont (11.0f).boldened());
+                    g.drawText ("WAVY SUITE", r.withTrimmedLeft (19), juce::Justification::centredLeft);
+                }
+                else drawMark (g, r.toFloat(), hot);
                 break;
             case Skins: box (r, hot); label (r, juce::String::fromUTF8 ("Skins \xe2\x96\xbc")); break;
             case Mode:

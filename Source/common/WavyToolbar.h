@@ -13,10 +13,12 @@ namespace wavy
 // button copies the current setup to the other one.
 // Style::Flat is the newer single-row WaveSystem bar (800 x 36 px, e.g. MaxxBass): mark | Mode | undo | redo |
 // preset box | prev | next | A>B copy | Setup A/B | save icon | menu; same behaviour.
+// Style::Hybrid is the Hybrid-line bar (643 x 19 px, e.g. H-Comp): an orange logo block (the mark and the suite name,
+// then Mode) | undo | redo | preset bar | prev | next | A>B copy | Setup A/B | Save | menu.
 class Toolbar : public juce::Component
 {
 public:
-    enum class Style { Renaissance, Flat };
+    enum class Style { Renaissance, Flat, Hybrid };
     Toolbar (juce::UndoManager& undo, juce::AudioProcessorValueTreeState& state, juce::StringArray modeNames,
              juce::RangedAudioParameter* modeParam, juce::String productName, juce::String version,
              Style style = Style::Renaissance);
@@ -33,7 +35,7 @@ public:
     // parameters the Default and factory presets leave alone (besides Mode)
     void setKeepOnPresetLoad (std::vector<juce::AudioProcessorParameter*> list) { keepOnLoad = std::move (list); }
 
-    static constexpr int width = 371, height = 36, flatWidth = 800, flatHeight = 36;
+    static constexpr int width = 371, height = 36, flatWidth = 800, flatHeight = 36, hybridWidth = 643, hybridHeight = 19;
     const Style style;
 
 private:
