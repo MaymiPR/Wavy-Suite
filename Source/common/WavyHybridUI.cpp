@@ -659,9 +659,23 @@ void drawVuHousing (Graphics& g, Rectangle<float> h, Point<float> archCentre, fl
     ColourGradient hg (Colour (43, 43, 43), 0.0f, y1 - 30.0f, Colour (52, 52, 52), 0.0f, y1 - 6.0f, false);
     g.setGradientFill (hg);
     g.fillPath (p, AffineTransform::translation (2.5f, 6.0f));
-    // the arch's edge faces down toward the knob: an even 5.6 px dark lip all round it (measured), outlined
+    g.restoreState();
+    // the arch's edge faces down toward the knob: an even 5.6 px dark lip all round it (measured), outlined. Around it
+    // the top face again, above the bottom band: the box's offset bevel layers leave slivers along a concave edge.
     {
         const float lw = 5.6f, rl = archRadius + lw;
+        g.saveState();
+        g.reduceClipRegion (p);
+        {
+            g.saveState();
+            Path near;
+            near.addEllipse (C.x - rl - 6.0f, C.y - rl - 6.0f, (rl + 6.0f) * 2.0f, (rl + 6.0f) * 2.0f);
+            g.reduceClipRegion (near);
+            g.reduceClipRegion (Rectangle<float> (x0, y0, h.getWidth(), y1 - 5.0f - y0).toNearestInt());
+            g.setGradientFill (hg);
+            g.fillPath (p);
+            g.restoreState();
+        }
         Path lip;
         lip.addEllipse (C.x - rl, C.y - rl, rl * 2.0f, rl * 2.0f);
         g.reduceClipRegion (lip);
@@ -669,8 +683,8 @@ void drawVuHousing (Graphics& g, Rectangle<float> h, Point<float> archCentre, fl
         g.fillPath (p);
         g.setColour (Colour (17, 17, 17));
         g.drawEllipse (C.x - rl + 0.5f, C.y - rl + 0.5f, rl * 2.0f - 1.0f, rl * 2.0f - 1.0f, 1.2f);
+        g.restoreState();
     }
-    g.restoreState();
     g.setColour (Colour (30, 30, 30));
     g.strokePath (p, PathStrokeType (1.2f));
 
