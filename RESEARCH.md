@@ -294,20 +294,25 @@ WComp itself:
   all knobs (`ReciveTextEntery`).
 
 ### Drawn appearance (measured on the reference's screenshots, reference/wcomp, git-ignored)
-- **Knobs** are filmstrips of one fixed render: across the travel only the pointer moves (frames at 9 values compared
-  after rotating them back: the body differs by 2–3 grey levels, the pointer region by 30–80). The pointer is a dark
-  fin with a cream line on its ridge, its two facets lit by their angle to a light at 320°. Bodies: small radius 32.4,
-  cap ring 20; Ratio / Mix skirt 53.9, ten flutes at 44.4 ± 1.6, cap 32.5; Threshold skirt 73, flutes at 61.8, cap 44.
-  The knob centres sit at the GUIXML centres plus about (0.2, 1.0) (Threshold: (320.65, 333.35)). Cast shadows: the
-  panel darkened by 0.35–0.42 under a disc offset (5–8, 16–25) px. `tools/fit_hybrid_knobs.py` fits the shading as
-  smooth functions of radius and angle (no pixels kept) into `Source/common/WavyHybridKnobData.h`.
+- **Knobs** are filmstrips of a knob turning under a fixed light (upper left, 320°): the flutes turn with the value
+  (each capture's flute phase follows its pointer angle; on Ratio / Mix a step of 35° is almost one flute period, 36°,
+  so it barely shows), the shading and the cast shadow stay. The pointer is a dark fin with a cream line on its ridge,
+  its facets lit by their angle to the light, casting a soft shadow about (1.7, 5) px away, 0.45 deep. Bodies: small
+  radius 32.4, cap ring 20; Ratio / Mix skirt 53.9, ten flutes at 44.3 ± 1.7, cap 32.5; Threshold skirt 73, flutes
+  at 61.3 ± 2.3, cap 44. The knob centres sit at the GUIXML centres plus about (0.2, 1.0) (Threshold:
+  (320.65, 333.35)). Cast shadows: the panel darkened by 0.35–0.42 under a disc offset (5–8, 16–25) px.
+  `tools/fit_hybrid_knobs.py` fits the shading jointly over the captures, light terms on the screen's angle and flute
+  terms on the knob's, as smooth functions (no pixels kept) into `Source/common/WavyHybridKnobData.h`.
 - **Scales**: ticks every 14°, small knobs r 33.8 … 40 (1.7 px), Ratio / Mix r 56.2 … 64.3, Threshold 19 ticks
   r 72.2 … 80.4. Labels Arial Black 10.75 px stretched 1.2×; numbers Arial Bold 8.6 px; each placed at its measured
   ink centre. "0 THRESHOLD −48": Arial Black 12.6 px, one glyph per measured angle at r 85 around the knob.
 - **VU**: window frame 197.5, 73.5, 250 × 147 (top corners 27); cream dial 204.5, 80.5, 236 × 135; scale arc centre
   (321.3, 228.5), r 105, −55° … 56.5°; numbers Times italic 14.5 px turned along the arc at r 122.5
-  (48 −54.25°, 24 −46.6°, 12 −28.05°, 6 0°, 3 22.1°, 0 55.6°). Housing 174.5, 52.5, 295.5 × 224, arched (r 85.5)
-  around Threshold.
+  (48 −54.25°, 24 −46.6°, 12 −28.05°, 6 0°, 3 22.1°, 0 55.6°). The needle turns about (321.3, 222.1), 6.4 px above
+  the scale's centre (58.3° at rest): (124, 0, 0), 2 px, 114 px long, a cream rivet at 109 px, a soft shadow 5 px
+  below it. Housing 174.5, 52.5 to 469.5, 280.5, a raised box (light top and left faces, 5–6 px dark right and bottom
+  faces), arched (r 82.5) around Threshold; screws in 10.75 px recesses; the limiter lamp at (444.5, 75.5), a black
+  dome (r 8) in a bezel (r 11.5).
 - **Buttons**: 1 px black frames: In / GR / Out 245, 27, 151 × 21; Limiter 417, 27, 52 × 21; Sync 547, 315, 50 × 61;
   19 px faces. **Display** 506, 404, 90.5 × 34, a segment font (6 × 9 px cells; tempo digits 12 × 20).
 

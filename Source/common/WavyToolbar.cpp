@@ -491,12 +491,13 @@ void Toolbar::paint (juce::Graphics& g)
                     g.fillRect (r);
                     g.setColour (hot ? juce::Colours::white : juce::Colour (90, 60, 10));
                     g.drawRect (r, 1);
-                    // in black, as the reference's printing on its badge (the coloured mark has too little contrast on orange)
-                    drawMark (g, juce::Rectangle<float> ((float) r.getX() + 2.5f, (float) r.getY() + 0.5f, 15.0f, 14.0f), hot, false,
-                              juce::Colours::black, 1.25f);
+                    // in black, as the reference's printing on its badge (the coloured mark has too little contrast on
+                    // orange), spaced as the reference's: the mark 4 px in, the name 5 px after it in letter-spaced bold
+                    drawMark (g, juce::Rectangle<float> ((float) r.getX() + 4.0f, (float) r.getY() + 1.5f, 14.0f, 12.0f), hot, false,
+                              juce::Colours::black, 1.6f);
                     g.setColour (juce::Colours::black);
-                    g.setFont (juce::Font (juce::FontOptions ("Arial Black", 10.0f, juce::Font::plain).withPointHeight (10.5f)).withHorizontalScale (1.05f));
-                    g.drawText ("WAVY SUITE", r.withTrimmedLeft (20).translated (0, 0), juce::Justification::centredLeft);
+                    g.setFont (juce::Font (juce::FontOptions ("Arial", 10.0f, juce::Font::bold).withPointHeight (9.25f)).withExtraKerningFactor (0.09f));
+                    g.drawText ("WAVY SUITE", r.withTrimmedLeft (23).withTrimmedRight (2), juce::Justification::centredLeft);
                 }
                 else drawMark (g, r.toFloat(), hot);
                 break;

@@ -37,7 +37,7 @@ inline void drawMark (juce::Graphics& g, juce::Rectangle<float> r, bool bright, 
     {
         auto p = base;
         p.applyTransform (juce::AffineTransform::translation (w.dx, w.dy).followedBy (t));
-        if (! mono.isTransparent()) g.setColour (mono.withMultipliedAlpha (0.35f + 0.65f * w.alpha));
+        if (! mono.isTransparent()) g.setColour (mono.withMultipliedAlpha (0.55f + 0.45f * w.alpha));
         else g.setGradientFill (juce::ColourGradient (cyan.withAlpha (w.alpha), r.getX() + 1.0f, 0.0f,
                                                       amber.withAlpha (w.alpha), r.getRight() - 1.0f, 0.0f, false));
         g.strokePath (p, juce::PathStrokeType (stroke, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));

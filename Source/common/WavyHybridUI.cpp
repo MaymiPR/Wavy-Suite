@@ -129,12 +129,12 @@ namespace kd = knobdata;
 static const kd::Kind& knobData (Knob::Kind k) { return k == Knob::Small ? kd::kSmall : k == Knob::Large ? kd::kLarge : kd::kHuge; }
 
 // the angular basis of the shading model (tools/fit_hybrid_knobs.py): 1, cos/sin 1..3, the highlight lobes, the flutes
-static void knobBasis (float th, float* b)
+static void knobBasis (float th, float lobeTh, float* b)
 {
     const float c1 = std::cos (th), s1 = std::sin (th), c2 = c1 * c1 - s1 * s1, s2 = 2.0f * s1 * c1;
     const float d = std::remainder (th - kd::kLight, MathConstants<float>::twoPi);
     const float g11 = std::exp (-square (d / rad (11.0f))), g28 = std::exp (-square (d / rad (28.0f))), g40 = std::exp (-square (d / rad (40.0f)));
-    const float cl = std::cos ((float) kd::kLobes * th), sl = std::sin ((float) kd::kLobes * th);
+    const float cl = std::cos ((float) kd::kLobes * lobeTh), sl = std::sin ((float) kd::kLobes * lobeTh);
     b[0] = 1.0f; b[1] = c1; b[2] = s1; b[3] = c2; b[4] = s2; b[5] = c2 * c1 - s2 * s1; b[6] = s2 * c1 + c2 * s1;
     b[7] = g11; b[8] = g28; b[9] = cl; b[10] = sl; b[11] = g40 * cl; b[12] = g40 * sl;
 }
@@ -161,25 +161,37 @@ float Knob::paintExtent() const
 }
 
 // the knob body with its skirt and cast shadow, centred in an image of (2 * extent * scale) pixels (premultiplied)
-const Image& Knob::bodyImage (float scale, float& extent)
+const Image& Knob::bodyImage (float scale, float delta, float& extent)
 {
     const auto& K = knobData (kind);
     const float sdx = K.shadow.dx, sdy = K.shadow.dy, sr = K.shadow.r, sw = K.shadow.w, ss = K.shadow.s;
     extent = std::ceil (jmax (K.rs + 1.0f, std::hypot (sdx, sdy) + sr + 3.0f * sw));
-    if (! body.isNull() && bodyScale == scale) return body;
-    bodyScale = scale;
+    const bool full = body.isNull() || bodyScale != scale;
+    if (! full && std::abs (delta - bodyDelta) < 0.0005f) return body;
     const int n = jmax (1, (int) std::ceil (2.0f * extent * scale));
-    body = Image (Image::ARGB, n, n, true);
+    if (full) { bodyScale = scale; body = Image (Image::ARGB, n, n, true); }
+    bodyDelta = delta;
     const int sub = scale < 1.5f ? 3 : 2;
     const float rimLo = K.emin - 2.0f;
+    float eMax = K.edge[0];
+    for (int k = 3; k < 9; ++k) eMax += std::abs (K.edge[k]);
+    // after a turn only the fluted rim changes: from 8 px inside it (the fit's flute terms stop there) to past the
+    // outermost flute
+    const float ringLo = K.emin - 8.5f, ringHi = (K.skirt.n > 0 ? eMax : K.rs) + 1.5f;
     Random grain (77);
     std::vector<float> brush (512);                   // the skirt's brushed grain: a fixed value per thin ring
     for (auto& v : brush) v = (grain.nextFloat() - 0.5f) * 9.0f;
-    Image::BitmapData bd (body, Image::BitmapData::writeOnly);
+    Image::BitmapData bd (body, Image::BitmapData::readWrite);
     float b[kd::kBasis], rgb[3];
     for (int py = 0; py < n; ++py)
         for (int px = 0; px < n; ++px)
         {
+            if (! full)
+            {
+                const float cx = ((float) px + 0.5f) / scale - extent, cy = ((float) py + 0.5f) / scale - extent;
+                const float rc = std::sqrt (cx * cx + cy * cy);
+                if (rc < ringLo || rc > ringHi) continue;
+            }
             float A = 0.0f, R = 0.0f, G = 0.0f, B = 0.0f;
             for (int sy = 0; sy < sub; ++sy)
                 for (int sx = 0; sx < sub; ++sx)
@@ -189,12 +201,13 @@ const Image& Knob::bodyImage (float scale, float& extent)
                     const float r = std::sqrt (x * x + y * y);
                     float th = std::atan2 (x, -y);
                     if (th < 0.0f) th += MathConstants<float>::twoPi;
+                    const float tk = th - delta;                                         // the angle on the turned knob
                     float e = K.edge[0];
                     for (int k = 1; k <= 3; ++k)
-                        e += K.edge[2 * k + 1] * std::cos ((float) (k * kd::kLobes) * th) + K.edge[2 * k + 2] * std::sin ((float) (k * kd::kLobes) * th);
+                        e += K.edge[2 * k + 1] * std::cos ((float) (k * kd::kLobes) * tk) + K.edge[2 * k + 2] * std::sin ((float) (k * kd::kLobes) * tk);
                     if (r < e || (K.skirt.n > 0 && r < K.rs))
                     {
-                        knobBasis (th, b);
+                        knobBasis (th, tk, b);
                         if (r < rimLo) knobTable (K.inner, r, b, rgb);
                         else if (r < e) knobTable (K.rim, (r - rimLo) / (e - rimLo), b, rgb);
                         else
@@ -233,10 +246,13 @@ static void fin (Graphics& g, Point<float> c, float a, Knob::Kind kind)
     const Point<float> L (std::sin (kd::kLight), -std::cos (kd::kLight));
     const float lit = p.x * L.x + p.y * L.y;                                                   // > 0: the right facet faces the light
 
-    Path shadowPath;
-    shadowPath.addTriangle (at (rr, -hw), at (rt, 0.0f), at (rr, hw));
-    g.setColour (Colours::black.withAlpha (0.28f));
-    g.fillPath (shadowPath, AffineTransform::translation (1.2f, 2.0f));
+    // its soft shadow, cast down and to the right (measured: about 1.7, 5 px, 0.45 deep), turning with it
+    {
+        Path sp;
+        sp.addTriangle (at (rr - 1.0f, -hw - 0.5f), at (rt + 0.5f, 0.0f), at (rr - 1.0f, hw + 0.5f));
+        const auto off = kind == Knob::Small ? Point<int> (2, 5) : Point<int> (2, 4);
+        DropShadow (Colours::black.withAlpha (0.5f), kind == Knob::Small ? 3 : 5, off).drawForPath (g, sp);
+    }
 
     auto facet = [&] (float side, float shade)
     {
@@ -277,7 +293,10 @@ void Knob::paint (Graphics& g)
     const auto c = centre;
     const float scale = jlimit (0.5f, 4.0f, std::round (g.getInternalContext().getPhysicalPixelScaleFactor() * 4.0f) / 4.0f);
     float ext = 0.0f;
-    const auto& img = bodyImage (scale, ext);
+    // the reference's filmstrip turns the whole knob under a fixed light: the flutes are fitted in the knob's own frame,
+    // turned by the pointer angle (tools/fit_hybrid_knobs.py)
+    const float turn = std::remainder (pointerAngle(), MathConstants<float>::twoPi);
+    const auto& img = bodyImage (scale, turn, ext);
     g.setImageResamplingQuality (Graphics::highResamplingQuality);
     g.drawImageTransformed (img, AffineTransform::scale (1.0f / scale).translated (c.x - ext, c.y - ext));
     fin (g, c, pointerAngle(), kind);
@@ -406,31 +425,44 @@ static Path roundRect (Rectangle<float> r, float top, float bottom)
 }
 
 // a screw sunk in the housing (measured: a dark ring, a head a shade lighter than the housing, a faint cross or slot)
-static void screw (Graphics& g, Point<float> c, float r, bool slot)
+// a screw sunk in the housing (measured: a recess `recess` px wider than the head, dark on its upper left side, its lower
+// right lip catching the light; the head lit from the upper left, with a cross or a slot)
+static void screw (Graphics& g, Point<float> c, float r, bool slot, float recess = 1.75f)
 {
-    g.setColour (Colour (24, 24, 25));
-    g.fillEllipse (c.x - r - 2.0f, c.y - r - 2.0f, (r + 2.0f) * 2.0f, (r + 2.0f) * 2.0f);
-    g.setColour (Colours::white.withAlpha (0.10f));
-    g.drawEllipse (c.x - r - 2.0f, c.y - r - 2.0f, (r + 2.0f) * 2.0f, (r + 2.0f) * 2.0f, 0.8f);
-    ColourGradient sg (slot ? Colour (118, 118, 120) : Colour (66, 66, 67), c.x - r * 0.45f, c.y - r * 0.55f,
-                       slot ? Colour (30, 30, 32) : Colour (40, 40, 41), c.x + r * 0.6f, c.y + r * 0.7f, true);
+    const float rr = r + recess;
+    g.setColour (Colour (20, 20, 21));
+    g.fillEllipse (c.x - rr, c.y - rr, rr * 2.0f, rr * 2.0f);
+    ColourGradient lip (Colours::transparentWhite, c.x - rr * 0.3f, c.y - rr * 0.3f, Colours::white.withAlpha (0.36f), c.x + rr * 0.7f, c.y + rr * 0.7f, false);
+    g.setGradientFill (lip);
+    g.drawEllipse (c.x - rr, c.y - rr, rr * 2.0f, rr * 2.0f, 1.3f);
+    if (recess > 3.0f)
+    {
+        // a wide recess: a raised ring around the head
+        const float ri = rr - 1.6f;
+        g.setColour (Colour (60, 60, 61));
+        g.drawEllipse (c.x - ri, c.y - ri, ri * 2.0f, ri * 2.0f, 1.8f);
+    }
+    ColourGradient sg (slot ? Colour (146, 146, 148) : Colour (57, 57, 58), c.x - r * 0.45f, c.y - r * 0.55f,
+                       slot ? Colour (44, 44, 46) : Colour (30, 30, 31), c.x + r * 0.6f, c.y + r * 0.7f, true);
     g.setGradientFill (sg);
     g.fillEllipse (c.x - r, c.y - r, r * 2.0f, r * 2.0f);
-    g.setColour (Colours::black.withAlpha (0.6f));
+    g.setColour (Colours::black.withAlpha (0.5f));
     g.drawEllipse (c.x - r, c.y - r, r * 2.0f, r * 2.0f, 0.8f);
     g.setColour (Colour (20, 20, 21));
     if (slot) g.drawLine (c.x - r * 0.85f, c.y + r * 0.3f, c.x + r * 0.85f, c.y - r * 0.3f, 1.6f);
     else
     {
-        g.drawLine (c.x - r * 0.55f, c.y, c.x + r * 0.55f, c.y, 1.7f);
-        g.drawLine (c.x, c.y - r * 0.55f, c.x, c.y + r * 0.55f, 1.7f);
+        g.drawLine (c.x - r * 0.55f, c.y, c.x + r * 0.55f, c.y, 1.8f);
+        g.drawLine (c.x, c.y - r * 0.55f, c.x, c.y + r * 0.55f, 1.8f);
     }
 }
 
 VuMeter::VuMeter() { setInterceptsMouseClicks (false, false); }
 
-// the dial's printed scale: degrees from vertical for a reading in dB of gain reduction (the labels, measured)
-float VuMeter::angleForGr (float db)
+// The printed scale: degrees from vertical about the scale's centre for a gain reduction in dB (the labels, measured).
+// The needle turns about its own pivot, 6.4 px above that centre (measured: the needle's line at rest), so its angle is
+// the direction from its pivot to the reading on the arc.
+static float scaleAngle (float db)
 {
     static const float d[] = { 0.0f, 3.0f, 6.0f, 12.0f, 24.0f, 48.0f }, ang[] = { 55.6f, 22.1f, 0.0f, -28.05f, -46.6f, -54.25f };
     db = jlimit (0.0f, 48.0f, db);
@@ -438,23 +470,30 @@ float VuMeter::angleForGr (float db)
         if (db <= d[i + 1]) return ang[i] + (ang[i + 1] - ang[i]) * (db - d[i]) / (d[i + 1] - d[i]);
     return ang[5];
 }
+static constexpr float kNeedleRise = 6.4f;
 
-// The dial (measured on the reference, design px; the component covers the black window frame, 197 .. 448 x 73 .. 221):
-// cream (227, 208, 156) at the middle falling to (189, 162, 105) at the edges, shaded by the frame's top and left lips,
-// a glass reflection at the top left. The scale's arc: centre (321.3, 228.5), radius 105, from -55 to 56.5 degrees.
+float VuMeter::angleForGr (float db)
+{
+    const float a = rad (scaleAngle (db));
+    return radiansToDegrees (std::atan2 (105.0f * std::sin (a), kNeedleRise + 105.0f * std::cos (a)));
+}
+
+// The dial (measured on the reference, design px; the component covers the black window frame, 197 .. 448 x 73 .. 221,
+// and the pivot's bump below it).
+// The scale's arc: centre (321.3, 228.5), radius 105, from -55 to 56.5 degrees.
 static const Rectangle<float> kCream (7.5f, 7.5f, 236.0f, 135.0f);
 
 static Colour dialColour (float x, float y)                   // design coordinates
 {
+    // fitted on the reference's dial (print masked out): a warm glow centred high, the shadows of the frame's top and
+    // left lips, faint ones along the right and bottom, the glass's reflection at the top left
     auto smooth = [] (float a, float b, float v) { const float t = jlimit (0.0f, 1.0f, (v - a) / (b - a)); return t * t * (3.0f - 2.0f * t); };
-    const float gx = jmax (0.0f, 1.0f - square ((x - 322.5f) / 122.0f)), gy = jmax (0.0f, 1.0f - square ((y - 145.0f) / 85.0f));
-    const float k = gx * gy;
-    float r = 189.0f + 38.0f * k, gr = 162.0f + 46.0f * k, b = 105.0f + 51.0f * k;
-    float s = 1.0f - 0.42f * (1.0f - smooth (91.0f, 102.0f, y));                    // the top lip's shadow
-    s *= 1.0f - 0.55f * std::exp (-(x - 204.5f) / 12.0f);                            // the left lip's
-    s *= 1.0f - 0.35f * std::exp (-(440.5f - x) / 2.5f) - 0.4f * std::exp (-(215.5f - y) / 2.0f);
-    // the reflection in the glass, top left
-    const float refl = 0.55f * std::exp (-square ((x - 262.0f) / 34.0f) - square ((y - 87.5f) / 4.5f));
+    const float k = std::exp (-square ((x - 318.5f) / 80.1f) - square ((y - 55.7f) / 157.3f));
+    float r = 185.6f + 53.9f * k, gr = 157.2f + 64.1f * k, b = 99.3f + 67.6f * k;
+    float s = 1.0f - 0.752f * (1.0f - smooth (75.0f, 116.0f, y));
+    s *= 1.0f - std::exp (-(x - 204.5f) / 6.4f);
+    s *= 1.0f - 0.103f * std::exp (-(440.5f - x) / 2.5f) - 0.061f * std::exp (-(215.5f - y) / 2.0f);
+    const float refl = jmin (1.0f, 1.018f * std::exp (-square ((x - 274.4f) / 42.25f) - square ((y - 88.0f) / 4.72f)));
     r = r * s; gr = gr * s; b = b * s;
     r += (205.0f - r) * refl; gr += (198.0f - gr) * refl; b += (186.0f - b) * refl;
     return Colour ((uint8) jlimit (0.0f, 255.0f, r), (uint8) jlimit (0.0f, 255.0f, gr), (uint8) jlimit (0.0f, 255.0f, b));
@@ -512,7 +551,7 @@ void VuMeter::paint (Graphics& g)
     }
     // the numbers: Times italic, each turned along the scale (measured angles at radius 122.5)
     {
-        const Font f = Font (FontOptions ("Times New Roman", 10.0f, Font::italic).withPointHeight (14.5f));
+        const Font f = Font (FontOptions ("Times New Roman", 10.0f, Font::bold | Font::italic).withPointHeight (14.5f));
         for (auto [a, t] : { std::pair<float, const char*> { -54.25f, "48" }, { -46.6f, "24" }, { -28.05f, "12" }, { 0.0f, "6" }, { 22.1f, "3" }, { 55.6f, "0" } })
         {
             GlyphArrangement ga;
@@ -525,21 +564,36 @@ void VuMeter::paint (Graphics& g)
     }
     // our mark printed on the dial where the reference prints its maker's logo
     drawMark (g, Rectangle<float> (c.x - 19.0f, c.y - 77.5f, 38.0f, 29.0f), false, false, Colour (96, 78, 50).withAlpha (0.8f), 1.2f);
-    // the needle and its shadow on the dial
-    const Point<float> tip = at (needle, R + 2.0f), base = at (needle, 24.0f);
-    g.setColour (Colour (60, 50, 34).withAlpha (0.35f));
-    g.drawLine (Line<float> (base + Point<float> (3.0f, 4.5f), tip + Point<float> (3.0f, 4.5f)), 1.6f);
-    g.setColour (kNeedle);
-    g.drawLine (Line<float> (base, tip), 1.5f);
+    // the needle (measured: (124, 0, 0), 2 px, to 114 px from its pivot, a cream rivet at 109 px) and its soft shadow,
+    // 5 px below it, 3.5 px wide, a quarter darker
+    {
+        const Point<float> np (c.x, c.y - kNeedleRise), dir (std::sin (rad (needle)), -std::cos (rad (needle))), nrm (-dir.y, dir.x);
+        const Point<float> base = np + dir * 20.0f, tip = np + dir * 114.0f;
+        const Point<float> sh = nrm * 5.0f;
+        g.setColour (Colour (70, 52, 24).withAlpha (0.10f));
+        g.drawLine (Line<float> (base + sh, tip + sh - dir * 1.5f), 5.0f);
+        g.setColour (Colour (70, 52, 24).withAlpha (0.20f));
+        g.drawLine (Line<float> (base + sh, tip + sh - dir * 2.0f), 2.6f);
+        g.setColour (kNeedle);
+        g.drawLine (Line<float> (base, tip), 1.7f);
+        const auto rv = np + dir * 109.0f;
+        g.fillEllipse (rv.x - 2.0f, rv.y - 2.0f, 4.0f, 4.0f);
+        g.setColour (Colour (255, 250, 168));
+        g.fillEllipse (rv.x - 0.9f, rv.y - 0.9f, 1.8f, 1.8f);
+    }
     g.restoreState();
 
-    // the frame's bump over the pivot, with the slotted pivot screw
+    // the housing's bump into the window over the pivot (measured: housing grey, edged by the black recess), with the
+    // slotted pivot screw in its recess
     const Point<float> bc (c.x - 0.2f, c.y - 8.5f);
+    g.saveState();
+    g.reduceClipRegion (Rectangle<float> (0.0f, 0.0f, (float) getWidth(), 147.0f).toNearestInt());     // the recess edge only in the window
     g.setColour (Colours::black);
     g.fillEllipse (bc.x - 21.3f, bc.y - 21.3f, 42.6f, 42.6f);
-    g.setColour (Colours::white.withAlpha (0.08f));
-    g.drawEllipse (bc.x - 11.5f, bc.y - 11.5f, 23.0f, 23.0f, 1.0f);
-    screw (g, { c.x - 0.05f, c.y - 9.75f }, 7.5f, true);
+    g.restoreState();
+    g.setColour (Colour (43, 43, 44));
+    g.fillEllipse (bc.x - 18.3f, bc.y - 18.3f, 36.6f, 36.6f);
+    screw (g, { c.x - 0.05f, c.y - 9.75f }, 8.3f, true, 3.9f);
 }
 
 void drawVuHousing (Graphics& g, Rectangle<float> h, Point<float> archCentre, float archRadius)
@@ -563,27 +617,27 @@ void drawVuHousing (Graphics& g, Rectangle<float> h, Point<float> archCentre, fl
     p.closeSubPath();
 
     // its shadow on the panel (measured: about 4 px below and to the right)
-    for (int k = 6; k >= 1; --k)
+    for (int k = 5; k >= 1; --k)
     {
-        g.setColour (Colours::black.withAlpha (0.075f));
-        g.fillPath (p, AffineTransform::translation (0.6f * (float) k, 0.8f * (float) k));
+        g.setColour (Colours::black.withAlpha (0.08f));
+        g.fillPath (p, AffineTransform::translation (0.7f * (float) k, 0.8f * (float) k));
     }
-    ColourGradient hg (Colour (46, 46, 47), x0, y0, Colour (40, 40, 41), x0, y1, false);
-    g.setGradientFill (hg);
+    // a raised box lit from the upper left (measured): the top face a 5 px light band, the left face a thin light line,
+    // the right face a 6 px dark band, the bottom face and the arch's edge 5 px dark bands; the top a flat (43, 43, 43)
+    // that lightens toward the bottom edge
+    g.saveState();
+    g.reduceClipRegion (p);
+    g.setColour (Colour (25, 25, 26));
     g.fillPath (p);
-    // a raised bevel: light along the top and left edges, dark along the bottom and right
-    {
-        g.saveState();
-        g.reduceClipRegion (p);
-        ColourGradient bev (Colour (112, 112, 112), x0, y0, Colour (16, 16, 16), x0 + 0.55f * (y1 - y0), y1, false);
-        bev.addColour (0.35, Colour (60, 60, 60));
-        bev.addColour (0.65, Colour (34, 34, 34));
-        g.setGradientFill (bev);
-        g.strokePath (p, PathStrokeType (5.0f));
-        g.restoreState();
-    }
-    g.setColour (Colour (26, 26, 26));
-    g.strokePath (p, PathStrokeType (1.0f));
+    g.setColour (Colour (98, 98, 99));
+    g.fillPath (p, AffineTransform::translation (-6.0f, -5.0f));
+    g.reduceClipRegion (p, AffineTransform::translation (-6.0f, -5.0f));
+    ColourGradient hg (Colour (43, 43, 43), 0.0f, y1 - 30.0f, Colour (52, 52, 52), 0.0f, y1 - 6.0f, false);
+    g.setGradientFill (hg);
+    g.fillPath (p, AffineTransform::translation (2.5f, 6.0f));
+    g.restoreState();
+    g.setColour (Colour (30, 30, 30));
+    g.strokePath (p, PathStrokeType (1.2f));
 
     // the dial's window: a black recess, its lower lip catching the light
     const auto frame = roundRect ({ 197.5f, 73.5f, 250.0f, 147.0f }, 27.0f, 6.0f);
@@ -591,8 +645,8 @@ void drawVuHousing (Graphics& g, Rectangle<float> h, Point<float> archCentre, fl
     g.strokePath (frame, PathStrokeType (1.0f), AffineTransform::translation (0.0f, 1.0f));
     g.setColour (Colours::black);
     g.fillPath (frame);
-    for (auto s : { Point<float> (199.25f, 74.25f), Point<float> (199.0f, 259.5f), Point<float> (450.0f, 259.5f) })
-        screw (g, s, 7.0f, false);
+    for (auto s : { Point<float> (199.25f, 74.75f), Point<float> (199.25f, 259.5f), Point<float> (450.25f, 259.5f) })
+        screw (g, s, 9.0f, false);
 }
 
 // one character of the display's segment font in the cell r (segments a..g as a 7-segment digit, i: the upper middle

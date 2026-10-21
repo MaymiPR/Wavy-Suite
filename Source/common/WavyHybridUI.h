@@ -11,7 +11,7 @@ namespace wavy::hybrid
 {
 // panel and print colours (measured)
 inline const juce::Colour kPrint (34, 22, 12), kIvory (226, 223, 208), kIvoryDark (178, 174, 160), kOlive (140, 136, 104),
-    kSelText (246, 236, 64), kAmber (255, 150, 30), kNeedle (150, 14, 12), kDialLight (232, 214, 168), kDialDark (186, 158, 104);
+    kSelText (246, 236, 64), kAmber (255, 150, 30), kNeedle (124, 0, 0), kDialLight (232, 214, 168), kDialDark (186, 158, 104);
 
 juce::Font font (float h, bool bold = true);
 
@@ -35,9 +35,10 @@ void drawScale (juce::Graphics&, juce::Point<float> centre, float a0, float a1, 
 void printText (juce::Graphics&, const juce::String&, juce::Point<float> centre, float em, float hs, bool black, float angle = 0.0f);
 
 // A rotary knob in the reference's style. Kind Small: black bakelite, radius 32.4. Large / Huge: a black knob with ten
-// flutes in a satin chrome skirt (radius 53.9 / 73). The body and its shadow are fixed (lit from the upper left, as the
-// reference's filmstrip: only the pointer turns); they are rendered from the measured shading model
-// (WavyHybridKnobData.h). The pointer is a dark fin with a cream line, shaded by its angle to the light.
+// flutes in a satin chrome skirt (radius 53.9 / 73). As the reference's filmstrip, the knob turns under a fixed light
+// from the upper left: the flutes turn with the value, the shading and the cast shadow stay; rendered from the measured
+// shading model (WavyHybridKnobData.h). The pointer is a dark fin with a cream line, shaded by its angle to the light,
+// casting a soft shadow that turns with it.
 class Knob : public juce::Slider
 {
 public:
@@ -66,9 +67,9 @@ public:
     float paintExtent() const;                        // how far the drawing (shadow, pointer) reaches from the centre
 
 private:
-    juce::Image body;                                 // the knob and its cast shadow, rendered for the current scale
-    float bodyScale = 0.0f;
-    const juce::Image& bodyImage (float scale, float& extent);
+    juce::Image body;                                 // the knob and its cast shadow, rendered for the current scale and turn
+    float bodyScale = 0.0f, bodyDelta = 0.0f;
+    const juce::Image& bodyImage (float scale, float delta, float& extent);
 };
 
 // ivory push buttons in a black frame (a radio group of a choice parameter, or a single toggle). The component's
@@ -95,8 +96,8 @@ public:
     void paint (juce::Graphics&) override;
     void setNeedle (float angleDeg) { if (angleDeg != needle) { needle = angleDeg; repaint(); } }
     static float angleForGr (float db);              // the needle's angle for a gain reduction in dB (the printed scale)
-    juce::Point<float> pivot;                         // local
-    float needle = 55.6f;                             // degrees from vertical, + to the right
+    juce::Point<float> pivot;                         // local: the scale's centre (the needle turns 6.4 px above it)
+    float needle = 58.5f;                             // degrees from vertical about the needle's pivot, + to the right
 private:
     juce::Image dial;                                 // the cream dial's shading, rendered for the current scale
     float dialScale = 0.0f;
