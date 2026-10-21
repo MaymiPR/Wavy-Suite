@@ -391,7 +391,11 @@ reference's own extracted gain (the ceiling of the structure) the grid reaches �
 −31, but kicks −21 vs −18, so kicks are mostly a limit of the structure (part of it the reference's own monitor
 clipping at ±1 on the first kick peak), the rest mostly the learned level control. Tried without gain: explicit
 envelope followers of |z| as inputs (3 … 100 ms peak, 10 / 50 ms power), and the previous output sample as an input
-(teacher-forced; worse in closed loop) — the network does not lack those. The worst cases are
+(teacher-forced; worse in closed loop) — the network does not lack those. An explicit detector instead of the GRU (two
+attack / release followers in cascade on |z| with learned time constants scaled by Response, Freq and Ratio, and a
+learned per-sample gain law; `train_wbassx_det.py`) stopped at −30.8 dB on the validation set against −39.1 dB for the
+GRU, weakest on kicks (−17 dB) and steps (−21 dB): the reference's attack is richer than two followers. Its fitted time
+constants (about 5 … 11 ms attack, 22 ms release, then a 15 … 22 ms smoother) agree with the recovery probe. The worst cases are
 loud material at extreme settings (Freq 256 / Ratio 4 / Decay −12 with a −3 dBFS tone: +2.5 dB; Decay −9): there the
 reference's own Decay loop goes unstable and turns chaotic (Nyquist content −7 dB, h2 above h1, output pinned at ±1;
 even the reference's own extracted gain reproduces it only to −4 dB), and the structure reproduces it only roughly (with the reference's own gain

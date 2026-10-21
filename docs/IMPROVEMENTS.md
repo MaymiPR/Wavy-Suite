@@ -44,10 +44,10 @@ When part of a reference resists identification, keep everything that *is* ident
 ### WBassX
 - **The learned level control is about 8 dB short of the structure's ceiling** (random grid: −28 dB median against
   −37 dB with the reference's own extracted gain; `nulltest/oracle_grid_mb.py`). More data, more units and long
-  fine-tunes gave a few dB each; envelope-follower inputs and feeding back the output gave nothing. Next ideas: a
-  supervised pretraining stage on constrained extracted gains (`extract_g3.py`) mixed with the output loss, or an
-  explicit attack / release detector with a learned static law (the recovery probe `probe_recovery_mb.py` gives the
-  shape: full recovery in 0.1 … 0.3 s of silence, attack over about 4 × Response).
+  fine-tunes gave a few dB each; envelope-follower inputs and feeding back the output gave nothing, and an explicit
+  two-follower detector with a learned gain law (`train_wbassx_det.py`) was 8 dB worse than the GRU (−30.8 against
+  −39.1 dB on the validation set). Next idea: a supervised pretraining stage on constrained extracted gains
+  (`extract_g3.py`) mixed with the output loss.
 - **Kicks** (−19 dB on the harmonics) are close to what the structure reaches with the reference's own gain (−21 …
   −28 dB). The rest is spread over all bands; part of it is the reference's monitor clipping at ±1 on the first peak.
 - **Extreme settings** (strong Decay, high Ratio, loud low bass near Freq): the reference's Decay loop turns chaotic
