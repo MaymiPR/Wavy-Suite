@@ -429,3 +429,59 @@ Measured with the MeterCapture drag / click scripts on the reference editor: kno
 (65, 49, 36), a light 1 px frame) on the value slot under the small knobs or on the cap of the large ones; a
 double-click opens the white entry box there; Alt-click resets. WComp gives the same values on the same script.
 
+
+# WComp: measurements of the reference (Phase 3)
+
+Measured on the user's own install (*H-Comp Stereo* / *H-Comp Mono* from the WaveShell, 48 kHz unless noted). Data and
+plots are in `measurements/hcomp/`; reproduce with `python -I nulltest/measure_hcomp.py [section ...]`.
+
+## Method
+
+- Every user control is a VST3 parameter; `nulltest/refhost.py` `render_hc` sets them all through pedalboard (the rest
+  at their defaults, **Analog Off** unless stated). Sync is set before Release: H-Comp does not keep a Release value
+  set while it is synced to a note.
+- What pedalboard cannot do (feed the side-chain bus, give a host tempo) goes through `tools/RefRender` (a small JUCE
+  host; `refhost.render_ref`).
+- **The sample-wise gain is observable.** The detector reads the sample peak (below), so an alternating ±a signal
+  (Nyquist) is a constant level to it, and with Analog Off the output is `g[n]·x[n]`: the gain trace is `y / x`, exact
+  at every sample. Static curves, attack, release, punch, mix and the limiter are measured that way; sine staircases
+  check the same static curves.
+
+## Results
+
+| Item | Measured |
+|---|---|
+| Latency | 64 samples at 44.1 / 48 kHz, reported and compensated (an impulse comes out unchanged at Analog Off with the compressor idle); 128 / 256 at 88.2–96 / 192 kHz |
+| Idle path | Analog Off, threshold 0 or ratio 1: an exact identity (impulse response 1.0, flat to 0.000 dB) |
+| Detector | the **sample peak**: a sine, a square wave and an alternating signal of the same peak give the same gain reduction to 0.001 dB; an 8 kHz sine (6 samples a period) gets 0.94 dB less, as its samples miss the crest. Peaks are held over the look-ahead window: full reduction down to 400 Hz, less below (200 Hz −0.46 dB, 80 Hz −1.2, 30 Hz −1.8 dB of gain reduction at threshold −24 / ratio 4) (`freqdet`) |
+| Static curve | no hysteresis (staircases up and down agree within 0.008 dB). A soft knee fitted over 20 curves (thresholds 0 … −48, ratios 1.5 … 50, 0.5 dB steps) to **0.11 dB RMS, 0.33 dB worst**: `GR = (1 − 1/r)·knee(Ld − T − 0.76)`, where **`Ld = 20·log10(peak + 0.00106)`** (a floor at −59.5 dBFS, which makes the curves at low thresholds approach the ratio only slowly) and the knee is quadratic over 3.0 dB (`knee.csv`, `knee.png`, `static.csv`) |
+| Makeup gain | automatic, from threshold and ratio only: 0 for thresholds above −9 dB, then growing about linearly with the threshold below −9: **+0.47 dB per dB at ratio 50**, +0.31 at ratio 3, +0.10 at 1.5 (for example +2.76 dB at −18 / 3, +18.35 at −48 / 50). Dense grid in `makeup.csv` (25 thresholds × 18 ratios) |
+| Attack | a one-pole on the **linear gain**: its 90 % / 63 % time ratio is 1.88–1.92 (one-pole on linear gain: 1.87; on dB: 2.30), and with the look-ahead counted the time constant is the Attack value (7 ms → 7.2, 20 → 20.0, 100 → 98.5 ms) |
+| Look-ahead | the gain starts to fall **1.25 ms (60 samples) before** a step reaches the output, at every rate |
+| Punch | delays the detector by **exactly 1 ms per unit**: the gain starts to move at (Punch − 1.25) ms after a step (Punch 1 → −0.25 ms, 10 → 8.75, 30 → 28.75 ms), so transients pass before the gain reacts |
+| Release | after sustained compression the 63 % point is **0.75 × the Release value** (3 → 3.0, 100 → 76, 1000 → 753, 3000 → 2258 ms); the gain rises at a constant rate in dB and stops sharply at the threshold: the release acts on the detector's level, not on the gain |
+| Program-dependent release | the release depends on how long the compression lasted, not on its depth: after 5 / 20 / 100 / 200 / 350 / 500 / 700 ms bursts the 63 % point is 0.7 / 2.8 / 31 / 43 / 65 / 73 / 76 ms (Release 100), then constant. Attack and ratio barely change it (`release_pd`) |
+| Sync | Release = note × 240000 / tempo (ms), with the same 0.75 factor: **BPM** uses the plug-in's own tempo (120 by default), **Host** follows the host's tempo (60 BPM: 1/16 → 250 ms, 180 BPM → 83 ms) and falls back to 120 when the host gives none. Long notes at slow tempos fall back to the next shorter straight or dotted note (2 bars → 1 bar → 1/2D → 1/2 → 1/4D) once they pass about 3.3–4 s (the points measured are in `results.json` `sync_host`) |
+| Mix | a linear blend of the dry input (no makeup) and the compressed signal, exact to 0.0002 |
+| Output | a pure gain, ±18 dB, exact |
+| Limiter Off / On | **both** keep the output under 0 dBFS with a look-ahead peak limiter, not a clipper: the gain ramps down over the last **63 samples** before a peak (an S-shaped ramp) and recovers in about 1.2 ms (Off) or 1.4 ms (On); a 1 kHz sine 6 dB over comes out undistorted (h3 −116 dB), a 100 Hz sine gets clipper-like odd harmonics (h3 −20 dB) because the gain recovers between its peaks. Off lets a single-sample spike through at 1.0006, On at 0.9997 |
+| Stereo | linked: a loud left channel compresses a quiet right one by the same gain (−10.01 dB both); the Mono component equals a Stereo channel |
+| Side-chain | the shell offers a side-chain bus, but H-Comp ignores it: a loud key does not compress a quiet main signal and a silent key does not stop a loud one; the manual has no side-chain |
+| Sample rates | 44.1 … 192 kHz: the same makeup, static gain, attack (12.3 ms at 63 %) and release (72 ms) within 0.02 dB and 2 % |
+| Analog modes | at −20 dBFS, small-signal response and harmonics (1 kHz at 0 dBFS, re fundamental), noise with silence in: **1** flat −0.26 dB, h2 −54, h3 −58, noise −102 dBFS; **2** a dip of −0.77 dB around 1–2 kHz, h3 −48 (odd harmonics), noise −83 dBFS rising toward high frequencies; **3** a level-dependent dip (−4.8 dB at 1 kHz for −40 dBFS, −3.1 at −20, −0.5 at 0), strong h2 / h3 (−22 / −33), noise −101; **4** flat within 0.1 dB, no noise (−109), only odd harmonics that are *larger at low levels* (h3 −27 dB re a −40 dBFS tone, −67 at 0 dBFS: crossover-like distortion). Full tables in `results.json` `analog` |
+
+## What this means for Phase 4
+
+The control path is a look-ahead peak compressor: a 64-sample delay on the audio, the detector on the sample peak held
+over the look-ahead window and delayed by Punch, the static curve with its floor and 3 dB knee, makeup from threshold
+and ratio, attack smoothing on the linear gain, release on the detector level with a program-dependent two-stage
+behaviour, a linked stereo gain, the mix, the output gain and a 64-sample look-ahead limiter. All of this is
+deterministic and the gain is observable sample by sample, so it can be identified exactly from the saved traces.
+The program-dependent release is the part most likely to need a fitted or learned block.
+
+The Analog modes are separate nonlinear colourations (level-dependent EQ, harmonics, crossover distortion in mode 4,
+noise in modes 1–3). Mode 4 has no noise, so it can be nulled sample by sample; modes 1–3 will be matched in response,
+harmonics and noise spectrum.
+
+Not measured yet: the VU needle's ballistics on In / GR / Out (MeterCapture, as for the other plug-ins), and how the
+Analog stage sits against the compressor (before or after it) — both for Phase 4.

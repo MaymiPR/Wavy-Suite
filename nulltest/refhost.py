@@ -1,5 +1,6 @@
 """Private reference host: renders audio through the installed Waves RVox (WaveShell VST3) with
 pedalboard, for local analysis only. Nothing rendered here is committed (see .gitignore)."""
+import os
 import numpy as np
 import pedalboard as pb
 
@@ -116,3 +117,61 @@ def render_mb(x, fs, name="MaxxBass Stereo", buffer=512, **kw):
             break
         STATS["silent_retries"] += 1
     return y
+
+
+# ---- H-Comp ------------------------------------------------------------------------------------------------------
+# every user control is a VST3 parameter; measurements default to Analog Off (no noise, no harmonics)
+HC_DEFAULTS = dict(threshold=-18.0, ratio=3.0, mix=100.0, attack=7.0, punch=1.0, release=100.0, sync='ms',
+                   analog='Off', output=0.0, limiter='Off', releasebpm='1/32D')
+_HC_ANALOG = {'Off': 'Off ', 0: 'Off ', 1: 'Mod1 ', 2: 'Mod2 ', 3: 'Mod3 ', 4: 'Mod4 '}
+
+
+def set_hc(p, **kw):
+    v = {**HC_DEFAULTS, **kw}
+    p.sync = str(v["sync"]).strip() + ' '          # first: a release set while synced to a note is not kept
+    for k in ("threshold", "ratio", "mix", "attack", "punch", "release", "output"):
+        setattr(p, k, float(v[k]))
+    p.analog = _HC_ANALOG.get(v["analog"], str(v["analog"]).strip() + ' ')
+    p.limiter = str(v["limiter"]).strip() + ' '
+    p.releasebpm = str(v["releasebpm"]).strip() + ' '
+    return v
+
+
+def render_hc(x, fs, name="H-Comp Stereo", buffer=512, **kw):
+    """Render through H-Comp with the given parameters (the rest at HC_DEFAULTS)."""
+    p = load(name)
+    set_hc(p, **kw)
+    x = np.asarray(x, np.float32)
+    if x.ndim == 1: x = x[None, :]
+    if name.endswith('Stereo') and x.shape[0] == 1: x = np.concatenate([x, x])
+    for attempt in range(8):
+        y = p(x, fs, buffer_size=buffer, reset=True)
+        if not _dropout(x, y, fs):
+            break
+        STATS["silent_retries"] += 1
+    return y
+
+
+REFRENDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "build", "RefRender_artefacts", "Release", "RefRender.exe")
+
+
+def render_ref(x, fs, name="H-Comp Stereo@-75518996", sc=None, bpm=0.0, params=None, block=512):
+    """Render offline through tools/RefRender (a JUCE host): the side-chain bus fed with sc (stereo or mono), a host
+    tempo, parameters by display text. Latency removed. Returns (2, n)."""
+    import subprocess, tempfile
+    x = np.asarray(x, np.float32)
+    if x.ndim == 1: x = np.stack([x, x])
+    d = tempfile.mkdtemp(prefix="refr_")
+    fin, fout, fsc = os.path.join(d, "in.f32"), os.path.join(d, "out.f32"), os.path.join(d, "sc.f32")
+    x.T.astype(np.float32).tofile(fin)
+    cmd = [REFRENDER, WAVESHELL, name, fin, fout, "fs=%d" % fs, "block=%d" % block]
+    if sc is not None:
+        sc = np.asarray(sc, np.float32)
+        if sc.ndim == 1: sc = np.stack([sc, sc])
+        sc.T.astype(np.float32).tofile(fsc); cmd.append("sc=" + fsc)
+    if bpm: cmd.append("bpm=%g" % bpm)
+    for k, v in (params or {}).items(): cmd.append("%s=%s" % (k, v))
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    if not os.path.exists(fout): raise RuntimeError(r.stdout + r.stderr)
+    y = np.fromfile(fout, np.float32).reshape(-1, 2).T
+    return y, r.stdout
