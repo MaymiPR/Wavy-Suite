@@ -491,10 +491,12 @@ void Toolbar::paint (juce::Graphics& g)
                     g.fillRect (r);
                     g.setColour (hot ? juce::Colours::white : juce::Colour (90, 60, 10));
                     g.drawRect (r, 1);
-                    drawMark (g, juce::Rectangle<float> ((float) r.getX() + 3.0f, (float) r.getY() + 1.0f, 13.0f, 13.0f), hot, false);
-                    g.setColour (juce::Colour (24, 16, 4));
-                    g.setFont (tbFont (11.0f).boldened());
-                    g.drawText ("WAVY SUITE", r.withTrimmedLeft (19), juce::Justification::centredLeft);
+                    // in black, as the reference's printing on its badge (the coloured mark has too little contrast on orange)
+                    drawMark (g, juce::Rectangle<float> ((float) r.getX() + 2.5f, (float) r.getY() + 0.5f, 15.0f, 14.0f), hot, false,
+                              juce::Colours::black, 1.25f);
+                    g.setColour (juce::Colours::black);
+                    g.setFont (juce::Font (juce::FontOptions ("Arial Black", 10.0f, juce::Font::plain).withPointHeight (10.5f)).withHorizontalScale (1.05f));
+                    g.drawText ("WAVY SUITE", r.withTrimmedLeft (20).translated (0, 0), juce::Justification::centredLeft);
                 }
                 else drawMark (g, r.toFloat(), hot);
                 break;

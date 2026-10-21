@@ -281,7 +281,8 @@ View **643 × 454 px** including the toolbar (logo "WAVES HYBRID LINE", undo / r
 Setup A, Save, menu). A skeuomorphic orange panel with photographic knobs (bitmap sequences), all to be drawn by
 WComp itself:
 - Analog stepped knob (5 positions) 39, 30, 97 × 107; Output knob 505, 30 (value text 599, 85 on hover).
-- Meter select In / GR / Out radio 243, 23, 156 × 33; Limiter toggle 414, 23, 56 × 34 with a limiter LED at 436, 67.
+- Meter select In / GR / Out radio 243, 23, 156 × 33; Limiter toggle 414, 23, 56 × 34 with a limiter LED at 436, 67
+  (GUIXML control rectangles; the drawn frames are smaller, see "Drawn appearance").
 - **VU meter** 224, 105, 199 × 116: a backlit cream dial (scale 48 … 0 in GR), a red needle, a screw-head pivot,
   chrome screws in the black housing; separate needle images for GR (`PARAM_PEAK`) and In / Out
   (`PARAM_METER_DISPLAY`), 71 steps each.
@@ -291,6 +292,24 @@ WComp itself:
   same knob; Sync radio BPM / HOST / MS 542, 310, 59 × 71; BPM LED display 507, 405 ("BPM OFF", digit bitmaps).
 - Value texts appear on hover (`ShowOnHover`), 37 × 13 px below each knob; Alt resets (`OptionReset`); text entry on
   all knobs (`ReciveTextEntery`).
+
+### Drawn appearance (measured on the reference's screenshots, reference/wcomp, git-ignored)
+- **Knobs** are filmstrips of one fixed render: across the travel only the pointer moves (frames at 9 values compared
+  after rotating them back: the body differs by 2–3 grey levels, the pointer region by 30–80). The pointer is a dark
+  fin with a cream line on its ridge, its two facets lit by their angle to a light at 320°. Bodies: small radius 32.4,
+  cap ring 20; Ratio / Mix skirt 53.9, ten flutes at 44.4 ± 1.6, cap 32.5; Threshold skirt 73, flutes at 61.8, cap 44.
+  The knob centres sit at the GUIXML centres plus about (0.2, 1.0) (Threshold: (320.65, 333.35)). Cast shadows: the
+  panel darkened by 0.35–0.42 under a disc offset (5–8, 16–25) px. `tools/fit_hybrid_knobs.py` fits the shading as
+  smooth functions of radius and angle (no pixels kept) into `Source/common/WavyHybridKnobData.h`.
+- **Scales**: ticks every 14°, small knobs r 33.8 … 40 (1.7 px), Ratio / Mix r 56.2 … 64.3, Threshold 19 ticks
+  r 72.2 … 80.4. Labels Arial Black 10.75 px stretched 1.2×; numbers Arial Bold 8.6 px; each placed at its measured
+  ink centre. "0 THRESHOLD −48": Arial Black 12.6 px, one glyph per measured angle at r 85 around the knob.
+- **VU**: window frame 197.5, 73.5, 250 × 147 (top corners 27); cream dial 204.5, 80.5, 236 × 135; scale arc centre
+  (321.3, 228.5), r 105, −55° … 56.5°; numbers Times italic 14.5 px turned along the arc at r 122.5
+  (48 −54.25°, 24 −46.6°, 12 −28.05°, 6 0°, 3 22.1°, 0 55.6°). Housing 174.5, 52.5, 295.5 × 224, arched (r 85.5)
+  around Threshold.
+- **Buttons**: 1 px black frames: In / GR / Out 245, 27, 151 × 21; Limiter 417, 27, 52 × 21; Sync 547, 315, 50 × 61;
+  19 px faces. **Display** 506, 404, 90.5 × 34, a segment font (6 × 9 px cells; tempo digits 12 × 20).
 
 ### Presets (C2)
 26 presets, all RealWorld arrays: Full Reset, PA Default, 21 genre / instrument presets (drums, kick, bass, piano,

@@ -30,8 +30,14 @@ struct Scale
 };
 void drawScale (juce::Graphics&, juce::Point<float> centre, float a0, float a1, const Scale&);
 
-// A rotary knob in the reference's style. Kind Small: black bakelite, radius 33, a cream pointer tab on the rim.
-// Large / Huge: a black fluted knob in a satin chrome skirt, the pointer crossing the skirt.
+// text printed on the panel, centred on its ink at `centre` (as measured on the reference): Arial Black for the labels,
+// Arial Bold for the numbers; em is the font size in pixels, hs its horizontal scale, angle a rotation in radians
+void printText (juce::Graphics&, const juce::String&, juce::Point<float> centre, float em, float hs, bool black, float angle = 0.0f);
+
+// A rotary knob in the reference's style. Kind Small: black bakelite, radius 32.4. Large / Huge: a black knob with ten
+// flutes in a satin chrome skirt (radius 53.9 / 73). The body and its shadow are fixed (lit from the upper left, as the
+// reference's filmstrip: only the pointer turns); they are rendered from the measured shading model
+// (WavyHybridKnobData.h). The pointer is a dark fin with a cream line, shaded by its angle to the light.
 class Knob : public juce::Slider
 {
 public:
@@ -55,11 +61,18 @@ public:
     std::function<void (Knob*, bool)> onHover;
     float ringRadius() const { return kind == Small ? 21.0f : kind == Large ? 30.0f : 41.0f; }
     juce::Rectangle<int> valueArea;                   // the value slot (local): the value box while selected, the entry box
-    float radius() const { return kind == Small ? 33.0f : kind == Large ? 52.0f : 71.0f; }
+    float radius() const { return kind == Small ? 32.4f : kind == Large ? 53.9f : 73.0f; }
     float pointerAngle() const;
+    float paintExtent() const;                        // how far the drawing (shadow, pointer) reaches from the centre
+
+private:
+    juce::Image body;                                 // the knob and its cast shadow, rendered for the current scale
+    float bodyScale = 0.0f;
+    const juce::Image& bodyImage (float scale, float& extent);
 };
 
-// ivory push buttons in a black frame (a radio group of a choice parameter, or a single toggle)
+// ivory push buttons in a black frame (a radio group of a choice parameter, or a single toggle). The component's
+// bounds are the frame expanded by 4 px (its shadow on the panel).
 class ButtonGroup : public juce::Component
 {
 public:
@@ -74,23 +87,27 @@ private:
     int selected = 0;
 };
 
-// the VU meter's dial and needle (the housing is part of the panel drawing); angle from the value via a table
+// the VU meter's dial and needle, over the housing's black window frame (the housing is part of the panel drawing)
 class VuMeter : public juce::Component
 {
 public:
     VuMeter();
     void paint (juce::Graphics&) override;
     void setNeedle (float angleDeg) { if (angleDeg != needle) { needle = angleDeg; repaint(); } }
+    static float angleForGr (float db);              // the needle's angle for a gain reduction in dB (the printed scale)
     juce::Point<float> pivot;                         // local
-    float needle = 56.0f;                             // degrees from vertical, + to the right
+    float needle = 55.6f;                             // degrees from vertical, + to the right
+private:
+    juce::Image dial;                                 // the cream dial's shading, rendered for the current scale
+    float dialScale = 0.0f;
 };
 void drawVuHousing (juce::Graphics&, juce::Rectangle<float> housing, juce::Point<float> archCentre, float archRadius);
 
 // amber LED text in a black window (the BPM display); with digits: a small caption and large 7-segment digits
 void drawLedDisplay (juce::Graphics&, juce::Rectangle<float> box, const juce::String& text, const juce::String& digits = {});
 
-// the product logo: a bold first letter and the rest light ("WCOMP")
-void drawLogo (juce::Graphics&, juce::Rectangle<float> area, const juce::String& first, const juce::String& rest);
+// the product logo: a heavy first letter and the rest light ("WCOMP"), from its left edge, centred vertically
+void drawLogo (juce::Graphics&, juce::Point<float> leftCentre, const juce::String& first, const juce::String& rest);
 
 // the value entry (double-click) sits on each knob's value slot; the text box is invisible otherwise
 class HybridLook : public wavy::flat::FlatLook
