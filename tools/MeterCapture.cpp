@@ -174,6 +174,31 @@ public:
                 sleep (400); shot ("hover");
                 std::printf ("hover\n"); continue;
             }
+            if (mod == "click" || mod == "dbl" || mod.endsWith ("click"))   // click / double-click (+ modifier), then type t[6] + Enter
+            {
+                const WORD kv = mod.startsWith ("ctrl") ? VK_CONTROL : mod.startsWith ("alt") ? VK_MENU : mod.startsWith ("shift") ? VK_SHIFT : 0;
+                if (kv) { keybd_event ((BYTE) kv, 0, 0, 0); sleep (50); }
+                for (int c = 0; c < (mod == "dbl" ? 2 : 1); ++c)
+                {
+                    mouse_event (MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0); sleep (30);
+                    mouse_event (MOUSEEVENTF_LEFTUP, 0, 0, 0, 0); sleep (60);
+                }
+                if (kv) keybd_event ((BYTE) kv, 0, KEYEVENTF_KEYUP, 0);
+                sleep (500); shot ("edit");
+                dump ("clicked");
+                if (t.size() > 6)
+                {
+                    for (auto ch : t[6])
+                    {
+                        const SHORT k = VkKeyScanA ((char) ch);
+                        keybd_event ((BYTE) (k & 0xff), 0, 0, 0); sleep (20); keybd_event ((BYTE) (k & 0xff), 0, KEYEVENTF_KEYUP, 0); sleep (40);
+                    }
+                    sleep (200); shot ("typed");
+                    keybd_event (VK_RETURN, 0, 0, 0); sleep (20); keybd_event (VK_RETURN, 0, KEYEVENTF_KEYUP, 0);
+                }
+                sleep (500); shot ("after");
+                dump ("after"); continue;
+            }
             if (vk) { keybd_event ((BYTE) vk, 0, 0, 0); sleep (50); }
             mouse_event (MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0); sleep (80);
             shot ("down");

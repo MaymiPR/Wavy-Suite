@@ -49,7 +49,7 @@ WBassXEditor::WBassXEditor (WBassXProcessor& p)
     for (float f : { 32.0f, 64.0f, 128.0f, 256.0f }) freq.tickPositions.push_back (std::log2 (f / 32.0f) / 3.0f);
     freq.x0 = 7.0f; freq.x1 = 271.0f; freq.y = 16.0f;
     freq.textArea = { 284, 10, 50, 13 };
-    attachSlider (freq, wbassx::freq, { 86, 286, 340, 26 }, 80.0);
+    attachSlider (freq, wbassx::freq, { 86, 286, 344, 26 }, 80.0);    // wide enough for the entry box (x 380 ... 429)
 
     for (auto* f : { &input, &origBass, &harmonics }) f->selection = &selection;
     for (auto* k : { &ratio, &response, &decay }) k->selection = &selection;

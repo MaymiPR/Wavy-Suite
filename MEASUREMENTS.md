@@ -400,3 +400,13 @@ loud material at extreme settings (Freq 256 / Ratio 4 / Decay −12 with a −3 
 reference's own Decay loop goes unstable and turns chaotic (Nyquist content −7 dB, h2 above h1, output pinned at ±1;
 even the reference's own extracted gain reproduces it only to −4 dB), and the structure reproduces it only roughly (with the reference's own gain
 extracted it reaches −20 … −27 dB at Decay −9). At 96 kHz the null is within 1.8 dB of 48 kHz. This is not a null.
+
+### Value entry (WBassX / MaxxBass)
+
+Measured with the MeterCapture `click` / `dbl` scripts (click or double-click, then type a value and Enter): a
+double-click on a knob, a fader or the Freq slider opens an entry box with the whole value selected, and Enter applies
+it (Ratio 2.5, Input −6, Freq 100 all took). A single click on the value text does nothing, Ctrl-click does nothing,
+Alt-click resets to the default. The box: white, black text, a 1 px (100, 100, 100) line on the left and right only,
+the system's blue selection (0, 120, 215); knob value x 106 … 159, y 374 … 387 (13 px text), fader x 553 … 583,
+y 320 … 337 (15 px text), Freq x 380 … 429, y 297 … 309, showing the bare number. WBassX matches the boxes to the pixel
+and the text within 1 … 2 px.

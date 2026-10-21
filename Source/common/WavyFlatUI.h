@@ -65,7 +65,7 @@ public:
 // How the reference's controls follow the mouse (measured with tools/MeterCapture drag=..., see MEASUREMENTS.md
 // "Control feel"): the cursor is hidden while dragging and comes back where the control is; faders and the Freq
 // slider move 1:1 with the mouse; knobs take ~500 px for their full range, ~1000 px when the mouse moves slowly
-// (<= 3 px per move), and Ctrl gives a fine mode.
+// (<= 3 px per move), and Ctrl gives a fine mode. Alt-click resets to the default; a double-click types a value.
 struct WavesDrag
 {
     enum Kind { Linear, Rotary };
@@ -93,8 +93,10 @@ public:
     Selection* selection = nullptr;
     std::function<juce::String (double)> format;
     juce::Colour lineColour;
+    void mouseDoubleClick (const juce::MouseEvent&) override;
     int travelTop = 27, travelBottom = 192;                // thumb centre range (local y)
     juce::Rectangle<int> textArea { 0, 230, 31, 18 };
+    juce::Rectangle<int> editArea { 0, 230, 31, 18 };      // the entry box while typing a value (measured)
 };
 
 // rotary knob: grey ring, white arc from the start to the value with an inward tick, dot above; label and value below
@@ -111,8 +113,10 @@ public:
     std::function<juce::String (double)> format;
     juce::String label;
     juce::Point<float> centre { 27.0f, 34.0f };            // local
+    void mouseDoubleClick (const juce::MouseEvent&) override;
     float radius = 16.5f;
     juce::Rectangle<int> textArea { 0, 67, 54, 14 };
+    juce::Rectangle<int> editArea { 0, 69, 54, 14 };       // the entry box while typing a value (measured)
 };
 
 // horizontal slider (Freq): ticks above, white line up to the thumb, ring thumb; value shown while hovered / dragged
@@ -130,8 +134,10 @@ public:
     void mouseExit (const juce::MouseEvent&) override { repaint(); }
     std::function<juce::String (double)> format;
     float x0 = 7.0f, x1 = 271.0f, y = 10.0f;               // track (local)
+    void mouseDoubleClick (const juce::MouseEvent&) override;
     std::vector<float> tickPositions;                       // 0..1 along the track
     juce::Rectangle<int> textArea;
+    juce::Rectangle<int> editArea { 294, 11, 50, 13 };      // the entry box while typing a value (measured)
 };
 
 // slope selector (Filter): rounded box with the slope icon and a menu arrow. As in the reference, a click on the
@@ -181,6 +187,9 @@ public:
                             const juce::Drawable* icon, const juce::Colour* textColour) override;
     juce::Font getPopupMenuFont() override { return font (13.0f); }
     void positionComboBoxText (juce::ComboBox&, juce::Label&) override;
+    // the value entry box: white, with a 1 px frame on the left and right only (measured)
+    void fillTextEditorBackground (juce::Graphics&, int w, int h, juce::TextEditor&) override;
+    void drawTextEditorOutline (juce::Graphics&, int w, int h, juce::TextEditor&) override;
 };
 
 // drawing helpers

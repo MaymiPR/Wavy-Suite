@@ -44,9 +44,45 @@ void applyFormat (Slider& s, std::function<String (double)> format)
 }
 
 //==============================================================================
-static void clickToType (Slider& s, Rectangle<int> textArea, const MouseEvent& e)
+// Value entry as in the reference (measured with tools/MeterCapture click / dbl scripts): a double-click on a knob,
+// fader or the Freq slider opens a white entry box over the value with the whole value selected; Enter applies it.
+// A single click on the value does nothing special, Alt-click resets to the default.
+static Rectangle<int> editAreaOf (Component* c)
 {
-    if (e.mouseWasClicked() && ! e.mods.isAltDown() && textArea.contains (e.getPosition())) s.showTextBox();
+    if (auto* k = dynamic_cast<Knob*> (c)) return k->editArea;
+    if (auto* f = dynamic_cast<VFader*> (c)) return f->editArea;
+    if (auto* h = dynamic_cast<HSlider*> (c)) return h->editArea;
+    return {};
+}
+
+struct ValueEditStyle : public Label::Listener
+{
+    void labelTextChanged (Label*) override {}
+    void editorShown (Label* l, TextEditor& ed) override
+    {
+        auto* parent = l->getParentComponent();
+        const auto r = editAreaOf (parent);
+        if (! r.isEmpty()) l->setBounds (r);
+        if (dynamic_cast<HSlider*> (parent) != nullptr)                // the reference shows the bare number ("80")
+            ed.setText (ed.getText().upToFirstOccurrenceOf (" ", false, false), false);
+        ed.setJustification (Justification::centredLeft);
+        ed.applyFontToAllText (font (dynamic_cast<VFader*> (parent) != nullptr ? 15.0f : 13.0f));   // measured per control
+        ed.setIndents (1, 0);
+        ed.selectAll();
+    }
+    void editorHidden (Label* l, TextEditor&) override
+    {
+        if (auto* s = dynamic_cast<Slider*> (l->getParentComponent())) s->resized();   // back to the value layout
+    }
+};
+
+static ValueEditStyle& valueEditStyle() { static ValueEditStyle s; return s; }
+
+static bool resetOnAlt (Slider& s, const MouseEvent& e)
+{
+    if (! e.mods.isAltDown() || ! s.isDoubleClickReturnEnabled()) return false;
+    s.setValue (s.getDoubleClickReturnValue(), sendNotificationSync);
+    return true;
 }
 
 //==============================================================================
@@ -103,9 +139,10 @@ void drawSelectRing (Graphics& g, Point<float> c, float radius, Colour colour)
 }
 
 //==============================================================================
-bool WavesDrag::down (Slider& s, const MouseEvent& e, Rectangle<int> textArea, Selection* sel)
+bool WavesDrag::down (Slider& s, const MouseEvent& e, Rectangle<int>, Selection* sel)
 {
-    if (textArea.contains (e.getPosition()) || e.mods.isAltDown() || e.mods.isPopupMenu()) return false;
+    if (e.mods.isPopupMenu()) return false;
+    if (resetOnAlt (s, e)) return true;
     active = true;
     virt = last = e.position;
     e.source.enableUnboundedMouseMovement (true, false);         // hide the cursor, no screen edge
@@ -174,12 +211,12 @@ void VFader::mouseDown (const MouseEvent& e)
     if (selection != nullptr) selection->select (this);
     if (! feel.down (*this, e, textArea, selection)) Slider::mouseDown (e);
 }
+void VFader::mouseDoubleClick (const MouseEvent&) { showTextBox(); }
 void VFader::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e, selection); else Slider::mouseDrag (e); }
 void VFader::mouseUp (const MouseEvent& e)
 {
     if (feel.up (*this, e, { (float) getWidth() * 0.5f, (float) getPositionOfValue (getValue()) }, selection)) return;
     Slider::mouseUp (e);
-    clickToType (*this, textArea, e);
 }
 
 void VFader::paint (Graphics& g)
@@ -241,12 +278,12 @@ void Knob::mouseDown (const MouseEvent& e)
     if (selection != nullptr) selection->select (this);
     if (! feel.down (*this, e, textArea, selection)) Slider::mouseDown (e);
 }
+void Knob::mouseDoubleClick (const MouseEvent&) { showTextBox(); }
 void Knob::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e, selection); else Slider::mouseDrag (e); }
 void Knob::mouseUp (const MouseEvent& e)
 {
     if (feel.up (*this, e, centre, selection)) return;
     Slider::mouseUp (e);
-    clickToType (*this, textArea, e);
 }
 
 void Knob::paint (Graphics& g)
@@ -288,7 +325,7 @@ void Knob::paint (Graphics& g)
 HSlider::HSlider()
 {
     setSliderStyle (LinearHorizontal);
-    setTextBoxStyle (NoTextBox, true, 0, 0);
+    setTextBoxStyle (TextBoxRight, false, 50, 15);      // only shown while typing a value (the value is painted on hover)
     setSliderSnapsToMousePosition (false);
     setUpFeel (*this, 264);
     setScrollWheelEnabled (true);
@@ -299,6 +336,7 @@ void HSlider::mouseDown (const MouseEvent& e)
     if (selection != nullptr) selection->select (this);
     if (! feel.down (*this, e, {}, selection)) Slider::mouseDown (e);
 }
+void HSlider::mouseDoubleClick (const MouseEvent&) { showTextBox(); }
 void HSlider::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e, selection); else Slider::mouseDrag (e); }
 void HSlider::mouseUp (const MouseEvent& e)
 {
@@ -481,7 +519,10 @@ Slider::SliderLayout FlatLook::getSliderLayout (Slider& s)
         l.textBoxBounds = k->textArea;
     }
     else if (auto* h = dynamic_cast<HSlider*> (&s))
+    {
         l.sliderBounds = { (int) h->x0, 0, (int) (h->x1 - h->x0), s.getHeight() };
+        l.textBoxBounds = h->editArea;
+    }
     else
         l = LookAndFeel_V4::getSliderLayout (s);
     return l;
@@ -500,7 +541,21 @@ Label* FlatLook::createSliderTextBox (Slider& s)
     l->setColour (TextEditor::highlightColourId, kBlue.withAlpha (0.5f));
     l->setBorderSize ({ 0, 0, 0, 0 });
     l->setJustificationType (Justification::centred);
-    l->setInterceptsMouseClicks (false, false);
+    l->setInterceptsMouseClicks (false, true);                    // the entry box itself takes clicks while typing
+    // the entry box, as measured: white, black text, a 1 px (100, 100, 100) frame, the system's blue selection
+    const Colour frame (100, 100, 100), sel (0, 120, 215);
+    l->setColour (Label::backgroundWhenEditingColourId, Colours::white);
+    l->setColour (Label::textWhenEditingColourId, Colours::black);
+    l->setColour (Label::outlineWhenEditingColourId, Colours::transparentBlack);
+    l->setColour (TextEditor::backgroundColourId, Colours::white);
+    l->setColour (TextEditor::textColourId, Colours::black);
+    l->setColour (TextEditor::highlightColourId, sel);
+    l->setColour (TextEditor::highlightedTextColourId, Colours::white);
+    l->setColour (TextEditor::outlineColourId, frame);
+    l->setColour (TextEditor::focusedOutlineColourId, frame);
+    l->setColour (CaretComponent::caretColourId, Colours::black);
+    if (dynamic_cast<HSlider*> (&s) != nullptr) l->setColour (Label::textColourId, Colours::transparentBlack);   // hidden until typing
+    l->addListener (&valueEditStyle());
     return l;
 }
 
@@ -513,6 +568,19 @@ void FlatLook::positionComboBoxText (ComboBox& box, Label& label)
 {
     if (dynamic_cast<SlopeBox*> (&box) != nullptr) { label.setBounds ({}); return; }   // the slope box shows a picture, no text
     LookAndFeel_V4::positionComboBoxText (box, label);
+}
+
+void FlatLook::fillTextEditorBackground (Graphics& g, int w, int h, TextEditor& ed)
+{
+    g.setColour (ed.findColour (TextEditor::backgroundColourId));
+    g.fillRect (0, 0, w, h);
+}
+
+void FlatLook::drawTextEditorOutline (Graphics& g, int w, int h, TextEditor& ed)
+{
+    g.setColour (ed.findColour (TextEditor::outlineColourId));
+    g.fillRect (0, 0, 1, h);
+    g.fillRect (w - 1, 0, 1, h);
 }
 
 void FlatLook::drawPopupMenuBackground (Graphics& g, int w, int h)
