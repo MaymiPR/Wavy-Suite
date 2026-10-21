@@ -43,7 +43,9 @@ private:
     float gangTotal = 0.0f;
 
     wavy::flat::Selection selection;
-    wavy::MeterBallistics barL, barR;
+    wavy::MeterBallistics barL { 0.155 }, barR { 0.155 };     // MaxxBass's meters release faster than RBass's (measured)
+    int lastBlocks = -1;
+    double lastBlockMs = -1.0e9;
     double lastTick = 0.0;
     float outL = -100.0f, outR = -100.0f, holdL = -100.0f, holdR = -100.0f;
     bool clip = false;

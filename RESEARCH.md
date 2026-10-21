@@ -179,7 +179,9 @@ reference's "States" presets use its linear scales, checked against the two it c
 | 13 | PARAM_MB_GAIN | MaxxBass | gain scale −inf … +12 dB | −inf | vertical fader | harmonics_gain |
 
 Presets do not change the Input fader (`IgnoreOnPresetLoad`). Some older factory presets hold values outside the
-0–2 range in the HighPass slot (3, 4, 5, 6, 17); they will be converted through the reference itself, as for RBass.
+0–2 range in the HighPass slot (3, 4, 5, 6, 17); they will be converted through the reference itself, as for RBass. Converted (Phase 5, `nulltest/read_ref_presets_mb.py`): those
+High-pass states wrap modulo 3 (3 and 6 → 6 dB/oct, 4 → 12, 5 and 17 → 24); every other value follows the scales of the
+Phase 2 tapers, which reproduce all 16 presets the reference converted itself.
 
 ### GUI geometry (M2, M4)
 View **800 × 395 px** including the toolbar strip (logo, undo / redo, preset box, previous / next, A→B, Setup A,

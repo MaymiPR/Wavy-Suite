@@ -619,11 +619,16 @@ void FlatLook::drawPopupMenuItem (Graphics& g, const Rectangle<int>& area, bool 
 //==============================================================================
 void drawMeterBar (Graphics& g, Rectangle<float> t, float frac)
 {
+    drawMeterBarTo (g, t, frac <= 0.0f ? t.getBottom() : t.getBottom() - t.getHeight() * jlimit (0.0f, 1.0f, frac));
+}
+
+void drawMeterBarTo (Graphics& g, Rectangle<float> t, float topY)
+{
     g.setColour (kTrack);
     g.fillRoundedRectangle (t, t.getWidth() * 0.5f);
-    frac = jlimit (0.0f, 1.0f, frac);
-    if (frac <= 0.0f) return;
-    const auto bar = t.withTop (t.getBottom() - t.getHeight() * frac);
+    topY = jlimit (t.getY(), t.getBottom(), topY);
+    if (topY >= t.getBottom()) return;
+    const auto bar = t.withTop (topY);
     for (int k = 3; k >= 1; --k)
     {
         g.setColour (kWhite.withAlpha (0.08f));

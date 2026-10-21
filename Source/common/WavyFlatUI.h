@@ -196,6 +196,8 @@ public:
 void drawSlopeIcon (juce::Graphics&, juce::Rectangle<float> area, int slope);   // 0: 6 dB/oct, 1: 12, 2: 24
 // vertical level meter: rounded dark track, white glowing bar from the bottom; frac 0..1
 void drawMeterBar (juce::Graphics&, juce::Rectangle<float> track, float frac);
+// the same with the bar's top edge given in pixels (topY >= track bottom: no bar)
+void drawMeterBarTo (juce::Graphics&, juce::Rectangle<float> track, float topY);
 // filled band curve: points (x, y) left to right; filled down to bottomY with a vertical fade, edge line on top
 void drawBand (juce::Graphics&, const std::vector<juce::Point<float>>& pts, float bottomY, juce::Colour c);
 }

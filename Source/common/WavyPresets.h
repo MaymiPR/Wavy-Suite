@@ -14,12 +14,15 @@ struct FactoryPreset
     std::vector<Value> values;
 };
 
-inline void applyPreset (juce::AudioProcessorValueTreeState& apvts, const FactoryPreset& preset, juce::RangedAudioParameter* keep)
+// keep / alsoKeep: parameters a preset never changes (the Mode switch; WBassX's Input, which the reference marks
+// IgnoreOnPresetLoad)
+inline void applyPreset (juce::AudioProcessorValueTreeState& apvts, const FactoryPreset& preset, juce::RangedAudioParameter* keep,
+                         const std::vector<juce::AudioProcessorParameter*>& alsoKeep = {})
 {
     for (auto* p : apvts.processor.getParameters())
     {
         auto* rp = dynamic_cast<juce::RangedAudioParameter*> (p);
-        if (rp == nullptr || rp == keep) continue;
+        if (rp == nullptr || rp == keep || std::find (alsoKeep.begin(), alsoKeep.end(), p) != alsoKeep.end()) continue;
         float target = rp->getDefaultValue();
         for (const auto& v : preset.values)
             if (rp->getParameterID() == v.id) target = rp->convertTo0to1 (v.value);

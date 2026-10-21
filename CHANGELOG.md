@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **WBassX presets, value entry and meters** (Phase 5): 22 factory presets (*Essentials* and *Studio*, settings
+  from the reference's own set converted by the reference itself, Wavy names), which leave Input alone as the
+  reference does; double-click a knob, fader or the Freq slider to type a value, Alt-click to reset (measured on the
+  reference, the entry box matches it to the pixel); output meters with the reference's faster release (0.155 s),
+  its scale and its floor dot, within 1 px on 88 % of frames.
 - **WBassX DSP** (Phase 4): the original path, the harmonic generator with its Decay feedback, the High-pass settings,
   faders, monitors and output clip identified exactly; the harmonics compressor learned from renders of the reference
   (median null −48.5 dB on the whole output, −42.7 dB on the harmonics; docs/NULL_RESULTS_WBASSX.md). Unit tests
@@ -17,10 +22,10 @@
   so a restored state always snaps to on or off. Meters move like the reference's (measured from its editor: instant
   rise, 0.325 s one-pole release, 26.7 dB/s in silence), independent of the host's buffer size; editors redraw at
   60 frames per second.
-- **WBassX** (in progress), a bass enhancer modelled on a harmonics-generator with its own compressor, filters and
+- **WBassX**, a bass enhancer modelled on a harmonics-generator with its own compressor, filters and
   monitor modes: the flat editor (800 x 395, resizable) on a new shared kit (`Source/common/WavyFlatUI`: gain faders
   with the reference's taper, knobs, frequency slider, slope selector, monitor buttons, band graph) and the single-row
-  toolbar style; full parameter list; audio passes through until the DSP phase.
+  toolbar style; full parameter list.
 - **WVox null**: the compressor's slow path gets a small learned correction (a GRU trained on renders of the
   reference, ~3.5 % of one core), guarded so steady signals keep the identified paths exactly. Worst case of the
   settings grid −10 → −23 dB; dense noise at heavy compression −10…−13 → −24…−27 dB, voice-like −21…−31 → −30…−40 dB;

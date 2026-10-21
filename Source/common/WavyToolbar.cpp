@@ -123,7 +123,7 @@ void Toolbar::loadDefault()
 {
     for (auto* p : apvts.processor.getParameters())
     {
-        if (p == modeParam) continue;
+        if (p == modeParam || std::find (keepOnLoad.begin(), keepOnLoad.end(), p) != keepOnLoad.end()) continue;
         p->beginChangeGesture();
         p->setValueNotifyingHost (p->getDefaultValue());
         p->endChangeGesture();
@@ -138,7 +138,7 @@ void Toolbar::loadDefault()
 void Toolbar::loadFactory (int index)
 {
     if (factory == nullptr || index < 0 || index >= (int) factory->size()) return;
-    applyPreset (apvts, (*factory)[(size_t) index], modeParam);
+    applyPreset (apvts, (*factory)[(size_t) index], modeParam, keepOnLoad);
     presetName = (*factory)[(size_t) index].name;
     presetFile = juce::File();
     factoryIndex = index;

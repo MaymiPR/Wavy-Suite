@@ -30,6 +30,8 @@ public:
     void mouseDown (const juce::MouseEvent&) override;
     void refresh();
     void setFactoryPresets (const std::vector<FactoryPreset>* list) { factory = list; }
+    // parameters the Default and factory presets leave alone (besides Mode)
+    void setKeepOnPresetLoad (std::vector<juce::AudioProcessorParameter*> list) { keepOnLoad = std::move (list); }
 
     static constexpr int width = 371, height = 36, flatWidth = 800, flatHeight = 36;
     const Style style;
@@ -71,6 +73,7 @@ private:
     juce::String presetName { "Default Preset" };
     juce::File presetFile;                 // empty for the factory presets
     const std::vector<FactoryPreset>* factory = nullptr;
+    std::vector<juce::AudioProcessorParameter*> keepOnLoad;
     int factoryIndex = -1;                 // -1: Default Preset or a user preset
     std::vector<float> loadedValues;
     MenuLook menuLook;

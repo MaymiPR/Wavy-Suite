@@ -177,6 +177,18 @@ static void testProcessor()
     juce::MemoryBlock mb; proc.getStateInformation (mb);
     WBassXProcessor other; other.setStateInformation (mb.getData(), (int) mb.getSize());
     CHECK_NEAR (other.apvts.getRawParameterValue (wbassx::freq)->load(), 120.0, 1e-3);
+    // factory presets: 22 (from the reference's set), they set their values and leave Input alone
+    CHECK (proc.getNumPrograms() == 23);
+    auto* in = proc.apvts.getParameter (wbassx::input);
+    in->setValueNotifyingHost (in->convertTo0to1 (-6.0f));
+    proc.setCurrentProgram (2);                                       // "PA System"
+    CHECK (proc.getProgramName (2) == "Essentials: PA System");
+    CHECK_NEAR (proc.apvts.getRawParameterValue (wbassx::input)->load(), -6.0, 0.05);
+    CHECK_NEAR (proc.apvts.getRawParameterValue (wbassx::ratio)->load(), 2.0, 0.01);
+    CHECK_NEAR (proc.apvts.getRawParameterValue (wbassx::harmonics)->load(), -15.0, 0.05);
+    proc.setCurrentProgram (0);                                       // Default
+    CHECK_NEAR (proc.apvts.getRawParameterValue (wbassx::input)->load(), -6.0, 0.05);
+    CHECK_NEAR (proc.apvts.getRawParameterValue (wbassx::harmonics)->load(), -100.0, 0.05);
 }
 
 static void testAgainstReference()

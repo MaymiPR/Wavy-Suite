@@ -401,6 +401,15 @@ reference's own Decay loop goes unstable and turns chaotic (Nyquist content −7
 even the reference's own extracted gain reproduces it only to −4 dB), and the structure reproduces it only roughly (with the reference's own gain
 extracted it reaches −20 … −27 dB at Decay −9). At 96 kHz the null is within 1.8 dB of 48 kHz. This is not a null.
 
+### Meter ballistics (WBassX / MaxxBass)
+
+Filmed with tools/MeterCapture (50 Hz bursts at −6 and −20 dBFS, then silence): the bars rise at once and release as a
+one-pole on linear amplitude like RBass's, but faster: 55.8 … 56.4 dB/s over three releases, a time constant of
+0.155 s (RBass 0.325 s). The scale: 3.79 px per dB with −40 dB at y 274.7 (the rounded ends inset the bar from the
+tick marks); below −40 dB, while audio runs, a small dot stays at the bottom (y 279 … 283); with no audio at all,
+nothing. The peak readouts (−6.0, then −4.9 from the release overshoot) match. WBassX: within 1 px on 88 % of frames,
+3 px on 93 %.
+
 ### Value entry (WBassX / MaxxBass)
 
 Measured with the MeterCapture `click` / `dbl` scripts (click or double-click, then type a value and Enter): a

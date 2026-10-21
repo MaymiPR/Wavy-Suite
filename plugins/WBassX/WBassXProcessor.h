@@ -45,7 +45,8 @@ public:
         if (index == currentProgram || index < 0 || index >= getNumPrograms()) return;
         currentProgram = index;
         static const wavy::FactoryPreset defaults { "", "Default", {} };
-        wavy::applyPreset (apvts, index == 0 ? defaults : wbassx::factoryPresets()[(size_t) index - 1], apvts.getParameter (wbassx::mode));
+        wavy::applyPreset (apvts, index == 0 ? defaults : wbassx::factoryPresets()[(size_t) index - 1], apvts.getParameter (wbassx::mode),
+                           { apvts.getParameter (wbassx::input) });         // presets leave Input alone, as the reference
     }
     const juce::String getProgramName (int index) override
     {
@@ -63,6 +64,7 @@ public:
     // output meters (dB, highest peak since the editor last read them) and the clip latch
     wavy::PeakTap outLDb, outRDb;
     std::atomic<bool> clipped { false };
+    std::atomic<int> blocks { 0 };          // counts processed blocks (the meters show their floor dot only while audio runs)
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout layout();

@@ -86,6 +86,7 @@ protected:
     juce::Component& content();
     bool isMono() const;
     void setFactoryPresets (const std::vector<wavy::FactoryPreset>& list) { toolbar->setFactoryPresets (&list); }
+    void setKeepOnPresetLoad (std::vector<juce::AudioProcessorParameter*> list) { toolbar->setKeepOnPresetLoad (std::move (list)); }
 
     // for editors with their own widgets (e.g. the flat kit, WavyFlatUI.h): the editor owns them and their look,
     // and keeps the parameter attachments; everything is torn down before the look

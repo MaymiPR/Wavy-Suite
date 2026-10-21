@@ -29,6 +29,7 @@ WBassXEditor::WBassXEditor (WBassXProcessor& p)
     for (auto* c : getChildren())
         if (dynamic_cast<ResizableCornerComponent*> (c) != nullptr) c->setAlpha (0.0f);
     setFactoryPresets (wbassx::factoryPresets());
+    setKeepOnPresetLoad ({ p.apvts.getParameter (wbassx::input) });     // presets leave Input alone, as the reference
 
     auto gainFmt = [] (double v) { return gainText ((float) v); };
     for (auto* f : { &input, &origBass, &harmonics }) f->format = gainFmt;
@@ -84,6 +85,7 @@ void WBassXEditor::tick()
     outL = barL.update (l, dt); outR = barR.update (r, dt);
     holdL = jmax (holdL, l); holdR = jmax (holdR, r);
     clip = clip || proc.clipped.exchange (false);
+    if (const int b = proc.blocks.load(); b != lastBlocks) { lastBlocks = b; lastBlockMs = Time::getMillisecondCounterHiRes(); }
     content().repaint (kOut);
 }
 
@@ -243,20 +245,23 @@ void WBassXEditor::paintMeters (Graphics& g)
 {
     const bool mono = isMono();
     const float meterH = kMeterBottom - kMeterTop;
-    auto frac = [] (float db) { return jlimit (0.0f, 1.0f, (db + 40.0f) / 40.0f); };
+    // bar top as measured on the reference (tools/MeterCapture, -6 / -20 dBFS bursts): 3.79 px per dB, -40 dB at y 274.7;
+    // below -40 dB, while audio runs, a dot stays at the bottom (y 279 ... 283); with no audio at all, nothing
+    const bool running = Time::getMillisecondCounterHiRes() - lastBlockMs < 500.0;
+    auto top = [running] (float db) { return db > -40.0f ? 274.7f - 3.79f * (db + 40.0f) : running ? 278.6f : kMeterBottom; };
     g.setFont (font (12.0f));
     g.setColour (kValue);
     auto peakText = [] (float db) { return db <= -99.95f ? String ("-Inf") : String (db, 1); };
     if (mono)
     {
-        drawMeterBar (g, { 715.0f, kMeterTop, 6.0f, meterH }, frac (outL));
+        drawMeterBarTo (g, { 715.0f, kMeterTop, 6.0f, meterH }, top (outL));
         g.setColour (kValue);
         g.drawText (peakText (holdL), Rectangle<int> (698, 100, 40, 15), Justification::centred);
     }
     else
     {
-        drawMeterBar (g, { 715.0f, kMeterTop, 6.0f, meterH }, frac (outL));
-        drawMeterBar (g, { 761.0f, kMeterTop, 6.0f, meterH }, frac (outR));
+        drawMeterBarTo (g, { 715.0f, kMeterTop, 6.0f, meterH }, top (outL));
+        drawMeterBarTo (g, { 761.0f, kMeterTop, 6.0f, meterH }, top (outR));
         g.setColour (kValue);
         g.drawText (peakText (holdL), Rectangle<int> (698, 100, 40, 15), Justification::centred);
         g.drawText (peakText (holdR), Rectangle<int> (744, 100, 40, 15), Justification::centred);

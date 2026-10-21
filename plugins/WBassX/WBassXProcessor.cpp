@@ -75,6 +75,7 @@ void WBassXProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
     outLDb.push (toDb (peakL));
     outRDb.push (toDb (peakR));
     if (jmax (peakL, peakR) >= 0.999999f) clipped.store (true);       // the reference's clip level
+    blocks.fetch_add (1, std::memory_order_relaxed);
 }
 
 AudioProcessorEditor* WBassXProcessor::createEditor() { return new WBassXEditor (*this); }
