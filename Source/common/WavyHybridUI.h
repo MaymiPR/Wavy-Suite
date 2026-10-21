@@ -96,8 +96,8 @@ public:
     void paint (juce::Graphics&) override;
     void setNeedle (float angleDeg) { if (angleDeg != needle) { needle = angleDeg; repaint(); } }
     static float angleForGr (float db);              // the needle's angle for a gain reduction in dB (the printed scale)
-    juce::Point<float> pivot;                         // local: the scale's centre (the needle turns 6.4 px above it)
-    float needle = 58.5f;                             // degrees from vertical about the needle's pivot, + to the right
+    juce::Point<float> pivot;                         // local: the scale's centre (the needle turns 0.6, 1.2 px from it)
+    float needle = 58.2f;                             // degrees from vertical about the needle's pivot, + to the right (0 dB GR)
 private:
     juce::Image dial;                                 // the cream dial's shading, rendered for the current scale
     float dialScale = 0.0f;

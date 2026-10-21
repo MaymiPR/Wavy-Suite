@@ -9,7 +9,7 @@ namespace
 const Rectangle<float> kHousing (174.5f, 52.5f, 295.0f, 228.0f);   // its outline, bevels included
 constexpr float kArch = 82.5f;                                  // the housing's arch around Threshold (centred on the knob)
 const Rectangle<int> kDial (197, 73, 251, 170);                 // the dial's window frame, and the pivot's bump below it
-const Point<float> kVuPivot (321.3f, 228.5f);
+const Point<float> kVuPivot (320.7f, 220.9f);                  // the scale's centre
 const Rectangle<float> kLed (506.0f, 404.0f, 90.5f, 34.0f);
 const Point<float> kLimLamp (444.5f, 75.5f);
 // knob centres (the knob bodies in the reference: rings fitted on the captures)
@@ -109,22 +109,23 @@ void WCompEditor::paintContent (Graphics& g)
     drawPanel (g, { 0, 19, W, H - 19 }, panelCache);
     drawVuHousing (g, kHousing, kThreshold, kArch);
     // the limiter lamp in the housing's corner (lit while the limiter acts; Phase 4), measured: a black glass dome of
-    // radius 8 in a bezel to 11.5, bright on its upper left, reddish on its lower right, two small reflections
+    // radius 8.6 at (444.5, 75.5) in a bezel to 11.2, a bright crescent on its upper left fading to a dull reddish rim on
+    // its lower right; two small reflections on the dome
     {
         const auto c = kLimLamp;
-        ColourGradient bz (Colour (238, 232, 214), c.x - 7.5f, c.y - 8.5f, Colour (96, 52, 44), c.x + 7.5f, c.y + 8.5f, false);
-        bz.addColour (0.45, Colour (92, 88, 82));
-        bz.addColour (0.6, Colour (30, 28, 28));
+        ColourGradient bz (Colour (240, 234, 216), c.x - 7.0f, c.y - 8.0f, Colour (92, 54, 46), c.x + 7.0f, c.y + 8.0f, false);
+        bz.addColour (0.38, Colour (150, 146, 138));
+        bz.addColour (0.55, Colour (42, 40, 40));
         g.setGradientFill (bz);
-        g.fillEllipse (c.x - 11.5f, c.y - 11.5f, 23.0f, 23.0f);
-        g.setColour (Colours::black.withAlpha (0.6f));
-        g.drawEllipse (c.x - 11.5f, c.y - 11.5f, 23.0f, 23.0f, 0.8f);
+        g.fillEllipse (c.x - 11.2f, c.y - 11.2f, 22.4f, 22.4f);
+        g.setColour (Colours::black.withAlpha (0.5f));
+        g.drawEllipse (c.x - 11.2f, c.y - 11.2f, 22.4f, 22.4f, 0.7f);
         g.setColour (Colour (2, 2, 2));
-        g.fillEllipse (c.x - 8.0f, c.y - 8.0f, 16.0f, 16.0f);
+        g.fillEllipse (c.x - 8.6f, c.y - 8.6f, 17.2f, 17.2f);
         g.setColour (Colour (232, 228, 220));
-        g.fillEllipse (c.x - 5.2f, c.y - 4.6f, 3.4f, 3.0f);
+        g.fillEllipse (c.x - 5.0f, c.y - 4.4f, 3.6f, 3.0f);
         g.setColour (Colour (150, 148, 144));
-        g.fillEllipse (c.x - 0.6f, c.y - 5.6f, 2.0f, 1.8f);
+        g.fillEllipse (c.x - 0.4f, c.y - 5.4f, 2.0f, 1.8f);
     }
 
     // scales printed on the panel (fitted on the reference: tick ring, radii, thickness; 14 degrees per tick)

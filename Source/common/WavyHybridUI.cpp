@@ -409,22 +409,22 @@ void ButtonGroup::mouseDown (const MouseEvent& e)
 // a rounded rectangle with one radius for the top corners and another for the bottom ones
 static Path roundRect (Rectangle<float> r, float top, float bottom)
 {
+    // circular corners: one radius for the top two, another for the bottom two
     Path p;
-    const float x0 = r.getX(), y0 = r.getY(), x1 = r.getRight(), y1 = r.getBottom();
+    const float x0 = r.getX(), y0 = r.getY(), x1 = r.getRight(), y1 = r.getBottom(), hp = MathConstants<float>::halfPi;
     p.startNewSubPath (x0 + top, y0);
     p.lineTo (x1 - top, y0);
-    p.quadraticTo (x1, y0, x1, y0 + top);
+    p.addCentredArc (x1 - top, y0 + top, top, top, 0.0f, 0.0f, hp);
     p.lineTo (x1, y1 - bottom);
-    p.quadraticTo (x1, y1, x1 - bottom, y1);
+    p.addCentredArc (x1 - bottom, y1 - bottom, bottom, bottom, 0.0f, hp, 2.0f * hp);
     p.lineTo (x0 + bottom, y1);
-    p.quadraticTo (x0, y1, x0, y1 - bottom);
+    p.addCentredArc (x0 + bottom, y1 - bottom, bottom, bottom, 0.0f, 2.0f * hp, 3.0f * hp);
     p.lineTo (x0, y0 + top);
-    p.quadraticTo (x0, y0, x0 + top, y0);
+    p.addCentredArc (x0 + top, y0 + top, top, top, 0.0f, 3.0f * hp, 4.0f * hp);
     p.closeSubPath();
     return p;
 }
 
-// a screw sunk in the housing (measured: a dark ring, a head a shade lighter than the housing, a faint cross or slot)
 // a screw sunk in the housing (measured: a recess `recess` px wider than the head, dark on its upper left side, its lower
 // right lip catching the light; the head lit from the upper left, with a cross or a slot)
 static void screw (Graphics& g, Point<float> c, float r, bool slot, float recess = 1.75f)
@@ -459,29 +459,30 @@ static void screw (Graphics& g, Point<float> c, float r, bool slot, float recess
 
 VuMeter::VuMeter() { setInterceptsMouseClicks (false, false); }
 
-// The printed scale: degrees from vertical about the scale's centre for a gain reduction in dB (the labels, measured).
-// The needle turns about its own pivot, 6.4 px above that centre (measured: the needle's line at rest), so its angle is
-// the direction from its pivot to the reading on the arc.
+// The printed scale (measured on the reference): an arc of radius 99.8 about (320.7, 220.9) from -57.7 to 60.1 degrees,
+// the readings' angles taken at the numbers' centres. The needle turns about a point 0.6, 1.2 px from that centre (its
+// line at rest), so its angle is the direction from its pivot to the reading on the arc.
 static float scaleAngle (float db)
 {
-    static const float d[] = { 0.0f, 3.0f, 6.0f, 12.0f, 24.0f, 48.0f }, ang[] = { 55.6f, 22.1f, 0.0f, -28.05f, -46.6f, -54.25f };
+    static const float d[] = { 0.0f, 3.0f, 6.0f, 12.0f, 24.0f, 48.0f }, ang[] = { 59.0f, 24.9f, 0.2f, -29.9f, -49.6f, -58.6f };
     db = jlimit (0.0f, 48.0f, db);
     for (int i = 0; i < 5; ++i)
         if (db <= d[i + 1]) return ang[i] + (ang[i + 1] - ang[i]) * (db - d[i]) / (d[i + 1] - d[i]);
     return ang[5];
 }
-static constexpr float kNeedleRise = 6.4f;
+static constexpr float kArcR = 99.8f, kNeedleDx = 0.6f, kNeedleDy = 1.2f;
 
 float VuMeter::angleForGr (float db)
 {
     const float a = rad (scaleAngle (db));
-    return radiansToDegrees (std::atan2 (105.0f * std::sin (a), kNeedleRise + 105.0f * std::cos (a)));
+    return radiansToDegrees (std::atan2 (kArcR * std::sin (a) - kNeedleDx, kArcR * std::cos (a) + kNeedleDy));
 }
 
 // The dial (measured on the reference, design px; the component covers the black window frame, 197 .. 448 x 73 .. 221,
 // and the pivot's bump below it).
 // The scale's arc: centre (321.3, 228.5), radius 105, from -55 to 56.5 degrees.
 static const Rectangle<float> kCream (7.5f, 7.5f, 236.0f, 135.0f);
+static constexpr float kFrameTop = 46.0f, kFrameBottom = 13.0f;      // the window's corner radii (the cream: 7 px less)
 
 static Colour dialColour (float x, float y)                   // design coordinates
 {
@@ -502,7 +503,7 @@ static Colour dialColour (float x, float y)                   // design coordina
 void VuMeter::paint (Graphics& g)
 {
     const auto o = getPosition().toFloat();                      // design origin of the component
-    const auto cream = roundRect (kCream, 20.0f, 3.0f);
+    const auto cream = roundRect (kCream, kFrameTop - 7.0f, kFrameBottom - 7.0f);
     const float scale = jlimit (0.5f, 4.0f, std::round (g.getInternalContext().getPhysicalPixelScaleFactor() * 4.0f) / 4.0f);
     if (dial.isNull() || dialScale != scale)
     {
@@ -519,55 +520,58 @@ void VuMeter::paint (Graphics& g)
     g.drawImageTransformed (dial, AffineTransform::scale (1.0f / scale).translated (kCream.getX(), kCream.getY()));
 
     const auto c = pivot;
-    const float R = 105.0f;
+    const float R = kArcR;
     auto at = [&] (float deg, float r) { return c + Point<float> (std::sin (rad (deg)), -std::cos (rad (deg))) * r; };
     const Colour ink (34, 30, 24);
-    // the red band from 6 to 0 (outside the arc), its dividers at the dots
+    // the red band from 6 to 0 outside the arc (to radius 107), its dividers at the dots
     {
         Path band;
-        band.addCentredArc (c.x, c.y, R + 6.5f, R + 6.5f, 0.0f, 0.0f, rad (56.0f), true);
-        band.addCentredArc (c.x, c.y, R, R, 0.0f, rad (56.0f), 0.0f, false);
+        band.addCentredArc (c.x, c.y, 107.0f, 107.0f, 0.0f, rad (0.2f), rad (60.0f), true);
+        band.addCentredArc (c.x, c.y, R, R, 0.0f, rad (60.0f), rad (0.2f), false);
         band.closeSubPath();
         g.setColour (Colour (234, 85, 66));
         g.fillPath (band);
         g.setColour (ink);
         g.strokePath (band, PathStrokeType (1.1f));
-        for (float a : { 7.0f, 15.0f, 22.6f, 33.0f, 44.3f })
-            g.drawLine (Line<float> (at (a, R), at (a, R + 6.5f)), 1.0f);
+        for (float a : { 7.7f, 15.6f, 24.6f, 35.6f, 46.5f })
+            g.drawLine (Line<float> (at (a, R), at (a, 107.0f)), 1.0f);
     }
+    // the arc, its ticks standing outward on it (minor 2.3 px, at 12 and 24 6 px), the stop at the 48 end
     {
         Path arc;
-        arc.addCentredArc (c.x, c.y, R, R, 0.0f, rad (-55.0f), rad (56.5f), true);
+        arc.addCentredArc (c.x, c.y, R, R, 0.0f, rad (-57.7f), rad (60.1f), true);
         g.setColour (ink);
         g.strokePath (arc, PathStrokeType (1.5f));
-        g.drawLine (Line<float> (at (-55.0f, R + 0.6f), at (-55.0f, R - 7.0f)), 1.4f);           // the end stop at 48
-        for (float a : { -49.3f, -43.8f, -39.0f, -33.3f, -27.8f, -20.4f, -13.6f, -7.7f })
-            g.drawLine (Line<float> (at (a, R), at (a, R - (a == -49.3f || a == -27.8f ? 6.0f : 4.5f))), 1.0f);
+        g.drawLine (Line<float> (at (-57.7f, R - 0.7f), at (-57.7f, 107.9f)), 1.4f);
+        for (float a : { -51.8f, -46.4f, -40.5f, -34.5f, -28.9f, -21.6f, -14.7f, -7.9f })
+            g.drawLine (Line<float> (at (a, R), at (a, a == -51.8f || a == -28.9f ? 107.9f : 103.8f)), 1.0f);
     }
-    for (float a : { -37.2f, -18.7f, -9.8f, 6.8f, 14.5f, 32.4f, 43.8f })
+    for (float a : { -39.3f, -19.6f, -10.0f, 7.8f, 15.7f, 34.7f, 46.9f })
     {
-        const auto p = at (a, 124.0f);
+        const auto p = at (a, 117.2f);
         g.drawEllipse (p.x - 2.3f, p.y - 2.3f, 4.6f, 4.6f, 1.0f);
     }
-    // the numbers: Times italic, each turned along the scale (measured angles at radius 122.5)
+    // the numbers: Times bold italic, each turned along the scale (measured centres)
     {
         const Font f = Font (FontOptions ("Times New Roman", 10.0f, Font::bold | Font::italic).withPointHeight (14.5f));
-        for (auto [a, t] : { std::pair<float, const char*> { -54.25f, "48" }, { -46.6f, "24" }, { -28.05f, "12" }, { 0.0f, "6" }, { 22.1f, "3" }, { 55.6f, "0" } })
+        struct Num { float a, r; const char* t; };
+        for (auto n : { Num { -58.6f, 116.3f, "48" }, Num { -49.6f, 116.4f, "24" }, Num { -29.9f, 116.0f, "12" }, Num { 0.2f, 115.5f, "6" },
+                        Num { 24.9f, 116.8f, "3" }, Num { 59.0f, 117.1f, "0" } })
         {
             GlyphArrangement ga;
-            ga.addLineOfText (f, t, 0.0f, 0.0f);
+            ga.addLineOfText (f, n.t, 0.0f, 0.0f);
             Path p;
             ga.createPath (p);
             const auto b = p.getBounds();
-            g.fillPath (p, AffineTransform::translation (-b.getCentreX(), -b.getCentreY()).rotated (rad (a)).translated (at (a, 122.5f)));
+            g.fillPath (p, AffineTransform::translation (-b.getCentreX(), -b.getCentreY()).rotated (rad (n.a)).translated (at (n.a, n.r)));
         }
     }
     // our mark printed on the dial where the reference prints its maker's logo
-    drawMark (g, Rectangle<float> (c.x - 19.0f, c.y - 77.5f, 38.0f, 29.0f), false, false, Colour (96, 78, 50).withAlpha (0.8f), 1.2f);
+    drawMark (g, Rectangle<float> (c.x - 18.4f, c.y - 69.1f, 38.0f, 29.0f), false, false, Colour (96, 78, 50).withAlpha (0.8f), 1.2f);
     // the needle (measured: (124, 0, 0), 2 px, to 114 px from its pivot, a cream rivet at 109 px) and its soft shadow,
     // 5 px below it, 3.5 px wide, a quarter darker
     {
-        const Point<float> np (c.x, c.y - kNeedleRise), dir (std::sin (rad (needle)), -std::cos (rad (needle))), nrm (-dir.y, dir.x);
+        const Point<float> np (c.x + kNeedleDx, c.y + kNeedleDy), dir (std::sin (rad (needle)), -std::cos (rad (needle))), nrm (-dir.y, dir.x);
         const Point<float> base = np + dir * 20.0f, tip = np + dir * 114.0f;
         const Point<float> sh = nrm * 5.0f;
         g.setColour (Colour (70, 52, 24).withAlpha (0.10f));
@@ -585,7 +589,7 @@ void VuMeter::paint (Graphics& g)
 
     // the housing's bump into the window over the pivot (measured: housing grey, edged by the black recess), with the
     // slotted pivot screw in its recess
-    const Point<float> bc (c.x - 0.2f, c.y - 8.5f);
+    const Point<float> bc (c.x + 0.4f, c.y - 0.9f);
     g.saveState();
     g.reduceClipRegion (Rectangle<float> (0.0f, 0.0f, (float) getWidth(), 147.0f).toNearestInt());     // the recess edge only in the window
     g.setColour (Colours::black);
@@ -593,7 +597,7 @@ void VuMeter::paint (Graphics& g)
     g.restoreState();
     g.setColour (Colour (43, 43, 44));
     g.fillEllipse (bc.x - 18.3f, bc.y - 18.3f, 36.6f, 36.6f);
-    screw (g, { c.x - 0.05f, c.y - 9.75f }, 8.3f, true, 3.9f);
+    screw (g, { c.x + 0.5f, c.y - 2.15f }, 8.3f, true, 3.9f);
 }
 
 void drawVuHousing (Graphics& g, Rectangle<float> h, Point<float> archCentre, float archRadius)
@@ -640,13 +644,13 @@ void drawVuHousing (Graphics& g, Rectangle<float> h, Point<float> archCentre, fl
     g.strokePath (p, PathStrokeType (1.2f));
 
     // the dial's window: a black recess, its lower lip catching the light
-    const auto frame = roundRect ({ 197.5f, 73.5f, 250.0f, 147.0f }, 27.0f, 6.0f);
+    const auto frame = roundRect ({ 197.5f, 73.5f, 250.0f, 147.0f }, kFrameTop, kFrameBottom);
     g.setColour (Colours::white.withAlpha (0.16f));
     g.strokePath (frame, PathStrokeType (1.0f), AffineTransform::translation (0.0f, 1.0f));
     g.setColour (Colours::black);
     g.fillPath (frame);
-    for (auto s : { Point<float> (199.25f, 74.75f), Point<float> (199.25f, 259.5f), Point<float> (450.25f, 259.5f) })
-        screw (g, s, 9.0f, false);
+    for (auto s : { Point<float> (198.4f, 75.95f), Point<float> (196.6f, 261.05f), Point<float> (449.2f, 260.95f) })
+        screw (g, s, 9.0f, false, 2.2f);
 }
 
 // one character of the display's segment font in the cell r (segments a..g as a 7-segment digit, i: the upper middle

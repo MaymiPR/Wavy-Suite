@@ -306,13 +306,15 @@ WComp itself:
 - **Scales**: ticks every 14°, small knobs r 33.8 … 40 (1.7 px), Ratio / Mix r 56.2 … 64.3, Threshold 19 ticks
   r 72.2 … 80.4. Labels Arial Black 10.75 px stretched 1.2×; numbers Arial Bold 8.6 px; each placed at its measured
   ink centre. "0 THRESHOLD −48": Arial Black 12.6 px, one glyph per measured angle at r 85 around the knob.
-- **VU**: window frame 197.5, 73.5, 250 × 147 (top corners 27); cream dial 204.5, 80.5, 236 × 135; scale arc centre
-  (321.3, 228.5), r 105, −55° … 56.5°; numbers Times italic 14.5 px turned along the arc at r 122.5
-  (48 −54.25°, 24 −46.6°, 12 −28.05°, 6 0°, 3 22.1°, 0 55.6°). The needle turns about (321.3, 222.1), 6.4 px above
-  the scale's centre (58.3° at rest): (124, 0, 0), 2 px, 114 px long, a cream rivet at 109 px, a soft shadow 5 px
-  below it. Housing 174.5, 52.5 to 469.5, 280.5, a raised box (light top and left faces, 5–6 px dark right and bottom
-  faces), arched (r 82.5) around Threshold; screws in 10.75 px recesses; the limiter lamp at (444.5, 75.5), a black
-  dome (r 8) in a bezel (r 11.5).
+- **VU**: window frame 197.5, 73.5, 250 × 147 (top corners radius 46, bottom 13); cream dial inset 7 px. Scale arc
+  centre (320.7, 220.9), r 99.8, −57.7° … 60.1°, ticks standing outward on it (minor 2.3 px; at 12 and 24, and the
+  stop at the 48 end, 6 px); red band r 99.8 … 107 from 0.2° to 60°, dividers at 7.7, 15.6, 24.6, 35.6, 46.5°; dots
+  at r 117.2; numbers Times bold italic 14.5 px turned along the arc (48 −58.6° r 116.3, 24 −49.6° 116.4,
+  12 −29.9° 116, 6 0.2° 115.5, 3 24.9° 116.8, 0 59° 117.1). The needle turns about (321.3, 222.1) (58.2° at rest):
+  (124, 0, 0), 2 px, 114 px long, a cream rivet at 109 px, a soft shadow 5 px below it. Housing 174.5, 52.5 to
+  469.5, 280.5, a raised box (light top and left faces, 5–6 px dark right and bottom faces), arched (r 82.5) around
+  Threshold; screws (head 9, recess 11.2) at (198.4, 75.95), (196.6, 261.05), (449.2, 260.95); the limiter lamp at
+  (444.5, 75.5), a black dome (r 8.6) in a bezel (r 11.2) bright on its upper left.
 - **Buttons**: 1 px black frames: In / GR / Out 245, 27, 151 × 21; Limiter 417, 27, 52 × 21; Sync 547, 315, 50 × 61;
   19 px faces. **Display** 506, 404, 90.5 × 34, a segment font (6 × 9 px cells; tempo digits 12 × 20).
 
