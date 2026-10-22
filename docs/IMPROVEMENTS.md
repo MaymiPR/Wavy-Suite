@@ -63,3 +63,14 @@ When part of a reference resists identification, keep everything that *is* ident
 
 ### Meters
 - The same snap-down quirk exists on the RVox output meter. Everything else matches the reference within a few pixels.
+
+## WComp
+
+- **Release law** (the main open item): the current two-state law nulls voice and bass at the defaults (−62 / −59 dB)
+  but not steady tones at deep, slow settings, noise or drums (−10 … −28 dB). What is known and what was tried is in
+  MEASUREMENTS.md "WComp model": a start-up state, the settled program dependence, a Crest average of about 150 ms.
+  Next: a state for the duration of the current event; validate on voice-like and bass line first.
+- **Limiter**: H-Comp's limiter sees the true future output; WComp estimates it (−16 … −43 dB under heavy limiting).
+- **VU needle ballistics**: film H-Comp's editor with MeterCapture while the desktop is in use (it does not paint
+  while locked).
+- **Analog mode 3**: nulls −29 … −64 dB (median −40); a finer table near the transition (0.02 … 1) may help.

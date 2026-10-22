@@ -92,11 +92,8 @@ def main():
     if out_md:
         with open(out_md, "w", encoding="utf-8") as f:
             f.write("# WComp null test results\n\nResidual = 20 log10(rms(WComp - reference) / rms(reference)), %d Hz, after the first 0.2 s. Analog Off unless stated; modes 1-3 add random noise, which no null can remove.\n\n" % fs)
-            f.write("| threshold | ratio | attack | release | punch | mix | output | limiter | analog | signal | residual (dB) |
-|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|
-")
-            for st, name, res in rows: f.write("| %g | %g | %g | %g | %g | %g | %g | %s | %s | %s | %.1f |
-" % (*st[:8], st[8] if len(st) > 8 else "Off", name, res))
+            f.write("| threshold | ratio | attack | release | punch | mix | output | limiter | analog | signal | residual (dB) |\n|---:|---:|---:|---:|---:|---:|---:|---|---|---|---:|\n")
+            for st, name, res in rows: f.write("| %g | %g | %g | %g | %g | %g | %g | %s | %s | %s | %.1f |\n" % (*st[:8], st[8] if len(st) > 8 else "Off", name, res))
             f.write("\nmedian %.1f dB, best %.1f, worst %.1f\n" % (np.median(v), v.min(), v.max()))
 
 

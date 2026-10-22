@@ -51,7 +51,7 @@ public:
         sum1 = (double) b1.size(); sum2 = (double) b2.size(); lsum1 = (double) lb1.size(); lsum2 = (double) lb2.size();
         i1 = i2 = li1 = li2 = 0;
         pos = 0; detPos = 0; limPos = 0;
-        R = S = 0.0; g1 = 1.0;
+        R = 0.0; S = tables::hasRelease4 ? (double) tables::start4Db : 0.0; S2 = tables::hasRelease4 ? (double) tables::start4FastDb : 0.0; g1 = 1.0;
     }
 
     int latency() const { return la; }
@@ -63,7 +63,11 @@ public:
         attC = std::exp (-1.0 / (0.99 * std::max (0.05, (double) s.attackMs) * 1e-3 * fs));
         relS = std::max (1e-3, (double) s.releaseMs * 1e-3);
         crestC = std::exp (-1.0 / ((double) tables::crestMs * 1e-3 * fs));
-        if constexpr (tables::hasRelease3) crest3C = std::exp (-1.0 / ((double) tables::crest3Ms * 1e-3 * fs));
+        if constexpr (tables::hasRelease4)
+        {
+            crest4C = std::exp (-1.0 / ((double) tables::crest4Ms * 1e-3 * fs));
+            fast4C = std::exp (-1.0 / ((double) tables::fast4Ms * 1e-3 * fs));
+        }
         punchSamples = std::clamp ((int) std::lround (s.punch * 1e-3 * fs), 0, maxPunch - 1);
         makeup = std::pow (10.0, makeupDb (s.thresholdDb, s.ratio) * makeupScale (s.releaseMs) / 20.0);
         outGain = std::pow (10.0, s.outputDb / 20.0);
@@ -204,48 +208,29 @@ private:
         return std::exp (logv[i] + f * (logv[i + 1] - logv[i]));
     }
 
-    static double grid (double R, double S)
+    // the fourth / fifth form (ident_hc_rel4.py): the release time shrinks as R rises above two averages of itself,
+    // a slow one (the reference's Crest detector) and a faster one, so short events release almost at once and long
+    // ones at the Release time; after a reset the averages start high (the reference releases slowly at first)
+    void stepRelease4 (double t)
     {
         using namespace tables;
-        if constexpr (hasRelease3)
-        {
-            R = std::clamp (R, (double) ff3RKnot[0], (double) ff3RKnot[ff3R - 1]);
-            S = std::clamp (S, (double) ff3SKnot[0], (double) ff3SKnot[ff3S - 1]);
-            int i = 0, j = 0;
-            while (i < ff3R - 2 && R > ff3RKnot[i + 1]) ++i;
-            while (j < ff3S - 2 && S > ff3SKnot[j + 1]) ++j;
-            const double fr = (R - ff3RKnot[i]) / (ff3RKnot[i + 1] - ff3RKnot[i]), fq = (S - ff3SKnot[j]) / (ff3SKnot[j + 1] - ff3SKnot[j]);
-            const auto v = [] (int a, int b) { return (double) ff3Log[a * ff3S + b]; };
-            return std::exp ((1 - fr) * (1 - fq) * v (i, j) + fr * (1 - fq) * v (i + 1, j) + (1 - fr) * fq * v (i, j + 1) + fr * fq * v (i + 1, j + 1));
-        }
-        else { (void) R; (void) S; return 0.0; }
-    }
-
-    // the third form (ident_hc_rel3.py): the slow law for both states, plus a fast part for R that depends on how deep
-    // R is and how far the slow state has caught up
-    void stepRelease3 (double t)
-    {
-        using namespace tables;
-        if constexpr (hasRelease3)
+        if constexpr (hasRelease4)
         {
             const double dt = 1.0 / fs;
-            const double src = std::max (R, t);
-            if (src > S)
-            {
-                const double gs = std::pow (10.0, -S / 20.0), gt = std::pow (10.0, -src / 20.0);
-                S = std::min (src, -20.0 * std::log10 (gt + crest3C * (gs - gt)));
-            }
-            else { S -= (table (fs3Knot, fs3Log, fs3Count, S) / relS + table (as3Knot, as3Log, as3Count, S)) * dt; S = std::max (S, t); }
-            S = std::max (S, 0.0);
-            R -= (table (fs3Knot, fs3Log, fs3Count, R) / relS + table (as3Knot, as3Log, as3Count, R) + (R > S ? grid (R, S) : 0.0)) * dt;
-            R = std::max ({ R, S, t });
+            const double w = (R > S ? table (w4Knot, w4Log, w4Count, R - S) : std::exp ((double) w4Log[0]))
+                           * (R > S2 ? table (w4Knot, w4fLog, w4fCount, R - S2) : std::exp ((double) w4fLog[0]));
+            R -= (table (fs4Knot, fs4Log, fs4Count, R) / (relS * w) + table (as4Knot, as4Log, as4Count, R)) * dt;
+            R = std::max ({ R, t, 0.0 });
+            const double gt = std::pow (10.0, -R / 20.0);
+            S2 = -20.0 * std::log10 (gt + fast4C * (std::pow (10.0, -S2 / 20.0) - gt));
+            S = -20.0 * std::log10 (gt + crest4C * (std::pow (10.0, -S / 20.0) - gt));
         }
     }
 
     void stepRelease (double t)
     {
         using namespace tables;
-        if constexpr (hasRelease3) { stepRelease3 (t); return; }
+        if constexpr (hasRelease4) { stepRelease4 (t); return; }
         const double dt = 1.0 / fs;
         // the slow state charges toward the output (a one-pole on the linear gain) or releases with the slow law
         const double src = std::max (R, t);
@@ -267,11 +252,11 @@ private:
     Settings set;
     double fs = 48000.0;
     int scale = 1, la = 64, channels = 2, maxPunch = 1441, punchSamples = 48;
-    double slope = 2.0 / 3.0, attC = 0.0, relS = 0.1, crestC = 0.0, crest3C = 0.0, makeup = 1.0, outGain = 1.0;
+    double slope = 2.0 / 3.0, attC = 0.0, relS = 0.1, crestC = 0.0, crest4C = 0.0, fast4C = 0.0, makeup = 1.0, outGain = 1.0;
     std::vector<std::vector<float>> delay;
     std::vector<float> det, lim, b1, b2, lb1, lb2;
     double sum1 = 0.0, sum2 = 0.0, lsum1 = 0.0, lsum2 = 0.0;
     int i1 = 0, i2 = 0, li1 = 0, li2 = 0, pos = 0, detPos = 0, limPos = 0;
-    double R = 0.0, S = 0.0, g1 = 1.0, minGain = 1.0, minLimGain = 1.0;
+    double R = 0.0, S = 0.0, S2 = 0.0, g1 = 1.0, minGain = 1.0, minLimGain = 1.0;
 };
 }

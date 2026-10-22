@@ -1,6 +1,6 @@
 """Writes plugins/WComp/WCompTables.h from the WComp measurements: the static curve's constants (knee_model), the makeup
 slopes per ratio (makeup.csv), the release law (release_law.json, fitted by nulltest/ident_hc_release2.py and
-ident_hc_real.py) and the Analog modes (analog_model.json from nulltest/fit_hc_analog2.py, analog_noise.csv).
+ident_hc_real.py; the fourth form release_law4.json by ident_hc_rel4.py) and the Analog modes (analog_model.json from nulltest/fit_hc_analog2.py, analog_noise.csv).
 
     python tools/export_wcomp_tables.py
 """
@@ -62,28 +62,34 @@ def main():
          'constexpr float asKnot[] = { %s };' % f(kn['As']), 'constexpr float asLog[] = { %s };' % f(parts['As']),
          'constexpr float w0Knot[] = { %s };' % f(w0['S']), 'constexpr float w0Log[] = { %s };' % f(w0['z'][:nS]),
          'constexpr float relSeedMs = %s, relSeedExp = %s, crestMs = %s;' % (lit(np.exp(w0['z'][nS])), lit(w0['z'][nS + 1]), lit(w0['z'][nS + 2])),
-         ''] + release3(lit, f) + analog(lit, f) + ['}']
+         ''] + release4(lit, f) + analog(lit, f) + ['}']
     out = os.path.join(ROOT, 'plugins', 'WComp', 'WCompTables.h')
     open(out, 'w', newline='\n').write('\n'.join(L) + '\n')
     print('wrote', out)
 
 
-def release3(lit, f):
-    p = os.path.join(M, 'release_law3.json')
+def release4(lit, f):
+    p = os.path.join(M, 'release_law4.json')
     have = os.path.exists(p)
-    # without a fit: placeholders (hasRelease3 false selects the second form)
-    d = json.load(open(p)) if have else {'FX': [0, 1], 'AX': [0, 1], 'RK': [0, 1], 'SK': [0, 1], 'q': [0.0] * 9}
+    # without a fit: placeholders (hasRelease4 false selects the second form)
+    d = json.load(open(p)) if have else {'FX': [0, 1], 'AX': [0, 1], 'WX': [0, 1], 'q': [0.0] * 8}
     q = np.array(d['q'])
-    nF, nA, nR, nS = len(d['FX']), len(d['AX']), len(d['RK']), len(d['SK'])
-    return ['// release law, third form (nulltest/ident_hc_rel3.py): R falls at fs3(R) / release + as3(R) + ff3(R, S) dB/s, S',
-            '// (charging toward R at the time constant crest3Ms) at fs3(S) / release + as3(S); natural-log values, ff3 bilinear',
-            'constexpr bool hasRelease3 = %s;' % ('true' if have else 'false'),
-            'constexpr int fs3Count = %d, as3Count = %d, ff3R = %d, ff3S = %d;' % (nF, nA, nR, nS),
-            'constexpr float fs3Knot[] = { %s };' % f(d['FX']), 'constexpr float fs3Log[] = { %s };' % f(q[:nF]),
-            'constexpr float as3Knot[] = { %s };' % f(d['AX']), 'constexpr float as3Log[] = { %s };' % f(q[nF:nF + nA]),
-            'constexpr float crest3Ms = %s;' % lit(np.exp(q[nF + nA])),
-            'constexpr float ff3RKnot[] = { %s };' % f(d['RK']), 'constexpr float ff3SKnot[] = { %s };' % f(d['SK']),
-            'constexpr float ff3Log[] = { %s };' % f(q[nF + nA + 1:nF + nA + 1 + nR * nS]), '']
+    nF, nA, nW = len(d['FX']), len(d['AX']), len(d['WX'])
+    i = nF + nA + nW
+    five = d.get('form', 4) == 5
+    return ['// release law, fourth form (nulltest/ident_hc_rel4.py): R falls at fs4(R) / (release * w4(R - S)) + as4(R) dB/s',
+            '// (w4 = w4(0) while R <= S), never below the target; S charges toward R (one-pole on the linear gain, crest4Ms)',
+            '// and follows it down the same way (the Crest detector of the reference); after a reset S = start4Db; natural-log values',
+            'constexpr bool hasRelease4 = %s;' % ('true' if have else 'false'),
+            'constexpr int fs4Count = %d, as4Count = %d, w4Count = %d;' % (nF, nA, nW),
+            'constexpr float fs4Knot[] = { %s };' % f(d['FX']), 'constexpr float fs4Log[] = { %s };' % f(q[:nF]),
+            'constexpr float as4Knot[] = { %s };' % f(d['AX']), 'constexpr float as4Log[] = { %s };' % f(q[nF:nF + nA]),
+            'constexpr float w4Knot[] = { %s };' % f(d['WX']), 'constexpr float w4Log[] = { %s };' % f(q[nF + nA:i]),
+            'constexpr float crest4Ms = %s, start4Db = %s;' % (lit(np.exp(q[i])), lit(q[i + 1])),
+            '// fifth form: a second, faster average S2 of R (fast4Ms, after a reset start4FastDb); the release time is also',
+            '// scaled by w4f(R - S2) (all 1 in the fourth form)',
+            'constexpr int w4fCount = %d;' % nW, 'constexpr float w4fLog[] = { %s };' % f(q[i + 2:i + 2 + nW] if five else np.zeros(nW)),
+            'constexpr float fast4Ms = %s, start4FastDb = %s;' % ((lit(np.exp(q[i + 2 + nW])), lit(q[i + 3 + nW])) if five else ('30.0f', '0.0f')), '']
 
 
 def analog(lit, f):

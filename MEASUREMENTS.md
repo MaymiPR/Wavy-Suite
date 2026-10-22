@@ -521,10 +521,29 @@ slow settings far less (threshold −24, ratio 10, Release 300: −10 … −17 
   27 dB at 4 ms from 29). Below about 12 dB there is no fast part. This fast part barely depends on the Release time.
 - A steady 100 Hz tone keeps its reduction almost still between peaks (0.05 dB ripple at Release 300), where the
   model's w0 term releases ten times faster; setting w0 = 1 fixes tones but loses the voice-like signal (−62 → −8 dB).
-- A third form fitted on 400 single-burst release traces (`ident_hc_rel3.py`: the slow law plus a fast part
-  Ff(R, S) on a grid) fits those traces better (0.36 dB RMS against 0.48) but loses program material in the same
-  way (voice −8 dB). Single bursts with quiet gaps do not show what decides the release on syllables and drum hits;
-  the next attempt needs repeated events (bursts with gaps of 5–200 ms, re-attacks during the release) in the fit.
+- **Start-up state.** For the first 0.1–0.3 s after a reset H-Comp releases slowly, with no gain reduction to show
+  for it: a pitch spike that releases at once after 0.3 s of quiet holds its reduction after 0.02 s (and builds up
+  over repeated spikes). Every probe with a short quiet lead-in, including the burst set the current law was fitted on,
+  measured this start-up rather than the settled behaviour. Measured from 0.5 s on, the current law's errors stay the
+  same, so they are not start-up errors.
+- **Settled behaviour** (1 s quiet lead-in, `ident_hc_rel4.py`, 312 probes): bursts of 2–5 ms release almost at once
+  at every depth (gone within 4 ms); 20 ms bursts nearly so; 50 ms and longer release progressively more slowly, up to
+  about 500 ms of compression, after which the release no longer changes. A 4 ms burst with Attack 7 ms releases at
+  once too. A slow average of R with a time constant of **148–159 ms** (fitted twice) explains much of this, close to
+  the reference's own Crest value of 149.6 ms.
+- **Laws tried** (all in `nulltest/`, none adopted): the release rate against R and a 2-D fast part fitted on the
+  start-up probes (`ident_hc_rel3.py`); the release time scaled by a table of the distance between R and its slow
+  average (`ident_hc_rel4.py`, hcfast4.c), with the average charging only upward or following both ways (the second
+  fits better); a second, 30 ms average (hcfast5.c); a learned correction (8 tanh units) of the release time from the
+  distances to 156 / 30 / 5 ms averages (hcfast6.c), trained with exact gradients (`hcgrad.c`, `train_hc_release2.py`,
+  0.4 s per gradient over 482 cases). The average-based laws track steady tones (100 Hz: −27 → −54 dB at threshold −30)
+  and modulated signals better, but lose the voice-like signal and the bass line (−59 → −13 dB at the defaults): at a
+  pitch spike the distance between R and its average is the same as after a 50 ms burst, yet the reference releases
+  the first at once and the second over tens of milliseconds. Fitting stalls from every start (finite differences
+  and exact gradients alike, also with softened gates): the loss is very rough in these parameters.
+- What the next attempt needs: a state that measures how long the current event has lasted (the reference separates
+  a 4 ms spike from a 50 ms burst at the same depth and the same history), checked against the voice-like signal and
+  the bass line before anything else.
 
 **Not done.** The VU needle's ballistics: MeterCapture films the reference's editor, but H-Comp's editor is a web
 view that does not paint while the desktop is locked or the window is covered; the capture has to be repeated with

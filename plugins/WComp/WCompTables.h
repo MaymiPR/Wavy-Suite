@@ -29,18 +29,23 @@ constexpr float w0Knot[] = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 6.0f, 8.0f, 12.0f, 20
 constexpr float w0Log[] = { -7.18724106f, -2.75310883f, -2.77143007f, -2.40823788f, -1.97891684f, -1.62147339f, -0.809109174f, -0.0383556244f, -4.43804196f, -0.688329102f };
 constexpr float relSeedMs = 294.850653f, relSeedExp = 1.05765769f, crestMs = 142.414833f;
 
-// release law, third form (nulltest/ident_hc_rel3.py): R falls at fs3(R) / release + as3(R) + ff3(R, S) dB/s, S
-// (charging toward R at the time constant crest3Ms) at fs3(S) / release + as3(S); natural-log values, ff3 bilinear
-constexpr bool hasRelease3 = false;
-constexpr int fs3Count = 2, as3Count = 2, ff3R = 2, ff3S = 2;
-constexpr float fs3Knot[] = { 0.0f, 1.0f };
-constexpr float fs3Log[] = { 0.0f, 0.0f };
-constexpr float as3Knot[] = { 0.0f, 1.0f };
-constexpr float as3Log[] = { 0.0f, 0.0f };
-constexpr float crest3Ms = 1.0f;
-constexpr float ff3RKnot[] = { 0.0f, 1.0f };
-constexpr float ff3SKnot[] = { 0.0f, 1.0f };
-constexpr float ff3Log[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+// release law, fourth form (nulltest/ident_hc_rel4.py): R falls at fs4(R) / (release * w4(R - S)) + as4(R) dB/s
+// (w4 = w4(0) while R <= S), never below the target; S charges toward R (one-pole on the linear gain, crest4Ms)
+// and follows it down the same way (the Crest detector of the reference); after a reset S = start4Db; natural-log values
+constexpr bool hasRelease4 = false;
+constexpr int fs4Count = 2, as4Count = 2, w4Count = 2;
+constexpr float fs4Knot[] = { 0.0f, 1.0f };
+constexpr float fs4Log[] = { 0.0f, 0.0f };
+constexpr float as4Knot[] = { 0.0f, 1.0f };
+constexpr float as4Log[] = { 0.0f, 0.0f };
+constexpr float w4Knot[] = { 0.0f, 1.0f };
+constexpr float w4Log[] = { 0.0f, 0.0f };
+constexpr float crest4Ms = 1.0f, start4Db = 0.0f;
+// fifth form: a second, faster average S2 of R (fast4Ms, after a reset start4FastDb); the release time is also
+// scaled by w4f(R - S2) (all 1 in the fourth form)
+constexpr int w4fCount = 2;
+constexpr float w4fLog[] = { 0.0f, 0.0f };
+constexpr float fast4Ms = 30.0f, start4FastDb = 0.0f;
 
 // Analog modes: y = (1 + gain) L(x) + H2( g( H1(x) ) ) + noise; sections { fz, fp } in Hz of (1 + s/wz) / (1 + s/wp),
 // g on analogKnot (piecewise linear, linear beyond the ends), noise PSD in dB re 1 / Hz (one-sided) on analogNoiseHz

@@ -23,6 +23,13 @@ nulltest/mbfeat.dll
 nulltest/hcfast.dll
 nulltest/hcfast2.dll
 nulltest/hcfast3.dll
+nulltest/hcfast4.dll
+nulltest/hcfast5.dll
+nulltest/hcfast6.dll
+nulltest/hcgrad.dll
 nulltest/hcfast*.obj
 nulltest/hcfast*.lib
 nulltest/hcfast*.exp
+nulltest/hcgrad.obj
+nulltest/hcgrad.lib
+nulltest/hcgrad.exp
