@@ -509,9 +509,8 @@ exactly) unless stated.
 **Release.** In the gain-reduction domain, two states (`ident_hc_release2.py`, `ident_hc_w0.py`): a slow state S
 charges toward the output R as a one-pole on the linear gain (142 ms; the reference's own "Crest" is 149.6 ms) and
 releases at `Fs(S) / Release + As(S)` dB/s; R falls by the same law at an effective release time
-`min(Release, Release · w0(S), K / (R − S)^p)` and never below S. This is what WComp uses: at the default settings
-it nulls a voice-like signal at −62 dB and a bass line at −59 dB, but noise and drums only at −21 … −28 dB, and deep,
-slow settings far less (threshold −24, ratio 10, Release 300: −10 … −17 dB). What is known about the mismatch:
+`min(Release, Release · w0(S), K / (R − S)^p)` and never below S. This is what WComp uses, with its tables refitted
+by CMA-ES (below). What is known about the reference's release:
 
 - The rate is a function of the gain reduction itself, the same at every ratio (after a 1 s charge at Release 300 the
   reduction falls 86 / 110 / 167 / 306 / 1364 dB/s at 17 / 19 / 23 / 29 / 39 dB, ratios 10, 2, 50, 50, 50), not of
@@ -541,9 +540,22 @@ slow settings far less (threshold −24, ratio 10, Release 300: −10 … −17 
   pitch spike the distance between R and its average is the same as after a 50 ms burst, yet the reference releases
   the first at once and the second over tens of milliseconds. Fitting stalls from every start (finite differences
   and exact gradients alike, also with softened gates): the loss is very rough in these parameters.
-- What the next attempt needs: a state that measures how long the current event has lasted (the reference separates
-  a 4 ms spike from a 50 ms burst at the same depth and the same history), checked against the voice-like signal and
-  the bass line before anything else.
+- **Repeated events build up memory.** 2 ms pulses every 7 ms release fully between the first pulses, but after
+  about 100 ms (Release 100; 75 ms at Release 300, 250 ms at Release 30; sooner at greater depth) the reduction
+  hardly recovers between pulses (5 dB pulses: 4.8 dB minimum after 0.5 s); 2 ms every 20 ms builds up only at depth.
+  This is the second form's structure (a slow state charged by R, which slows the release once charged).
+- **The memory lasts through the release tail.** After a 500 ms burst and a quiet gap, a 5 ms burst still releases
+  slowly when the gap is 100 ms (the gain already back to 0.05 dB), and at once after 200 ms or more
+  (`ident_hc_rel8.py collectmem`, 90 double-burst probes).
+- **Refit of the second form with CMA-ES** (`cma_hc_release.py`, a derivative-free search: least squares and exact
+  gradients stall on this law's rough error surface). Objective: the mean null (energy-weighted, in dB) over 722 cases:
+  the settled probes, the memory probes, the realistic envelopes and the null-test material (×3), all past the
+  start-up. Mean null −46.8 → −49.0 dB; the null test's median −37.2 → −39.6 dB. At the defaults the drum loop goes
+  from −20.7 to −31.7 dB with voice-like and bass line unchanged (−62.5, −58.5); threshold −30 / ratio 4 / attack
+  0.5 / release 50 improves by 8–20 dB (bass line −18.6 → −39.4). Lost: the 5 Hz AM tone at the defaults (−68 → −52)
+  and steady tones at Release 1000. Putting the attack before the release fits worse (−46.1 dB).
+- Still weak: deep, slow settings (threshold −24 / ratio 10 / Release 300: −10 … −23 dB), noise (−24 … −35 dB) and the
+  start-up state (not modelled).
 
 **Not done.** The VU needle's ballistics: MeterCapture films the reference's editor, but H-Comp's editor is a web
 view that does not paint while the desktop is locked or the window is covered; the capture has to be repeated with

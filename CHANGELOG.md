@@ -15,6 +15,9 @@
   median −37.2 dB (defaults −62 dB; noise, drums and deep slow settings are not nulls yet;
   docs/NULL_RESULTS_WCOMP.md). VU needle and limiter lamp driven (provisional VU ballistics). Unit tests (`WCompTests`),
   offline renderer (`WCompRender`).
+- **WComp release refit**: the release law's tables refitted by CMA-ES on probes from a settled state, repeated-event
+  and memory probes, realistic envelopes and the null-test material (null-test median −37.2 → −39.6 dB; drums at the
+  defaults −20.7 → −31.7 dB, voice and bass unchanged).
 - WComp Phase 3: measurements of the reference H-Comp (`nulltest/measure_hcomp.py`, `measurements/hcomp/`, MEASUREMENTS.md).
 - **WBassX presets, value entry and meters** (Phase 5): 22 factory presets (*Essentials* and *Studio*, settings
   from the reference's own set converted by the reference itself, Wavy names), which leave Input alone as the
