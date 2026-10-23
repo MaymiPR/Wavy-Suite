@@ -76,14 +76,6 @@ public:
     // meters (dB, highest peak since the editor last read them): input, output; the compressor's and the limiter's
     // gain reduction (positive dB)
     wavy::PeakTap inLDb, inRDb, outLDb, outRDb, grDb, limDb;
-    // the compressor's mean linear gain since the editor last read it (the GR needle averages the gain, as a VU does)
-    struct MeanTap
-    {
-        std::atomic<double> sum { 0.0 };
-        std::atomic<int> count { 0 };
-        void push (double v) noexcept { double o = sum.load(); while (! sum.compare_exchange_weak (o, o + v)) {} count.fetch_add (1); }
-        double take (double ifEmpty) noexcept { const int n = count.exchange (0); const double s = sum.exchange (0.0); return n > 0 ? s / n : ifEmpty; }
-    } grGain;
     std::atomic<int> blocks { 0 };
     std::atomic<double> hostBpm { 0.0 };                  // 0: the host gives no tempo
 

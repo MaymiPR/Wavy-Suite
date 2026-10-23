@@ -6,6 +6,7 @@
 #include "WCompDsp.h"
 #include "WCompAnalog.h"
 #include "WCompProcessor.h"
+#include "WCompNeedle.h"
 #include "WavyFlatUI.h"
 
 static int failures = 0, checks = 0;
@@ -213,8 +214,6 @@ static void testProcessor()
     CHECK (maxDiff (a, c) == 0.0);
     CHECK (rms (a, 12000) < rms (x, 12000));
     CHECK (proc.grDb.take() > 1.0f);
-    const double mg = proc.grGain.take (1.0);
-    CHECK (mg < 0.9 && mg > 0.0);                          // the needle's mean gain: compressing
 
     // state round trip
     juce::MemoryBlock mb;
@@ -277,6 +276,77 @@ static void testPresets()
     }
 }
 
+// the needle laws against the filmed reference (MEASUREMENTS.md "WComp needle"; frames at about 60 Hz)
+static void testNeedle()
+{
+    using namespace wcomp::needle;
+    const double dt = 1.0 / 60.0;
+    const double m6 = std::pow (10.0, -6.0 / 20.0), m12 = std::pow (10.0, -12.0 / 20.0), m18 = std::pow (10.0, -18.0 / 20.0),
+                 m24 = std::pow (10.0, -24.0 / 20.0);
+    CHECK (frame (1.0) == 70 && frame (0.0) == 0 && frame (2.0) == 70);
+    CHECK_NEAR (angle (70), 58.92, 0.01);
+    CHECK_NEAR (angle (0), -58.25, 0.01);
+    CHECK (frame (ioValue (m6)) == 61);                   // filmed: -6 dBFS 61, -24 dBFS 35, -48 dBFS 0
+    CHECK (frame (ioValue (m24)) == 35);
+    CHECK (frame (ioValue (std::pow (10.0, -48.0 / 20.0))) == 0);
+
+    // GR: the deepest gain shows at once; the return is slower than the gain's (filmed after a 50 ms burst at -6 dBFS,
+    // threshold -30, ratio 4: the gain back from frame 10 to 24, 39, 52, 66, 70 at 5, 15, 35, 65, 85 ms after its end, the
+    // needle at 25, 50, 65 at 95, 225, 415 ms)
+    Gr gr;
+    CHECK (frame (gr.step (0.137, dt)) == 10);
+    static const double gt[] = { 0.0, 0.005, 0.015, 0.035, 0.065, 0.085, 10.0 }, gv[] = { 10, 24, 39, 52, 66, 70, 70 };
+    auto gain = [&] (double t)
+    {
+        int i = 0;
+        while (t > gt[i + 1]) ++i;
+        return (gv[i] + (gv[i + 1] - gv[i]) * (t - gt[i]) / (gt[i + 1] - gt[i])) / 70.0;
+    };
+    const double ms = 0.001;                               // 1 ms steps: the comparison is with the gain, not the frames
+    int f95 = 0, f225 = 0, f415 = 0;
+    for (int i = 1; i <= 1500; ++i)
+    {
+        const int f = frame (gr.step (gain (i * ms), ms));
+        if (i == 95) f95 = f;
+        if (i == 225) f225 = f;
+        if (i == 415) f415 = f;
+    }
+    CHECK (std::abs (f95 - 25) <= 3);
+    CHECK (std::abs (f225 - 50) <= 3);
+    CHECK (std::abs (f415 - 65) <= 2);
+    CHECK (frame (gr.x2) == 70);
+
+    // In / Out: a 5 ms burst at -6 dBFS falls from its onset at about 38 frames a second (filmed: 39 at 0.58 s)
+    Io io;
+    io.step (m6, dt);
+    for (int i = 0; i < 35; ++i) io.step (0.0, dt);
+    CHECK (std::abs (frame (ioValue (io.shown)) - 39) <= 1);
+    // a 300 ms burst: after it the hold from the onset shows (filmed: 48 at 0.345 s from the onset), then falls
+    io.reset();
+    for (int i = 0; i < 18; ++i) io.step (m6, dt);
+    for (int i = 0; i < 3; ++i) io.step (0.0, 0.015);
+    CHECK (std::abs (frame (ioValue (io.shown)) - 48) <= 1);
+    // -12 for 1 s, then -18: the first drop shows at once; then -24: the second decays (filmed: 44, then 42 at 0.1 s)
+    io.reset();
+    for (int i = 0; i < 60; ++i) io.step (m12, dt);
+    for (int i = 0; i < 60; ++i) io.step (m18, dt);
+    CHECK (frame (ioValue (io.shown)) == 44);
+    for (int i = 0; i < 6; ++i) io.step (m24, dt);
+    CHECK (std::abs (frame (ioValue (io.shown)) - 42) <= 1);
+    for (int i = 0; i < 90; ++i) io.step (m24, dt);
+    CHECK (frame (ioValue (io.shown)) == 35);
+
+    // the lamp: full at once, about 0.64 by 0.82 s, off after 0.833 s
+    Lamp lamp;
+    lamp.trigger();
+    CHECK (lamp.step (dt) > 0.95);
+    double v = 0.0;
+    for (int i = 0; i < 48; ++i) v = lamp.step (dt);
+    CHECK (v > 0.6 && v < 0.7);
+    for (int i = 0; i < 2; ++i) v = lamp.step (dt);
+    CHECK (v == 0.0);
+}
+
 int main()
 {
     juce::ScopedJuceInitialiser_GUI init;
@@ -291,6 +361,7 @@ int main()
     testProcessor();
     testValueEntry();
     testPresets();
+    testNeedle();
     std::printf ("%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;
 }

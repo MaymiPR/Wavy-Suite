@@ -34,3 +34,5 @@ nulltest/hcfast*.exp
 nulltest/hcgrad.obj
 nulltest/hcgrad.lib
 nulltest/hcgrad.exp
+nulltest/wcomp_trace.exe
+nulltest/wcomp_trace.obj

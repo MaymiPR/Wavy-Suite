@@ -592,15 +592,44 @@ by CMA-ES (below). What is known about the reference's release:
   parameters, so for nulls after a synced preset, reload H-Comp. The preset null test uses a fresh reference per
   preset for this reason (with one shared instance two presets showed −8 … −10 dB that were really −31 … −37).
 
-**Not done.** The VU needle's ballistics: H-Comp's editor (a web view) paints white in every capture tool here
-(MeterCapture's screen grab, pedalboard's editor window with a screen grab, PrintWindow with full content), with the
-screen on and the desktop unlocked; on 2026-10-20 the same editor did paint (the UI-phase screenshots). Its ParamXML
-and GUIXML show the GR needle is an image strip of 71 frames driven by PARAM_PEAK (an attenuation meter read as the
-peak since the last read), the In / Out needle another strip driven by PARAM_METER_DISPLAY (−30 … 0 dB); the needle's
-movement is the editor's. WComp's audio matches H-Comp's level within 0.1–0.4 dB on the presets, but in FL its GR
-needle read about 9–10 where H-Comp's read about 6. Simulated on preset material, WComp's former needle (the deepest
-reduction of each frame, then VU-like movement) reads 1–3 dB above the mean reduction and 2–5 dB above a VU average
-of the linear gain (Pumping Kit drums 8.9 against 5.4, Master Glue drums 9.3 against 5.8, Lead Guitar voice 10.3
-against 4.9), which matches the readings seen. WComp's GR needle now averages the compressor's linear gain like a
-VU (the same damped movement, 99 % in about 300 ms) — provisional until the reference's needle can be filmed. The
-limiter lamp's lit appearance was not seen on the reference either.
+### WComp needle (filmed)
+
+**How it was filmed.** Outside FL, H-Comp's editor renders (about 62 OpenGL frames a second, 48 draw calls each) but
+its frames never reach the window, which stays white (pedalboard and tools/MeterCapture, since 2026-10-21; the window
+is visible, top-most and in the foreground; the GPU and the web view are not the cause). `tools/MeterCapture gl=1`
+points the WaveShell's import of `gdi32!SwapBuffers` at a hook that reads the back buffer just before each swap: exact
+design pixels at 63 fps, without FL and without the screen. The editor takes its meter values from the processing only
+while the host's transport advances (with pedalboard's empty play head the needle stays put), so MeterCapture now
+gives the plug-in a playing transport. Probes: `nulltest/make_vu_probe.py` (tones, 5 / 50 / 300 ms bursts, drums,
+voice), `make_vu_cal.py` (a level staircase and sine / square pairs) and a set of descending steps; for GR the probe
+carries a −54 dBFS 6170 Hz pilot whose gain through the compressor shows its gain during the silences too
+(`pilot_gain.py`). Angles: `vu_angles.py`; pivot: `pivot_fit.py`; fits: `fit_gr_needle.py`, `fit_io_needle.py`;
+the print: `measure_vu_face.py`. Summary: `measurements/hcomp/needle.json`.
+
+- **A strip of 71 positions.** 11185 filmed frames show exactly 71 needle angles, evenly spaced from 31.75 to 148.92
+  degrees (from the left horizontal): frame k = round (70 v), angle −58.25 + k × 117.17 / 70 degrees from vertical.
+  The needle turns about (322.92, 220.36) (the lines of 800 frames meet there within 0.1 px), 2.2 px right of the
+  scale's centre; it shows from radius 23 to its tip at 110.8, the cream rivet at 104.2.
+- **GR.** v is the compressor's linear gain before makeup (steady tones: within 1.5 degrees of 31.75 + 117.17 g). The
+  deepest gain since the last frame shows at once (a 5 ms burst moves the needle to 38); the return is two one-poles
+  in cascade on the linear gain, 28.9 and 142.6 ms (97 % of frames within one step of the pilot-gain prediction).
+  This reads more than a mean: on the probe's drums (threshold −30, ratio 4) H-Comp's needle averages 11.5 dB, the
+  law on WComp's own gain 11.4, WComp's former VU average of the gain 6.2 (voice: 5.6 / 5.8 / 2.0).
+- **In / Out.** v = (peak dBFS + 48) / 48, the peak over the frame's interval (a sine and a square of the same peak
+  read alike; −48 dBFS and below rest on the stop). A rise shows at once and starts a hold that decays from that
+  moment (amplitude, 0.327 s: 26.6 dB/s into silence), so a burst's needle falls from its onset, and at the end of a
+  300 ms burst it jumps down to where that fall has reached. The first drop after a rise shows the level at once
+  (unless the hold is still higher: a long tone drops straight to its silence); every later drop decays toward the
+  level with the same 0.327 s until the next rise. 97.5 % of frames within one step (probe, staircase, descending
+  steps; Out on the reference's own output).
+- **Two faces.** GR: 48 24 12 6 3 0, the red band from 6 to 0. In / Out: dBFS, 48 36 24 18 12 6 3 0 with 24 at the top,
+  the red band from 24 to 0, other dividers, ticks and dots (`needle.json`).
+- **The limiter lamp** lights whenever the output limiter (or the clip, with Limiter Off) acts: at full, fading to
+  0.64 (0.64 + 0.36 e^−t/0.393 s), off 0.833 s after the last trigger; a new trigger brings it back to full. Lit, the
+  dome glows amber (142, 115, 0) at its centre, dark by radius 8.
+- **What the earlier readings were.** The "6 on H-Comp, 9–10 on WComp" seen in FL came from WComp's needle of that
+  time (the deepest reduction per frame through a VU movement in dB); the provisional VU average that replaced it
+  read about half of H-Comp. WComp now uses the filmed laws (`plugins/WComp/WCompNeedle.h`); filmed the same way
+  (screen grab, 38 fps), its GR needle averages 11.5 dB on the drums (H-Comp 11.5) and 5.9 on the voice (5.6).
+- **Residual.** The printed arc's centre is (319.8, 220.2), about 1 px up-left of the centre WComp draws its print
+  about; the numbers, dots and ticks were measured individually and sit within about 0.5 px.

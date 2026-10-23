@@ -10,6 +10,14 @@ namespace wavy::hybrid
 Font font (float h, bool bold) { return Font (FontOptions ("Arial", h, bold ? Font::bold : Font::plain)); }
 
 static float rad (float deg) { return deg * MathConstants<float>::pi / 180.0f; }
+// a fixed array as a range, so two of different lengths can be chosen between
+template <typename T> struct Items
+{
+    template <size_t N> Items (const T (&a)[N]) : b (a), e (a + N) {}
+    const T* begin() const { return b; }
+    const T* end() const { return e; }
+    const T* b; const T* e;
+};
 // the reference's angles: 0 = straight down, clockwise; JUCE: 0 = up, clockwise
 static float refToJuce (float deg) { return rad (deg + 180.0f); }
 
@@ -459,24 +467,10 @@ static void screw (Graphics& g, Point<float> c, float r, bool slot, float recess
 
 VuMeter::VuMeter() { setInterceptsMouseClicks (false, false); }
 
-// The printed scale (measured on the reference): an arc of radius 99.8 about (320.7, 220.9) from -57.7 to 60.1 degrees,
-// the readings' angles taken at the numbers' centres. The needle turns about a point 0.6, 1.2 px from that centre (its
-// line at rest), so its angle is the direction from its pivot to the reading on the arc.
-static float scaleAngle (float db)
-{
-    static const float d[] = { 0.0f, 3.0f, 6.0f, 12.0f, 24.0f, 48.0f }, ang[] = { 59.0f, 24.9f, 0.2f, -29.9f, -49.6f, -58.6f };
-    db = jlimit (0.0f, 48.0f, db);
-    for (int i = 0; i < 5; ++i)
-        if (db <= d[i + 1]) return ang[i] + (ang[i + 1] - ang[i]) * (db - d[i]) / (d[i + 1] - d[i]);
-    return ang[5];
-}
-static constexpr float kArcR = 99.8f, kNeedleDx = 0.6f, kNeedleDy = 1.2f;
-
-float VuMeter::angleForGr (float db)
-{
-    const float a = rad (scaleAngle (db));
-    return radiansToDegrees (std::atan2 (kArcR * std::sin (a) - kNeedleDx, kArcR * std::cos (a) + kNeedleDy));
-}
+// The printed scale (measured on the reference): an arc of radius 99.8 about (320.7, 220.9) from -57.7 to 60.1 degrees.
+// The needle turns about a point 2.22, -0.54 px from that centre (filmed: the lines of 800 frames meet there within
+// 0.1 px); where it points is set by the meter (WCompNeedle.h), not by this print.
+static constexpr float kArcR = 99.8f, kNeedleDx = 2.22f, kNeedleDy = -0.54f;
 
 // The dial (measured on the reference, design px; the component covers the black window frame, 197 .. 448 x 73 .. 221,
 // and the pivot's bump below it).
@@ -533,7 +527,9 @@ void VuMeter::paint (Graphics& g)
         g.fillPath (band);
         g.setColour (ink);
         g.strokePath (band, PathStrokeType (1.1f));
-        for (float a : { 7.7f, 15.6f, 24.6f, 35.6f, 46.5f })
+        const bool io = face == Face::io;
+        static const float grDiv[] = { 7.7f, 15.6f, 24.6f, 35.6f, 46.5f }, ioDiv[] = { 14.55f, 29.45f, 44.3f, 51.25f };
+        for (float a : io ? Items (ioDiv) : Items (grDiv))
             g.drawLine (Line<float> (at (a, R), at (a, 107.0f)), 1.0f);
     }
     // the arc, its ticks standing outward on it (minor 2.3 px, at 12 and 24 6 px), the stop at the 48 end
@@ -543,10 +539,18 @@ void VuMeter::paint (Graphics& g)
         g.setColour (ink);
         g.strokePath (arc, PathStrokeType (1.5f));
         g.drawLine (Line<float> (at (-57.7f, R - 0.7f), at (-57.7f, 107.9f)), 1.4f);
-        for (float a : { -51.8f, -46.4f, -40.5f, -34.5f, -28.9f, -21.6f, -14.7f, -7.9f })
-            g.drawLine (Line<float> (at (a, R), at (a, a == -51.8f || a == -28.9f ? 107.9f : 103.8f)), 1.0f);
+        // GR: majors at 24 and 12; In / Out (measured on its face): a major at 36, minors between the numbers
+        static const float grTicks[] = { -51.8f, -46.4f, -40.5f, -34.5f, -28.9f, -21.6f, -14.7f, -7.9f },
+                           ioTicks[] = { -48.9f, -39.2f, -29.8f, -20.0f, -10.3f };
+        const bool io = face == Face::io;
+        for (float a : io ? Items (ioTicks) : Items (grTicks))
+        {
+            const bool major = io ? a == -29.8f : (a == -51.8f || a == -28.9f);
+            g.drawLine (Line<float> (at (a, R), at (a, major ? 107.9f : 103.8f)), 1.0f);
+        }
     }
-    for (float a : { -39.3f, -19.6f, -10.0f, 7.8f, 15.7f, 34.7f, 46.9f })
+    static const float grDots[] = { -39.3f, -19.6f, -10.0f, 7.8f, 15.7f, 34.7f, 46.9f }, ioDots[] = { -49.1f, -39.3f, -19.6f, -10.0f };
+    for (float a : face == Face::io ? Items (ioDots) : Items (grDots))
     {
         const auto p = at (a, 117.2f);
         g.drawEllipse (p.x - 2.3f, p.y - 2.3f, 4.6f, 4.6f, 1.0f);
@@ -555,8 +559,12 @@ void VuMeter::paint (Graphics& g)
     {
         const Font f = Font (FontOptions ("Times New Roman", 10.0f, Font::bold | Font::italic).withPointHeight (14.5f));
         struct Num { float a, r; const char* t; };
-        for (auto n : { Num { -58.6f, 116.3f, "48" }, Num { -49.6f, 116.4f, "24" }, Num { -29.9f, 116.0f, "12" }, Num { 0.2f, 115.5f, "6" },
-                        Num { 24.9f, 116.8f, "3" }, Num { 59.0f, 117.1f, "0" } })
+        static const Num grNums[] = { { -58.6f, 116.3f, "48" }, { -49.6f, 116.4f, "24" }, { -29.9f, 116.0f, "12" }, { 0.2f, 115.5f, "6" },
+                                      { 24.9f, 116.8f, "3" }, { 59.0f, 117.1f, "0" } },
+                         // In / Out: dBFS, 24 at the top (measured on its face)
+                         ioNums[] = { { -58.6f, 116.3f, "48" }, { -30.8f, 116.2f, "36" }, { 0.0f, 116.3f, "24" }, { 15.5f, 116.2f, "18" },
+                                      { 30.0f, 116.4f, "12" }, { 43.4f, 115.5f, "6" }, { 51.7f, 116.5f, "3" }, { 59.0f, 117.1f, "0" } };
+        for (auto n : face == Face::io ? Items (ioNums) : Items (grNums))
         {
             GlyphArrangement ga;
             ga.addLineOfText (f, n.t, 0.0f, 0.0f);
@@ -568,11 +576,11 @@ void VuMeter::paint (Graphics& g)
     }
     // our mark printed on the dial where the reference prints its maker's logo
     drawMark (g, Rectangle<float> (c.x - 18.4f, c.y - 69.1f, 38.0f, 29.0f), false, false, Colour (96, 78, 50).withAlpha (0.8f), 1.2f);
-    // the needle (measured: (124, 0, 0), 2 px, to 114 px from its pivot, a cream rivet at 109 px) and its soft shadow,
+    // the needle (measured: (124, 0, 0), 2 px, to 110.8 px from its pivot, a cream rivet at 104.2 px) and its soft shadow,
     // 5 px below it, 3.5 px wide, a quarter darker
     {
         const Point<float> np (c.x + kNeedleDx, c.y + kNeedleDy), dir (std::sin (rad (needle)), -std::cos (rad (needle))), nrm (-dir.y, dir.x);
-        const Point<float> base = np + dir * 20.0f, tip = np + dir * 114.0f;
+        const Point<float> base = np + dir * 20.0f, tip = np + dir * 110.8f;
         const Point<float> sh = nrm * 5.0f;
         g.setColour (Colour (70, 52, 24).withAlpha (0.10f));
         g.drawLine (Line<float> (base + sh, tip + sh - dir * 1.5f), 5.0f);
@@ -580,7 +588,7 @@ void VuMeter::paint (Graphics& g)
         g.drawLine (Line<float> (base + sh, tip + sh - dir * 2.0f), 2.6f);
         g.setColour (kNeedle);
         g.drawLine (Line<float> (base, tip), 1.7f);
-        const auto rv = np + dir * 109.0f;
+        const auto rv = np + dir * 104.2f;
         g.fillEllipse (rv.x - 2.0f, rv.y - 2.0f, 4.0f, 4.0f);
         g.setColour (Colour (255, 250, 168));
         g.fillEllipse (rv.x - 0.9f, rv.y - 0.9f, 1.8f, 1.8f);

@@ -4,15 +4,15 @@
 
 | Check | Result |
 |---|---|
-| Unit tests (`WCompTests`, 609 checks, 2026-10-22: the 26 factory presets load and leave Mix alone; typed values on Threshold read as negative; latency at 44.1 … 192 kHz, idle identity, static curve and makeup, block-size invariance, stereo link, limiter Off / On ceiling, Mix 0, tempo sync and the long-note fallback, Analog Off identity, Analog noise levels and independent channels, Analog 4 crossover offset, processor: side-chain ignored, state round trip, Mode Mono) | all pass (Windows, local) |
-| pluginval, strictness level 10, `--skip-gui-tests`, on `WComp.vst3` (Windows, local, 2026-10-23, the shipped law) | SUCCESS, exit code 0 |
+| Unit tests (`WCompTests`, 628 checks, 2026-10-23: the needle laws against filmed values; the 26 factory presets load and leave Mix alone; typed values on Threshold read as negative; latency at 44.1 … 192 kHz, idle identity, static curve and makeup, block-size invariance, stereo link, limiter Off / On ceiling, Mix 0, tempo sync and the long-note fallback, Analog Off identity, Analog noise levels and independent channels, Analog 4 crossover offset, processor: side-chain ignored, state round trip, Mode Mono) | all pass (Windows, local) |
+| pluginval, strictness level 10, `--skip-gui-tests`, on `WComp.vst3` (Windows, local, 2026-10-23, the shipped law and the filmed needle) | SUCCESS, exit code 0 |
 | The built VST3 (hosted by `tools/RefRender`) against the offline renderer, 5 signals × 5 settings, sync BPM / Host / no host tempo (`nulltest/check_wcomp_plugin.py`) | identical (−63 … −230 dB; the larger values from the plug-in's default Release 100.25 against 100) |
 | FocusCheck (the space bar reaches the host after clicks on Threshold, Ratio, the meter and Limiter buttons, Sync and the BPM display; 2026-10-23) | PASS |
 | Sample rates: the quick null test at 44.1 / 48 / 96 kHz (5 settings × 7 signals) | median −40.4 / −40.2 / −38.6 dB; per setting within 1 dB, a few cases up to 6 dB lower at 96 kHz |
 | Analog stage: C++ against the fitted model | the difference is the added noise alone (−82.9 … −109.3 dBFS) |
 | Null test against the reference | [NULL_RESULTS_WCOMP.md](NULL_RESULTS_WCOMP.md): median −41.4 dB over 168 cases, worst −16.8 (release law refitted by CMA-ES, start-up state, memory charged after the attack, memory release floor; 2026-10-23; before −37.2 / −9.6); defaults (Analog Off) voice-like −58.7, bass −54.8, drums −31.6, noise −22 (measured from 0.2 s, inside the start-up); not a null on noise and deep slow settings, see MEASUREMENTS.md "WComp model" |
 | Factory presets against the reference (each preset on voice-like, drum loop, bass line, pink noise; Analog Off and the preset's mode) | [NULL_RESULTS_WCOMP_PRESETS.md](NULL_RESULTS_WCOMP_PRESETS.md): median −35.6 dB (Analog Off, from 0.5 s, a fresh reference per preset); weakest: Fat Kick on noise (−12), Drum Punch on bass (−17), Vintage Drum Crunch on bass (−19) |
-| VU needle against the reference | not measured (the reference's editor does not paint while the desktop is locked) |
+| VU needle against the reference (both filmed with MeterCapture with the same probe: H-Comp from its OpenGL frames, WComp by screen grab; threshold −30, ratio 4; 2026-10-23) | GR: mean reading drums 11.5 / 11.5 dB, voice 5.6 / 5.9, tones and bursts 5.3 / 5.4; In: mean frame within 1.4 of 70, 90 % of frames within 1.5 steps; the laws alone against the films: 97 % (GR) and 97.5 % (In / Out) of frames within one step (MEASUREMENTS.md "WComp needle") |
 
 ## WVox
 

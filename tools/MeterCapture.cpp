@@ -1,6 +1,8 @@
 // Records a plug-in editor's meters while audio plays (Windows), to measure meter ballistics the host cannot read.
 //   MeterCapture <plugin.vst3> "<sub-plugin name>[@uid]" <out.raw> [paramName=value ...] [in=<mono float32 48 kHz file>]
 //   ... [design=<width>] drag=x,y,dx,dy[,ctrl|shift|alt] ...   (drag script instead of the capture, see DragScript)
+//   ... gl=1 [crop=x0,y0,x1,y1]   (read the editor's OpenGL frames back instead of grabbing the screen, see GlCapture)
+//   paramName=value sets the normalised value, paramName:=text the value the parameter's text parses to.
 // Loads the plug-in (a shell's sub-plugin by name), opens its editor, feeds a fixed schedule of 50 Hz tone bursts from
 // a real-time paced thread, and grabs the editor's screen area every ~25 ms. out.raw: per frame a double timestamp
 // (seconds since the schedule started), then width * height * 3 bytes (RGB); out.raw.txt holds width and height,
@@ -8,7 +10,9 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <windows.h>
+#include <tlhelp32.h>
 #include <cstdio>
+#include <mutex>
 #include <vector>
 
 using namespace juce;
@@ -19,10 +23,29 @@ struct Seg { double secs; double db; bool on; };
 static const Seg schedule[] = { { 1.0, 0, false }, { 2.0, -6, true }, { 3.0, 0, false }, { 2.0, -20, true }, { 3.0, 0, false },
                                 { 0.3, -6, true }, { 3.0, 0, false } };
 
+// a transport that plays from the first block on, at the feeder's position: Waves editors take their meter values
+// from the processing only while the host's transport advances (with pedalboard's empty play head the needle stays put)
+class FeederPlayHead : public AudioPlayHead
+{
+public:
+    std::atomic<int64> samples { 0 };
+    Optional<PositionInfo> getPosition() const override
+    {
+        PositionInfo p;
+        p.setTimeInSamples (samples.load()); p.setTimeInSeconds ((double) samples.load() / fs);
+        p.setBpm (120.0); p.setTimeSignature (TimeSignature { 4, 4 });
+        p.setPpqPosition ((double) samples.load() / fs * 2.0);
+        p.setIsPlaying (true);
+        return p;
+    }
+};
+
 class Feeder : public Thread
 {
 public:
-    Feeder (AudioPluginInstance& p, std::vector<float> in) : Thread ("feeder"), plugin (p), input (std::move (in)) {}
+    Feeder (AudioPluginInstance& p, std::vector<float> in) : Thread ("feeder"), plugin (p), input (std::move (in)) { plugin.setPlayHead (&playHead); }
+    ~Feeder() override { plugin.setPlayHead (nullptr); }
+    FeederPlayHead playHead;
     std::atomic<double> startTime { 0.0 };
     std::atomic<bool> done { false };
     std::vector<float> recorded;   // the plug-in's output, interleaved stereo; written next to the frames
@@ -38,6 +61,7 @@ public:
             if (wait > 0) Thread::sleep ((int) (wait * 1000.0));
             for (int k = 0; k < block; ++k) { buf.setSample (0, k, input[i + (size_t) k]); buf.setSample (1, k, input[i + (size_t) k]); }
             plugin.processBlock (buf, midi);
+            playHead.samples = (int64) (i + (size_t) block);
             for (int k = 0; k < block; ++k) { recorded.push_back (buf.getSample (0, k)); recorded.push_back (buf.getSample (1, k)); }
         }
         done = true;
@@ -70,7 +94,7 @@ public:
             File (out.getFullPathName() + ".pcm").replaceWithData (feeder.recorded.data(), feeder.recorded.size() * sizeof (float));
             JUCEApplicationBase::quit(); return;
         }
-        if (feeder.startTime == 0.0) return;
+        if (feeder.startTime == 0.0 || gl) return;
         auto r = editor.getScreenBounds();
         const double scale = Desktop::getInstance().getDisplays().getDisplayForRect (r)->scale;
         const int x = roundToInt (r.getX() * scale), y = roundToInt (r.getY() * scale), w = roundToInt (r.getWidth() * scale), h = roundToInt (r.getHeight() * scale);
@@ -96,7 +120,89 @@ public:
         if (! sizeWritten) { File (out.getFullPathName() + ".txt").replaceWithText (String (w) + " " + String (h)); sizeWritten = true; }
     }
     Component& editor; Feeder& feeder; File out; std::unique_ptr<FileOutputStream> stream; bool sizeWritten = false;
+    bool gl = false;     // GlCapture writes the frames; this only ends the run
 };
+
+// Reads a Waves editor's frames back from OpenGL: outside FL its frames never reach the window (it stays white, in
+// this host and in pedalboard) although it renders, so the shell's import of gdi32!SwapBuffers is pointed at a hook
+// that reads the back buffer (crop, in editor pixels from the top left) just before the swap. out.raw: per frame two
+// doubles (the audio time processed so far and the wall time since the schedule started, s), then the crop's
+// width * height * 3 bytes (RGB, top row first); out.raw.txt holds the crop's width and height.
+namespace GlCapture
+{
+    using SwapFn = BOOL (WINAPI*) (HDC);
+    using ReadPixelsFn = void (WINAPI*) (int, int, int, int, unsigned, unsigned, void*);
+    using GetIntegervFn = void (WINAPI*) (unsigned, int*);
+    using UintFn = void (WINAPI*) (unsigned);
+    using PixelStoreFn = void (WINAPI*) (unsigned, int);
+    static SwapFn realSwap = nullptr;
+    static ReadPixelsFn readPixels; static GetIntegervFn getIntegerv; static UintFn readBuffer; static PixelStoreFn pixelStore;
+    static std::mutex lock;
+    static std::unique_ptr<FileOutputStream> stream;
+    static File out;
+    static Feeder* feeder = nullptr;
+    static int crop[4] = { 0, 0, 0, 0 };          // x0, y0, x1, y1; zero: the whole viewport
+    static bool sizeWritten = false;
+    static std::vector<uint8> px;
+
+    static void readBack()
+    {
+        std::lock_guard<std::mutex> g (lock);
+        if (feeder == nullptr || feeder->startTime == 0.0 || feeder->done || stream == nullptr) return;
+        int vp[4] {}; getIntegerv (0x0BA2, vp);                          // GL_VIEWPORT
+        const int x0 = crop[2] > 0 ? crop[0] : 0, y0 = crop[2] > 0 ? crop[1] : 0;
+        const int x1 = crop[2] > 0 ? jmin (crop[2], vp[2]) : vp[2], y1 = crop[2] > 0 ? jmin (crop[3], vp[3]) : vp[3];
+        const int w = x1 - x0, h = y1 - y0;
+        if (w <= 0 || h <= 0) return;
+        px.resize ((size_t) w * (size_t) h * 3);
+        readBuffer (0x0405); pixelStore (0x0D05, 1);                    // GL_BACK, GL_PACK_ALIGNMENT
+        readPixels (x0, vp[3] - y1, w, h, 0x1907, 0x1401, px.data());  // GL_RGB, GL_UNSIGNED_BYTE; bottom row first
+        const double t[2] = { (double) feeder->playHead.samples.load() / fs, Time::getMillisecondCounterHiRes() * 0.001 - feeder->startTime };
+        stream->write (t, sizeof (t));
+        for (int row = h - 1; row >= 0; --row) stream->write (px.data() + (size_t) row * (size_t) w * 3, (size_t) w * 3);
+        if (! sizeWritten) { File (out.getFullPathName() + ".txt").replaceWithText (String (w) + " " + String (h)); sizeWritten = true; }
+    }
+    static BOOL WINAPI hookedSwap (HDC dc) { readBack(); return realSwap (dc); }
+
+    // points every loaded WaveShell module's SwapBuffers import at the hook
+    static int install()
+    {
+        HMODULE gl = LoadLibraryA ("opengl32.dll");
+        readPixels = (ReadPixelsFn) (void*) GetProcAddress (gl, "glReadPixels");
+        getIntegerv = (GetIntegervFn) (void*) GetProcAddress (gl, "glGetIntegerv");
+        readBuffer = (UintFn) (void*) GetProcAddress (gl, "glReadBuffer");
+        pixelStore = (PixelStoreFn) (void*) GetProcAddress (gl, "glPixelStorei");
+        int patched = 0;
+        HANDLE snap = CreateToolhelp32Snapshot (TH32CS_SNAPMODULE, GetCurrentProcessId());
+        MODULEENTRY32W me { sizeof (MODULEENTRY32W) };
+        for (BOOL ok = Module32FirstW (snap, &me); ok; ok = Module32NextW (snap, &me))
+        {
+            if (! String (me.szModule).startsWithIgnoreCase ("WaveShell")) continue;
+            auto* base = (uint8*) me.modBaseAddr;
+            auto* nt = (IMAGE_NT_HEADERS*) (base + ((IMAGE_DOS_HEADER*) base)->e_lfanew);
+            auto& dir = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+            for (auto* d = (IMAGE_IMPORT_DESCRIPTOR*) (base + dir.VirtualAddress); d->Name != 0; ++d)
+            {
+                if (! String ((const char*) (base + d->Name)).equalsIgnoreCase ("gdi32.dll")) continue;
+                auto* names = (IMAGE_THUNK_DATA*) (base + (d->OriginalFirstThunk ? d->OriginalFirstThunk : d->FirstThunk));
+                auto* slots = (IMAGE_THUNK_DATA*) (base + d->FirstThunk);
+                for (; names->u1.AddressOfData != 0; ++names, ++slots)
+                {
+                    if (IMAGE_SNAP_BY_ORDINAL (names->u1.Ordinal)) continue;
+                    if (strcmp ((const char*) ((IMAGE_IMPORT_BY_NAME*) (base + names->u1.AddressOfData))->Name, "SwapBuffers") != 0) continue;
+                    DWORD old = 0;
+                    VirtualProtect (&slots->u1.Function, sizeof (void*), PAGE_READWRITE, &old);
+                    realSwap = (SwapFn) slots->u1.Function;
+                    slots->u1.Function = (ULONG_PTR) &hookedSwap;
+                    VirtualProtect (&slots->u1.Function, sizeof (void*), old, &old);
+                    ++patched;
+                }
+            }
+        }
+        CloseHandle (snap);
+        return patched;
+    }
+}
 
 // grabs the component's screen area (also native child windows, e.g. a Waves editor) into a PNG
 static void grabPng (Component& c, const File& f)
@@ -314,10 +420,31 @@ public:
         plugin->prepareToPlay (fs, block);
         for (int i = 3; i < args.size(); ++i)
         {
-            const auto name = args[i].upToFirstOccurrenceOf ("=", false, false);
-            const float v = args[i].fromFirstOccurrenceOf ("=", false, false).getFloatValue();
+            const bool text = args[i].contains (":=");
+            const auto name = args[i].upToFirstOccurrenceOf (text ? ":=" : "=", false, false);
+            const auto value = args[i].fromFirstOccurrenceOf (text ? ":=" : "=", false, false);
             for (auto* p : plugin->getParameters())
-                if (p->getName (64) == name) p->setValueNotifyingHost (v);
+                if (p->getName (64) == name)
+                {
+                    p->setValueNotifyingHost (text ? p->getValueForText (value) : value.getFloatValue());
+                    std::printf ("  %s = %s\n", name.toRawUTF8(), p->getText (p->getValue(), 32).toRawUTF8());
+                }
+        }
+        for (auto* p : plugin->getParameters())
+            if (p->getName (64).isNotEmpty() && ! p->getName (64).startsWith ("MIDI") && p->getName (64).length() < 24)
+                std::printf (" [%s=%s]", p->getName (64).toRawUTF8(), p->getText (p->getValue(), 32).trim().toRawUTF8());
+        std::printf ("\n");
+        std::fflush (stdout);
+        const bool gl = args.contains ("gl=1");
+        if (gl)
+        {
+            for (auto& a : args)
+                if (a.startsWith ("crop="))
+                {
+                    auto c = StringArray::fromTokens (a.substring (5), ",", "");
+                    for (int k = 0; k < 4; ++k) GlCapture::crop[k] = c[k].getIntValue();
+                }
+            std::printf ("SwapBuffers imports patched: %d\n", GlCapture::install());
         }
         window = std::make_unique<DocumentWindow> ("MeterCapture", Colours::black, DocumentWindow::closeButton);
         window->setUsingNativeTitleBar (true);
@@ -348,6 +475,15 @@ public:
             }
         feeder = std::make_unique<Feeder> (*plugin, std::move (in));
         capture = std::make_unique<Capture> (*window->getContentComponent(), *feeder, args[2]);
+        capture->gl = gl;
+        if (gl)
+        {
+            std::lock_guard<std::mutex> g (GlCapture::lock);
+            capture->stream.reset();
+            GlCapture::out = File (args[2]); GlCapture::out.deleteFile();
+            GlCapture::stream = GlCapture::out.createOutputStream();
+            GlCapture::feeder = feeder.get();
+        }
         feeder->startThread (Thread::Priority::high);
         capture->startTimer (25);
     }
@@ -355,7 +491,12 @@ public:
     {
         if (dragScript) dragScript->stopThread (3000);
         if (feeder) feeder->stopThread (3000);
+        {
+            std::lock_guard<std::mutex> g (GlCapture::lock);
+            GlCapture::feeder = nullptr; GlCapture::stream.reset();
+        }
         capture.reset();
+        feeder.reset();                                  // before the plug-in: it clears the play head it set
         if (window) window->setContentNonOwned (nullptr, false);
         window.reset();
         plugin.reset();

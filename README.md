@@ -51,8 +51,8 @@ reference's 26 factory presets (each on voice, drums, bass and pink noise): **me
   identified on the reference; the program-dependent release is a fitted two-state law (its tables found by CMA-ES on
   1034 measured cases), not the reference's algorithm. Two reference quirks are documented: a slow start-up after a
   reset (modelled) and a hidden synced release time that survives switching Sync back to ms (not copied: reload H-Comp
-  before nulling after a synced preset). The VU needle's movement is provisional (the reference's editor could not be
-  filmed). Details: [docs/NULL_RESULTS_WCOMP.md](docs/NULL_RESULTS_WCOMP.md),
+  before nulling after a synced preset). The VU needle and limiter lamp follow the reference's, filmed from its editor's
+  OpenGL frames. Details: [docs/NULL_RESULTS_WCOMP.md](docs/NULL_RESULTS_WCOMP.md),
   [docs/NULL_RESULTS_WCOMP_PRESETS.md](docs/NULL_RESULTS_WCOMP_PRESETS.md), [MEASUREMENTS.md](MEASUREMENTS.md#wcomp-model-phase-4-identification).
 
 ### WVox null test (honest numbers)

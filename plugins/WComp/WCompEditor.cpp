@@ -86,6 +86,16 @@ WCompEditor::WCompEditor (WCompProcessor& p)
     vu.pivot = kVuPivot - kDial.getPosition().toFloat();
     addToContent (vu, kDial);
     updateReleaseKnob();
+    showMeter();
+}
+
+// the selected meter's face and needle
+void WCompEditor::showMeter()
+{
+    using namespace wcomp::needle;
+    const int m = roundToInt (value (wcomp::meter));
+    vu.setFace (m == 1 ? VuMeter::Face::gr : VuMeter::Face::io);
+    vu.setNeedle (angle (m == 1 ? frame (grNeedle.x2) : frame (ioValue (m == 0 ? inNeedle.shown : outNeedle.shown))));
 }
 
 float WCompEditor::value (const char* id) const { return proc.apvts.getRawParameterValue (id)->load(); }
@@ -110,39 +120,29 @@ void WCompEditor::tick()
     const double dt = lastTick > 0.0 ? jlimit (0.0, 0.1, now - lastTick) : 1.0 / 60.0;
     lastTick = now;
 
-    // the needle moves like a VU meter: a damped second-order movement, 99 % in about 300 ms. GR averages the
-    // compressor's linear gain (a VU averages the signal, so the moments without compression pull the reading back;
-    // reading the deepest reduction of each frame instead read 2-5 dB more than the reference on drums and voice);
-    // In / Out read the level below full scale on the same scale (0 dBFS at the right end). Provisional: the
-    // reference's needle has not been filmed (its editor does not paint in the capture tools here)
-    proc.grDb.take();
-    const double meanGain = proc.grGain.take (vuGain);
+    // the needle and the lamp as filmed on the reference (WCompNeedle.h). They move only while audio is processed
+    // (the reference's needle stays put without it); the time between blocks counts when the next one arrives
+    const float gr = proc.grDb.take(), lim = proc.limDb.take();
     const float in = jmax (proc.inLDb.take(), proc.inRDb.take()), out = jmax (proc.outLDb.take(), proc.outRDb.take());
-    const int m = roundToInt (value (wcomp::meter));
-    constexpr double w = 22.0, zeta = 0.8;
-    auto settle = [dt, w, zeta] (double& pos, double& vel, double target)
+    pendingDt += dt;
+    const int nb = proc.blocks.load (std::memory_order_relaxed);
+    if (nb != lastBlocks)
     {
-        for (int k = 0; k < 4; ++k)                       // a few sub-steps for stability at the 60 Hz frame rate
-        {
-            const double h = dt / 4.0;
-            vel += (w * w * (target - pos) - 2.0 * zeta * w * vel) * h;
-            pos += vel * h;
-        }
-    };
-    settle (vuGain, vuGainVel, meanGain);
-    if (m == 1)
-    {
-        needleAng = VuMeter::angleForGr ((float) jmax (0.0, -20.0 * std::log10 (jlimit (1.0e-6, 1.0, vuGain))));
-        needleVel = 0.0;
+        lastBlocks = nb;
+        grNeedle.step (Decibels::decibelsToGain (-jmax (0.0f, gr), -200.0f), pendingDt);
+        inNeedle.step (Decibels::decibelsToGain (in, -100.0f), pendingDt);
+        outNeedle.step (Decibels::decibelsToGain (out, -100.0f), pendingDt);
+        if (lim > 0.05f) lamp.trigger();
+        pendingDt = 0.0;
     }
-    else settle (needleAng, needleVel, VuMeter::angleForGr (jlimit (0.0f, 48.0f, -(m == 0 ? in : out))));
-    vu.setNeedle ((float) needleAng);
+    showMeter();
 
-    // the limiter lamp: lit while the limiter reduces, held briefly so short catches show
-    const float lim = proc.limDb.take();
-    limHold = lim > 0.05f ? 0.15 : jmax (0.0, limHold - dt);
-    const bool lit = limHold > 0.0;
-    if (lit != lampLit) { lampLit = lit; content().repaint (Rectangle<float> (kLimLamp.x - 12.0f, kLimLamp.y - 12.0f, 24.0f, 24.0f).toNearestInt()); }
+    const double lit = lamp.step (dt);
+    if (std::abs (lit - lampLevel) > 0.004 || (lit == 0.0) != (lampLevel == 0.0))
+    {
+        lampLevel = lit;
+        content().repaint (Rectangle<float> (kLimLamp.x - 12.0f, kLimLamp.y - 12.0f, 24.0f, 24.0f).toNearestInt());
+    }
 }
 
 void WCompEditor::paintContent (Graphics& g)
@@ -163,11 +163,16 @@ void WCompEditor::paintContent (Graphics& g)
         g.drawEllipse (c.x - 11.2f, c.y - 11.2f, 22.4f, 22.4f, 0.7f);
         g.setColour (Colour (2, 2, 2));
         g.fillEllipse (c.x - 8.6f, c.y - 8.6f, 17.2f, 17.2f);
-        if (lampLit)                                      // lit: a red glow in the dome (the lit look is not measured)
+        if (lampLevel > 0.0)                              // lit (measured): an amber glow, even to r 5, dark by r 8
         {
-            ColourGradient glow (Colour (255, 92, 60), c.x - 1.5f, c.y - 1.5f, Colour (120, 10, 4), c.x + 8.6f, c.y + 8.6f, true);
+            ColourGradient glow (Colour (142, 115, 0), c.x, c.y, Colour (8, 5, 0), c.x + 8.6f, c.y, true);
+            glow.addColour (0.58, Colour (126, 102, 0));
+            glow.addColour (0.70, Colour (104, 82, 0));
+            glow.addColour (0.82, Colour (60, 40, 2));
             g.setGradientFill (glow);
+            g.setOpacity ((float) lampLevel);
             g.fillEllipse (c.x - 8.6f, c.y - 8.6f, 17.2f, 17.2f);
+            g.setOpacity (1.0f);
         }
         g.setColour (Colour (232, 228, 220));
         g.fillEllipse (c.x - 5.0f, c.y - 4.4f, 3.6f, 3.0f);

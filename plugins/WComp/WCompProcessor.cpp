@@ -159,7 +159,6 @@ void WCompProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
         comps[0].setSettings (s);
         comps[0].process (w, n);
         grDb.push ((float) comps[0].blockGainReductionDb());
-        grGain.push (comps[0].blockMeanGain());
         limDb.push ((float) comps[0].blockLimiterDb());
     }
     else
@@ -171,7 +170,6 @@ void WCompProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
             comps[c].process (one, n);
         }
         grDb.push ((float) jmax (comps[0].blockGainReductionDb(), comps[1].blockGainReductionDb()));
-        grGain.push (jmin (comps[0].blockMeanGain(), comps[1].blockMeanGain()));
         limDb.push ((float) jmax (comps[0].blockLimiterDb(), comps[1].blockLimiterDb()));
     }
     // the Analog stage is the last one, after the output gain and the limiter (measured)

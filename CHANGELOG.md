@@ -16,8 +16,13 @@
   median −37.2 dB (defaults −62 dB; noise, drums and deep slow settings are not nulls yet;
   docs/NULL_RESULTS_WCOMP.md). VU needle and limiter lamp driven (provisional VU ballistics). Unit tests (`WCompTests`),
   offline renderer (`WCompRender`).
-- **WComp GR needle** averages the compressor's linear gain like a VU (it read the deepest reduction of each frame,
-  2–5 dB more than the reference's needle on drums and voice); provisional until the reference's needle is filmed.
+- **WComp needle and lamp, as filmed on the reference**: H-Comp's editor filmed without FL (its OpenGL frames read back
+  in `tools/MeterCapture gl=1`, which now also gives the plug-in a playing transport). The needle is a strip of 71
+  positions about the measured pivot (2.2 px from where WComp turned it), shorter (tip 110.8, rivet 104.2). GR: the
+  deepest gain at once, the return through two one-poles (28.9 / 142.6 ms) on the linear gain — on drums it reads
+  11.5 dB as H-Comp does (the provisional VU average read 6.2). In / Out: the peak level on their own dBFS face
+  (48 … 0, 24 at the top, now drawn), with the reference's hold-and-release law. The limiter lamp glows amber and
+  fades over its 0.833 s hold.
 - **WComp presets and value entry**: the reference's 26 factory presets (*Essentials* and *Studio*, Wavy names; array
   positions confirmed by loading presets into the reference), which leave Mix alone as the reference does; null test of
   every preset in docs/NULL_RESULTS_WCOMP_PRESETS.md. Typing a positive number into Threshold sets it negative ("18" →

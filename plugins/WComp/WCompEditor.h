@@ -1,5 +1,6 @@
 #pragma once
 #include "WCompProcessor.h"
+#include "WCompNeedle.h"
 #include "WavyRenUI.h"
 #include "WavyHybridUI.h"
 
@@ -16,6 +17,7 @@ private:
     void tick() override;
     float value (const char* id) const;
     void updateReleaseKnob();
+    void showMeter();
 
     WCompProcessor& proc;
     wavy::hybrid::Knob& analog;
@@ -33,7 +35,9 @@ private:
     wavy::flat::Selection selection;
     juce::Image panelCache;
     int lastSync = -1;
-    double lastTick = 0.0, needleAng = wavy::hybrid::VuMeter::angleForGr (0.0f), needleVel = 0.0, limHold = 0.0;
-    double vuGain = 1.0, vuGainVel = 0.0;                  // the GR needle: the averaged linear gain
-    bool lampLit = false;
+    double lastTick = 0.0, pendingDt = 0.0, lampLevel = 0.0;
+    int lastBlocks = -1;
+    wcomp::needle::Gr grNeedle;                           // the three meters run all the time; the needle shows one
+    wcomp::needle::Io inNeedle, outNeedle;
+    wcomp::needle::Lamp lamp;
 };

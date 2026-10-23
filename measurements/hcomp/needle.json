@@ -1,0 +1,109 @@
+{
+ "source": "H-Comp Stereo 17.1.42.50 editor, OpenGL frames read back before SwapBuffers (tools/MeterCapture gl=1, 63 fps, design pixels), probes nulltest/make_vu_probe.py and make_vu_cal.py, 2026-10-23",
+ "strip": {
+  "frames": 71,
+  "angle_from_left_horizontal_deg": [
+   31.75,
+   148.92
+  ],
+  "angle_from_vertical_deg": "-58.25 + k * 117.17 / 70",
+  "k": "round(70 v), 0..70",
+  "pivot_design_px": [
+   322.92,
+   220.36
+  ],
+  "pivot_fit": "800 needle lines, residual median 0.09 px",
+  "needle": {
+   "colour": [
+    124,
+    0,
+    0
+   ],
+   "visible_from_r": 23,
+   "tip_r": 110.8,
+   "rivet_r": 104.2
+  },
+  "scale_arc_centre_design_px": [
+   319.81,
+   220.16
+  ],
+  "scale_arc_inner_radius": 98.9
+ },
+ "gr": {
+  "v": "linear compressor gain (before makeup)",
+  "static_check": "steady tones: angle = 31.75 + 117.17 g within 1.5 deg (g from audio, makeup removed)",
+  "attack": "instant (the deepest gain since the last frame)",
+  "release": {
+   "law": "two one-poles in cascade on the linear gain",
+   "tau_ms": [
+    28.9,
+    142.6
+   ]
+  },
+  "fit": "pilot-tone gain (6170 Hz, -54 dBFS) over tones and bursts, thresholds -30 / -20, ratio 4: 97 % of frames within 1 step, rms 0.67 steps",
+  "check_on_wcomp_gain": {
+   "drums_thr-30_mean_reading_dB": {
+    "H-Comp": 11.49,
+    "law on WComp's gain": 11.41,
+    "former WComp VU average": 6.15
+   },
+   "voice_thr-30_mean_reading_dB": {
+    "H-Comp": 5.63,
+    "law on WComp's gain": 5.8,
+    "former WComp VU average": 1.96
+   }
+  }
+ },
+ "in_out": {
+  "v": "(peak dBFS + 48) / 48, the peak over the frame's interval (sine and square of the same peak read alike)",
+  "calibration_peak_dBFS_to_k": {
+   "0": 70,
+   "-3": 66,
+   "-6": 61,
+   "-12": 53,
+   "-18": 44,
+   "-24": 35,
+   "-30": 27,
+   "-36": 18,
+   "-42": 9,
+   "-48": 0
+  },
+  "law": "a rise shows at once and starts a hold decaying from that moment (amplitude, tau); the first drop after a rise shows the level at once unless the hold is higher; every later drop decays toward the level (amplitude, tau) until the next rise",
+  "tau_s": 0.327,
+  "fall_into_silence_dB_per_s": 26.6,
+  "fit": "In: probe, staircase, descending sequences; Out: the reference's own output; 97.5 % of frames within 1 step"
+ },
+ "lamp": {
+  "trigger": "the output limiter / clip acts (also with Limiter Off: e.g. a -6 dBFS onset with 7.4 dB makeup)",
+  "hold_s": 0.833,
+  "lit_level": "0.64 + 0.36 exp(-t / 0.393 s)",
+  "lit_colour_centre_to_edge": [
+   [
+    142,
+    115,
+    0
+   ],
+   [
+    126,
+    102,
+    0
+   ],
+   [
+    104,
+    82,
+    0
+   ],
+   [
+    60,
+    40,
+    2
+   ]
+  ],
+  "retrigger": "back to full"
+ },
+ "faces": {
+  "gr": "48 24 12 6 3 0, red band 6..0",
+  "in_out": "dBFS: 48 36 24 18 12 6 3 0, 24 at the top, red band 24..0; dividers 14.55 29.45 44.3 51.25 deg; ticks -48.9 -39.2 -29.8 (major) -20.0 -10.3; dots -49.1 -39.3 -19.6 -10.0 (degrees from vertical about the scale centre 320.7, 220.9)"
+ },
+ "host_notes": "Outside FL the editor renders but its frames never reach the window (white; pedalboard, MeterCapture, since 2026-10-21). Its meter values move only while the host's transport advances (pedalboard's empty play head: the needle stays put)."
+}
