@@ -22,12 +22,14 @@ constexpr float makeupRelScale[] = { 0.25699955f, 0.365775158f, 0.450029774f, 0.
 // with the effective release min(release, release * w0(S), K / (R - S)^p)
 constexpr int fsCount = 16, asCount = 7, w0Count = 10;
 constexpr float fsKnot[] = { 0.0f, 0.5f, 1.0f, 2.0f, 3.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 16.0f, 20.0f, 25.0f, 30.0f, 40.0f, 50.0f };
-constexpr float fsLog[] = { 5.50992589f, -0.197374047f, 6.74474348f, -0.188578709f, 2.17532046f, 1.74411064f, 1.87677018f, 2.16581722f, 2.51978409f, 2.71532717f, 3.35812675f, 3.80751523f, 4.60117774f, 4.74569218f, 5.26671027f, 6.212124f };
+constexpr float fsLog[] = { 5.6811452f, -0.269599185f, 6.74795923f, -0.342665936f, 2.22986345f, 1.66666656f, 1.91115562f, 2.12936836f, 2.46720598f, 2.8128373f, 3.25225994f, 3.8942369f, 4.44225731f, 5.27123683f, 5.09336967f, 6.14708796f };
 constexpr float asKnot[] = { 0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f, 5.0f };
-constexpr float asLog[] = { -29.0031567f, -24.8655518f, -11.3666071f, -54.1217565f, 8.28013941f, -5.32467847f, -10162.7377f };
+constexpr float asLog[] = { -29.1816316f, -24.345446f, -12.2452642f, -53.9350252f, 8.60833185f, -5.13112769f, -10162.571f };
 constexpr float w0Knot[] = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 6.0f, 8.0f, 12.0f, 20.0f, 30.0f };
-constexpr float w0Log[] = { -8.29484161f, -3.86968546f, -1.79294882f, -0.845657543f, -0.811531207f, -0.0816743182f, -0.592455068f, -0.807829346f, -4.76207101f, -0.261370529f };
-constexpr float relSeedMs = 122.519052f, relSeedExp = 1.25335105f, crestMs = 141.776058f;
+constexpr float w0Log[] = { -8.1885406f, -3.83475258f, -2.26505118f, -1.24903661f, -0.786610613f, -0.185678524f, -0.393136365f, -0.695240948f, -4.92687423f, -0.819892904f };
+constexpr float relSeedMs = 70.4807102f, relSeedExp = 0.905994718f, crestMs = 141.354424f;
+// start-up: after a reset the effective release time is pulled toward Release by exp(-t / startupMs)
+constexpr float startupMs = 90.0f;
 
 // release law, fourth form (nulltest/ident_hc_rel4.py): R falls at fs4(R) / (release * w4(R - S)) + as4(R) dB/s
 // (w4 = w4(0) while R <= S), never below the target; S charges toward R (one-pole on the linear gain, crest4Ms)

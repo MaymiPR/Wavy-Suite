@@ -554,8 +554,14 @@ by CMA-ES (below). What is known about the reference's release:
   from −20.7 to −31.7 dB with voice-like and bass line unchanged (−62.5, −58.5); threshold −30 / ratio 4 / attack
   0.5 / release 50 improves by 8–20 dB (bass line −18.6 → −39.4). Lost: the 5 Hz AM tone at the defaults (−68 → −52)
   and steady tones at Release 1000. Putting the attack before the release fits worse (−46.1 dB).
-- Still weak: deep, slow settings (threshold −24 / ratio 10 / Release 300: −10 … −23 dB), noise (−24 … −35 dB) and the
-  start-up state (not modelled).
+- **The reference's presets as data.** The 26 factory presets' settings on program signals (`ident_hc_rel8.py
+  collectpresets`, 104 cases ×3) added to the CMA-ES objective: the presets' null median −30.4 → −31.3 dB.
+- **Start-up state modelled.** The start-up lasts 0.2–0.4 s at every Release time (30 ms … 3 s). WComp pulls its
+  effective release time toward the Release time by exp(−t / 90 ms) after a reset (the time constant scanned on
+  start-up probes and on program material from 0.05 s: the probes prefer a longer, step-like start-up, program
+  material about 85 ms). Null test median −40.0 → −41.9 dB; threshold −24 / ratio 10 / Release 300 −21.9 → −31.5;
+  the defaults lose about 3 dB, in their first half second only.
+- Still weak: deep, slow presets (Lo-Fi Radio, Tight Kit, Fat Kick: −8 … −13 dB on some signals), noise (−24 … −35 dB).
 
 **Not done.** The VU needle's ballistics: MeterCapture films the reference's editor, but H-Comp's editor is a web
 view that does not paint while the desktop is locked or the window is covered; the capture has to be repeated with

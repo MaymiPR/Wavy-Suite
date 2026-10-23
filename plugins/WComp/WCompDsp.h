@@ -51,6 +51,7 @@ public:
         sum1 = (double) b1.size(); sum2 = (double) b2.size(); lsum1 = (double) lb1.size(); lsum2 = (double) lb2.size();
         i1 = i2 = li1 = li2 = 0;
         pos = 0; detPos = 0; limPos = 0;
+        startU = tables::startupMs > 0.0f ? 1.0 : 0.0;
         R = 0.0; S = tables::hasRelease4 ? (double) tables::start4Db : 0.0; S2 = tables::hasRelease4 ? (double) tables::start4FastDb : 0.0; g1 = 1.0;
     }
 
@@ -63,6 +64,7 @@ public:
         attC = std::exp (-1.0 / (0.99 * std::max (0.05, (double) s.attackMs) * 1e-3 * fs));
         relS = std::max (1e-3, (double) s.releaseMs * 1e-3);
         crestC = std::exp (-1.0 / ((double) tables::crestMs * 1e-3 * fs));
+        startC = tables::startupMs > 0.0f ? std::exp (-1.0 / ((double) tables::startupMs * 1e-3 * fs)) : 0.0;
         if constexpr (tables::hasRelease4)
         {
             crest4C = std::exp (-1.0 / ((double) tables::crest4Ms * 1e-3 * fs));
@@ -244,6 +246,7 @@ private:
         double re = relS;
         if (R - S > 1e-9)
             re = std::min ({ re, relS * table (w0Knot, w0Log, w0Count, S), relSeedMs * 1e-3 / std::pow (R - S, (double) relSeedExp) });
+        if (startU > 1e-6) { re += startU * (relS - re); startU *= startC; }   // start-up: slow at first, as the reference
         R -= (table (fsKnot, fsLog, fsCount, R) / re + table (asKnot, asLog, asCount, R)) * dt;
         R = std::max (R, S);
         R = std::max (R, t);
@@ -257,6 +260,7 @@ private:
     std::vector<float> det, lim, b1, b2, lb1, lb2;
     double sum1 = 0.0, sum2 = 0.0, lsum1 = 0.0, lsum2 = 0.0;
     int i1 = 0, i2 = 0, li1 = 0, li2 = 0, pos = 0, detPos = 0, limPos = 0;
+    double startU = 0.0, startC = 0.0;
     double R = 0.0, S = 0.0, S2 = 0.0, g1 = 1.0, minGain = 1.0, minLimGain = 1.0;
 };
 }

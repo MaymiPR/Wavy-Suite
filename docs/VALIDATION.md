@@ -8,8 +8,8 @@
 | pluginval, strictness level 10, `--skip-gui-tests`, on `WComp.vst3` (Windows, local, 2026-10-22, after the release refit) | SUCCESS, exit code 0 |
 | The built VST3 (hosted by `tools/RefRender`) against the offline renderer, 5 signals × 5 settings, sync BPM / Host / no host tempo (`nulltest/check_wcomp_plugin.py`) | identical (−85 … −230 dB; the larger values from Release 100.25 against 100) |
 | Analog stage: C++ against the fitted model | the difference is the added noise alone (−82.9 … −109.3 dBFS) |
-| Null test against the reference | [NULL_RESULTS_WCOMP.md](NULL_RESULTS_WCOMP.md): median −39.6 dB over 168 cases (release law refitted by CMA-ES, 2026-10-22; before −37.2); defaults (Analog Off) voice-like −62.5, bass −58.5, drums −31.7, noise −24; not a null on noise and deep slow settings, see MEASUREMENTS.md "WComp model" |
-| Factory presets against the reference (each preset on voice-like, drum loop, bass line, pink noise; Analog Off and the preset's mode) | [NULL_RESULTS_WCOMP_PRESETS.md](NULL_RESULTS_WCOMP_PRESETS.md): median −30.4 dB (Analog Off); weakest on deep, slow presets |
+| Null test against the reference | [NULL_RESULTS_WCOMP.md](NULL_RESULTS_WCOMP.md): median −41.9 dB over 168 cases (release law refitted by CMA-ES, start-up state; 2026-10-22; before −37.2); defaults (Analog Off) voice-like −56.4, bass −54.2, drums −31.7, noise −24 (measured from 0.2 s, inside the start-up); not a null on noise and deep slow settings, see MEASUREMENTS.md "WComp model" |
+| Factory presets against the reference (each preset on voice-like, drum loop, bass line, pink noise; Analog Off and the preset's mode) | [NULL_RESULTS_WCOMP_PRESETS.md](NULL_RESULTS_WCOMP_PRESETS.md): median −31.4 dB (Analog Off, from 0.5 s); weakest on deep, slow presets |
 | VU needle against the reference | not measured (the reference's editor does not paint while the desktop is locked) |
 
 ## WVox

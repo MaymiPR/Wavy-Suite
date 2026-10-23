@@ -53,6 +53,12 @@ static double mlp_w(double R, double S, double lr)
     return 1.0 / (1.0 + exp(-o));
 }
 __declspec(dllexport) void hc_set_order(int a) { attackFirst = a; }
+/* the start-up state: after a reset the effective release time is pulled toward the Release time by a factor that
+   decays from 1 with this time constant (0: none); the reference releases slowly for its first 0.2 - 0.4 s */
+static double startupMs = 0.0, startupEndMs = 0.0;
+__declspec(dllexport) void hc_set_startup(double ms) { startupMs = ms; startupEndMs = 0.0; }
+/* logistic form: u = 1 / (1 + exp((t - end) / width)) */
+__declspec(dllexport) void hc_set_startup2(double end_ms, double width_ms) { startupEndMs = end_ms; startupMs = width_ms; }
 static double R2[32], S2[32], V2[32 * 32];
 __declspec(dllexport) void hc_set_rel2d(int nr, const double* r, int ns, const double* sv, const double* v)
 {
@@ -122,6 +128,12 @@ __declspec(dllexport) void hc_release(const double* Rt, double* g, double* Rout,
                 else r2 = useMlp ? rel * mlp_w(R, S, log(rel_ms / 100.0) / 3.0)
                                  : rel2d (R, S) * 1e-3;  /* the effective release (ms) as a table over (R, S) */
                 if (r2 < re) re = r2;
+            }
+            if (startupMs > 0.0)
+            {
+                const double tms = i * 1e3 / fs;
+                const double u = startupEndMs > 0.0 ? 1.0 / (1.0 + exp((tms - startupEndMs) / startupMs)) : exp(-tms / startupMs);
+                re += u * (rel - re);
             }
             R -= (tab(&Fs, R) / re + tab(&As, R)) * dt;
         }

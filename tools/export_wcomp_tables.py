@@ -62,6 +62,8 @@ def main():
          'constexpr float asKnot[] = { %s };' % f(kn['As']), 'constexpr float asLog[] = { %s };' % f(parts['As']),
          'constexpr float w0Knot[] = { %s };' % f(w0['S']), 'constexpr float w0Log[] = { %s };' % f(w0['z'][:nS]),
          'constexpr float relSeedMs = %s, relSeedExp = %s, crestMs = %s;' % (lit(np.exp(w0['z'][nS])), lit(w0['z'][nS + 1]), lit(w0['z'][nS + 2])),
+         '// start-up: after a reset the effective release time is pulled toward Release by exp(-t / startupMs)',
+         'constexpr float startupMs = %s;' % lit(law.get('startup_ms', 0.0)),
          ''] + release4(lit, f) + analog(lit, f) + ['}']
     out = os.path.join(ROOT, 'plugins', 'WComp', 'WCompTables.h')
     open(out, 'w', newline='\n').write('\n'.join(L) + '\n')

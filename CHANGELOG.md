@@ -21,7 +21,8 @@
   −18 dB), as the reference's ParamXML marks it (PositiveTextEntryToNegative); WBassX's Decay now does the same.
 - **WComp release refit**: the release law's tables refitted by CMA-ES on probes from a settled state, repeated-event
   and memory probes, realistic envelopes and the null-test material (null-test median −37.2 → −39.6 dB; drums at the
-  defaults −20.7 → −31.7 dB, voice and bass unchanged).
+  defaults −20.7 → −31.7 dB, voice and bass unchanged); then the presets' settings added to the fit and the
+  reference's start-up state modelled (slow release in the first fraction of a second): null-test median −41.9 dB.
 - WComp Phase 3: measurements of the reference H-Comp (`nulltest/measure_hcomp.py`, `measurements/hcomp/`, MEASUREMENTS.md).
 - **WBassX presets, value entry and meters** (Phase 5): 22 factory presets (*Essentials* and *Studio*, settings
   from the reference's own set converted by the reference itself, Wavy names), which leave Input alone as the
