@@ -7,7 +7,7 @@ degrees from the left horizontal, clockwise (0 = pointing left, 90 = straight up
 import sys
 import numpy as np
 
-PIVOT = (152.92, 170.36)          # crop pixels (x, y): the needle's pivot (pivot_fit.py; design 322.92, 220.36)
+PIVOT = (152.92, 170.36)          # crop pixel indices (x, y): the needle's pivot (pivot_fit.py; continuous design 323.42, 220.86)
 R0, R1 = 30, 88
 ANG = np.arange(5.0, 175.0, 0.25)
 

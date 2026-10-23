@@ -18,7 +18,9 @@
   offline renderer (`WCompRender`).
 - **WComp needle and lamp, as filmed on the reference**: H-Comp's editor filmed without FL (its OpenGL frames read back
   in `tools/MeterCapture gl=1`, which now also gives the plug-in a playing transport). The needle is a strip of 71
-  positions about the measured pivot (2.2 px from where WComp turned it), shorter (tip 110.8, rivet 104.2). GR: the
+  positions at the filmed whole-degree angles about the measured pivot, with the reference's look: 2 px, tip 111.5,
+  the rivet (radius 2.85, cream centre 1.15) and the shadow (the needle moved 4.7 px straight down, Gaussian 0.94 px,
+  ×0.75), each measured against WComp's own render (`tools/VuRender`). GR: the
   deepest gain at once, the return through two one-poles (28.9 / 142.6 ms) on the linear gain — on drums it reads
   11.5 dB as H-Comp does (the provisional VU average read 6.2). In / Out: the peak level on their own dBFS face
   (48 … 0, 24 at the top, now drawn), with the reference's hold-and-release law. The limiter lamp glows amber and

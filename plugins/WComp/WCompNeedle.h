@@ -2,8 +2,8 @@
 // WComp's VU needle and limiter lamp, as filmed on the reference (MEASUREMENTS.md "WComp needle"; the editor's OpenGL
 // frames read back in tools/MeterCapture gl=1, fitted by nulltest/fit_gr_needle.py and fit_io_needle.py).
 //
-//   strip   the needle takes one of 71 positions: frame k = round (70 v), angle -58.25 + k * 117.17 / 70 degrees from
-//           vertical (+ right) about its pivot
+//   strip   the needle takes one of 71 positions: frame k = round (70 v), each at a whole number of degrees from
+//           vertical (+ right) about its pivot, -58 ... 59 (the filmed table)
 //   GR      v = the compressor's linear gain: the deepest since the last frame shows at once, the return is two
 //           one-poles in cascade (28.9 and 142.6 ms) on the linear gain
 //   In/Out  v = (peak dBFS + 48) / 48, the peak since the last frame. A rise shows at once and starts a hold that decays
@@ -16,7 +16,14 @@
 namespace wcomp::needle
 {
 inline int frame (double v) { return (int) std::lround (std::clamp (70.0 * v, 0.0, 70.0)); }
-inline float angle (int k) { return -58.25f + (float) k * (117.17f / 70.0f); }
+inline float angle (int k)
+{
+    static const signed char deg[71] = { -58, -57, -55, -53, -52, -50, -48, -47, -45, -43, -42, -40, -38, -37, -35, -33, -32, -30,
+                                         -28, -27, -25, -23, -22, -20, -18, -17, -15, -13, -12, -10, -8, -7, -5, -3, -2, 1, 2, 4,
+                                         6, 7, 9, 11, 12, 14, 16, 17, 19, 21, 22, 24, 26, 27, 29, 31, 32, 34, 36, 37, 39, 41, 42,
+                                         44, 46, 47, 49, 51, 52, 54, 56, 57, 59 };
+    return (float) deg[std::clamp (k, 0, 70)];
+}
 inline double ioValue (double peak) { return (20.0 * std::log10 (std::max (peak, 1.0e-9)) + 48.0) / 48.0; }
 
 struct Gr

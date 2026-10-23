@@ -73,6 +73,6 @@ When part of a reference resists identification, keep everything that *is* ident
   MEASUREMENTS.md "WComp model": a start-up state, the settled program dependence, a Crest average of about 150 ms.
   Next: a state for the duration of the current event; validate on voice-like and bass line first.
 - **Limiter**: H-Comp's limiter sees the true future output; WComp estimates it (−16 … −43 dB under heavy limiting).
-- **VU print**: drawn about a centre about 1 px from the printed arc's (MEASUREMENTS.md "WComp needle"); the needle's
-  shadow is not measured.
+- **VU print**: drawn about a centre about 0.4 px from the printed arc's (MEASUREMENTS.md "WComp needle"). The needle's
+  edges are a little harder than the reference's (its strip images are resampled; within 0.1 in darkness).
 - **Analog mode 3**: nulls −29 … −64 dB (median −40); a finer table near the transition (0.02 … 1) may help.

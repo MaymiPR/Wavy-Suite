@@ -2,30 +2,122 @@
  "source": "H-Comp Stereo 17.1.42.50 editor, OpenGL frames read back before SwapBuffers (tools/MeterCapture gl=1, 63 fps, design pixels), probes nulltest/make_vu_probe.py and make_vu_cal.py, 2026-10-23",
  "strip": {
   "frames": 71,
-  "angle_from_left_horizontal_deg": [
-   31.75,
-   148.92
+  "angle_from_vertical_deg": [
+   -58,
+   -57,
+   -55,
+   -53,
+   -52,
+   -50,
+   -48,
+   -47,
+   -45,
+   -43,
+   -42,
+   -40,
+   -38,
+   -37,
+   -35,
+   -33,
+   -32,
+   -30,
+   -28,
+   -27,
+   -25,
+   -23,
+   -22,
+   -20,
+   -18,
+   -17,
+   -15,
+   -13,
+   -12,
+   -10,
+   -8,
+   -7,
+   -5,
+   -3,
+   -2,
+   1,
+   2,
+   4,
+   6,
+   7,
+   9,
+   11,
+   12,
+   14,
+   16,
+   17,
+   19,
+   21,
+   22,
+   24,
+   26,
+   27,
+   29,
+   31,
+   32,
+   34,
+   36,
+   37,
+   39,
+   41,
+   42,
+   44,
+   46,
+   47,
+   49,
+   51,
+   52,
+   54,
+   56,
+   57,
+   59
   ],
-  "angle_from_vertical_deg": "-58.25 + k * 117.17 / 70",
   "k": "round(70 v), 0..70",
   "pivot_design_px": [
-   322.92,
-   220.36
+   323.42,
+   220.86
   ],
-  "pivot_fit": "800 needle lines, residual median 0.09 px",
+  "pivot_fit": "800 needle lines, residual median 0.09 px; continuous coordinates (pixel centres at +0.5)",
   "needle": {
    "colour": [
     124,
     0,
     0
    ],
-   "visible_from_r": 23,
-   "tip_r": 110.8,
-   "rivet_r": 104.2
+   "width_px": 2.0,
+   "tip_r": 111.5,
+   "rivet": {
+    "r": 104.7,
+    "red_radius": 2.85,
+    "cream_radius": 1.15,
+    "cream": [
+     248,
+     238,
+     158
+    ]
+   },
+   "shadow": {
+    "offset_px": [
+     -0.01,
+     4.7
+    ],
+    "depth": 0.266,
+    "sigma_px": 0.94,
+    "to_r": 110.2,
+    "colour_ratio": [
+     0.747,
+     0.747,
+     0.746
+    ],
+    "direction": "straight down at every angle"
+   }
   },
   "scale_arc_centre_design_px": [
-   319.81,
-   220.16
+   320.31,
+   220.66
   ],
   "scale_arc_inner_radius": 98.9
  },

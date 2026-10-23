@@ -606,10 +606,17 @@ carries a −54 dBFS 6170 Hz pilot whose gain through the compressor shows its g
 (`pilot_gain.py`). Angles: `vu_angles.py`; pivot: `pivot_fit.py`; fits: `fit_gr_needle.py`, `fit_io_needle.py`;
 the print: `measure_vu_face.py`. Summary: `measurements/hcomp/needle.json`.
 
-- **A strip of 71 positions.** 11185 filmed frames show exactly 71 needle angles, evenly spaced from 31.75 to 148.92
-  degrees (from the left horizontal): frame k = round (70 v), angle −58.25 + k × 117.17 / 70 degrees from vertical.
-  The needle turns about (322.92, 220.36) (the lines of 800 frames meet there within 0.1 px), 2.2 px right of the
-  scale's centre; it shows from radius 23 to its tip at 110.8, the cream rivet at 104.2.
+- **A strip of 71 positions.** 11185 filmed frames show exactly 71 needle angles: frame k = round (70 v), each at a
+  whole number of degrees from vertical, −58, −57, −55 … 57, 59 (a line fit per position: within 0.15 degrees of the
+  whole degree; the table is in `WCompNeedle.h`). The needle turns about (323.42, 220.86) (pixel centres at +0.5; the
+  lines of 800 frames meet there within 0.1 px), 2.7 px right of the scale's centre.
+- **The needle's look** (`needle_core_fit.py`, `needle_shadow_fit.py`, `rivet_cmp.py`; compared with WComp's dial
+  rendered by `tools/VuRender`, `compare_needle.py`). (124, 0, 0), 2 px across (equivalent width 2.0–2.4 px on both),
+  from under the pivot's bump to its tip at 111.5 px; the rivet at 104.7 px: a red disc of radius 2.85 with a cream
+  (248, 238, 158) centre of radius 1.15. The shadow is the needle's outline moved straight down whatever the angle:
+  (−0.01, +4.70) px, a neutral darkening (×0.747 on R, G and B at its middle), Gaussian across (depth 0.266, σ 0.94 px),
+  from under the bump to 110.2 px (fitted on 23 and 7 positions of the two faces alike). WComp draws it as three
+  strokes fitted to that profile; measured the same way on WComp's render: (−0.01, +4.70), 0.265, σ 0.94, to 109.9.
 - **GR.** v is the compressor's linear gain before makeup (steady tones: within 1.5 degrees of 31.75 + 117.17 g). The
   deepest gain since the last frame shows at once (a 5 ms burst moves the needle to 38); the return is two one-poles
   in cascade on the linear gain, 28.9 and 142.6 ms (97 % of frames within one step of the pilot-gain prediction).
@@ -631,5 +638,5 @@ the print: `measure_vu_face.py`. Summary: `measurements/hcomp/needle.json`.
   time (the deepest reduction per frame through a VU movement in dB); the provisional VU average that replaced it
   read about half of H-Comp. WComp now uses the filmed laws (`plugins/WComp/WCompNeedle.h`); filmed the same way
   (screen grab, 38 fps), its GR needle averages 11.5 dB on the drums (H-Comp 11.5) and 5.9 on the voice (5.6).
-- **Residual.** The printed arc's centre is (319.8, 220.2), about 1 px up-left of the centre WComp draws its print
+- **Residual.** The printed arc's centre is (320.3, 220.7), about 0.4 px up-left of the centre WComp draws its print
   about; the numbers, dots and ticks were measured individually and sit within about 0.5 px.

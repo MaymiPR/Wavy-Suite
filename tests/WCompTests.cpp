@@ -284,8 +284,9 @@ static void testNeedle()
     const double m6 = std::pow (10.0, -6.0 / 20.0), m12 = std::pow (10.0, -12.0 / 20.0), m18 = std::pow (10.0, -18.0 / 20.0),
                  m24 = std::pow (10.0, -24.0 / 20.0);
     CHECK (frame (1.0) == 70 && frame (0.0) == 0 && frame (2.0) == 70);
-    CHECK_NEAR (angle (70), 58.92, 0.01);
-    CHECK_NEAR (angle (0), -58.25, 0.01);
+    CHECK_NEAR (angle (70), 59.0, 1e-6);                  // the filmed strip: whole degrees, -58 ... 59
+    CHECK_NEAR (angle (0), -58.0, 1e-6);
+    CHECK_NEAR (angle (35), 1.0, 1e-6);
     CHECK (frame (ioValue (m6)) == 61);                   // filmed: -6 dBFS 61, -24 dBFS 35, -48 dBFS 0
     CHECK (frame (ioValue (m24)) == 35);
     CHECK (frame (ioValue (std::pow (10.0, -48.0 / 20.0))) == 0);

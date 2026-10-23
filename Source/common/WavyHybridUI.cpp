@@ -468,9 +468,10 @@ static void screw (Graphics& g, Point<float> c, float r, bool slot, float recess
 VuMeter::VuMeter() { setInterceptsMouseClicks (false, false); }
 
 // The printed scale (measured on the reference): an arc of radius 99.8 about (320.7, 220.9) from -57.7 to 60.1 degrees.
-// The needle turns about a point 2.22, -0.54 px from that centre (filmed: the lines of 800 frames meet there within
+// The needle turns about a point 2.72, -0.04 px from that centre (filmed: the lines of 800 frames meet there within
 // 0.1 px); where it points is set by the meter (WCompNeedle.h), not by this print.
-static constexpr float kArcR = 99.8f, kNeedleDx = 2.22f, kNeedleDy = -0.54f;
+static constexpr float kArcR = 99.8f, kNeedleDx = 2.72f, kNeedleDy = -0.04f;
+static constexpr float kNeedleWidth = 2.0f;
 
 // The dial (measured on the reference, design px; the component covers the black window frame, 197 .. 448 x 73 .. 221,
 // and the pivot's bump below it).
@@ -576,22 +577,27 @@ void VuMeter::paint (Graphics& g)
     }
     // our mark printed on the dial where the reference prints its maker's logo
     drawMark (g, Rectangle<float> (c.x - 18.4f, c.y - 69.1f, 38.0f, 29.0f), false, false, Colour (96, 78, 50).withAlpha (0.8f), 1.2f);
-    // the needle (measured: (124, 0, 0), 2 px, to 110.8 px from its pivot, a cream rivet at 104.2 px) and its soft shadow,
-    // 5 px below it, 3.5 px wide, a quarter darker
+    // the needle and its shadow (filmed, MEASUREMENTS.md "WComp needle"): (124, 0, 0), 2 px, to 111.5 px from its pivot,
+    // a rivet at 104.7 px (a red disc of radius 2.85, a cream centre of radius 1.15). The shadow is the needle's outline moved
+    // (-0.01, 4.68) px, straight down whatever the angle: a neutral darkening, Gaussian across (depth 0.265, sigma
+    // 0.94 px), from 22 to 110.3 px, drawn as three strokes fitted to that profile
     {
-        const Point<float> np (c.x + kNeedleDx, c.y + kNeedleDy), dir (std::sin (rad (needle)), -std::cos (rad (needle))), nrm (-dir.y, dir.x);
-        const Point<float> base = np + dir * 20.0f, tip = np + dir * 110.8f;
-        const Point<float> sh = nrm * 5.0f;
-        g.setColour (Colour (70, 52, 24).withAlpha (0.10f));
-        g.drawLine (Line<float> (base + sh, tip + sh - dir * 1.5f), 5.0f);
-        g.setColour (Colour (70, 52, 24).withAlpha (0.20f));
-        g.drawLine (Line<float> (base + sh, tip + sh - dir * 2.0f), 2.6f);
+        const Point<float> np (c.x + kNeedleDx, c.y + kNeedleDy), dir (std::sin (rad (needle)), -std::cos (rad (needle)));
+        const Point<float> sh (-0.05f, 5.02f);               // drawn 0.34 px lower: measured the same way, it then reads 4.70
+        for (auto [w, a] : { std::pair { 5.14f, 0.016f }, std::pair { 3.19f, 0.101f }, std::pair { 1.53f, 0.165f } })
+        {
+            Path p;
+            p.startNewSubPath (np + sh + dir * 22.0f);
+            p.lineTo (np + sh + dir * 110.3f);
+            g.setColour (Colours::black.withAlpha (a));
+            g.strokePath (p, PathStrokeType (w, PathStrokeType::curved, PathStrokeType::rounded));
+        }
         g.setColour (kNeedle);
-        g.drawLine (Line<float> (base, tip), 1.7f);
-        const auto rv = np + dir * 104.2f;
-        g.fillEllipse (rv.x - 2.0f, rv.y - 2.0f, 4.0f, 4.0f);
-        g.setColour (Colour (255, 250, 168));
-        g.fillEllipse (rv.x - 0.9f, rv.y - 0.9f, 1.8f, 1.8f);
+        g.drawLine (Line<float> (np + dir * 20.0f, np + dir * 111.5f), kNeedleWidth);
+        const auto rv = np + dir * 104.7f;
+        g.fillEllipse (rv.x - 2.85f, rv.y - 2.85f, 5.7f, 5.7f);
+        g.setColour (Colour (248, 238, 158));
+        g.fillEllipse (rv.x - 1.15f, rv.y - 1.15f, 2.3f, 2.3f);
     }
     g.restoreState();
 

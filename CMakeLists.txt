@@ -111,6 +111,11 @@ if(WIN32)
     target_compile_definitions(MeterCapture PRIVATE JUCE_PLUGINHOST_VST3=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
     target_link_libraries(MeterCapture PRIVATE juce::juce_audio_processors juce::juce_gui_basics juce::juce_recommended_config_flags)
 
+    # renders WComp's VU dial alone at a given needle angle, for the comparison with the filmed reference (tools/VuRender.cpp)
+    juce_add_console_app(VuRender PRODUCT_NAME "VuRender")
+    target_sources(VuRender PRIVATE tools/VuRender.cpp)
+    target_link_libraries(VuRender PRIVATE WavyCommon juce::juce_recommended_config_flags)
+
     # renders a reference offline with its side-chain bus fed and a host tempo (tools/RefRender.cpp)
     juce_add_console_app(RefRender PRODUCT_NAME "RefRender")
     target_sources(RefRender PRIVATE tools/RefRender.cpp)

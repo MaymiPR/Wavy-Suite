@@ -97,8 +97,8 @@ public:
     enum class Face { gr, io };                       // the printed scale: gain reduction, or the In / Out level
     void setNeedle (float angleDeg) { if (angleDeg != needle) { needle = angleDeg; repaint(); } }
     void setFace (Face f) { if (f != face) { face = f; repaint(); } }
-    juce::Point<float> pivot;                         // local: the scale's centre (the needle turns 2.22, -0.54 px from it)
-    float needle = 58.92f;                            // degrees from vertical about the needle's pivot, + to the right (0 dB GR)
+    juce::Point<float> pivot;                         // local: the scale's centre (the needle turns 2.72, -0.04 px from it)
+    float needle = 59.0f;                             // degrees from vertical about the needle's pivot, + to the right (0 dB GR)
     Face face = Face::gr;
 private:
     juce::Image dial;                                 // the cream dial's shading, rendered for the current scale
