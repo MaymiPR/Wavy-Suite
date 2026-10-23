@@ -66,6 +66,8 @@ def main():
          'constexpr float startupMs = %s;' % lit(law.get('startup_ms', 0.0)),
          '// the slow state charges toward out + chargeBlend (R - out), out the reduction after the attack (1: toward R)',
          'constexpr float chargeBlend = %s;' % lit(law.get('charge_blend', 1.0)),
+         '// the slow state releases with a release time of at least memoryFloorMs (0: the Release time)',
+         'constexpr float memoryFloorMs = %s;' % lit(law.get('memory_floor_ms', 0.0)),
          ''] + release4(lit, f) + analog(lit, f) + ['}']
     out = os.path.join(ROOT, 'plugins', 'WComp', 'WCompTables.h')
     open(out, 'w', newline='\n').write('\n'.join(L) + '\n')

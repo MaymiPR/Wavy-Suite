@@ -41,6 +41,9 @@ static int chargeFromOut = 0;
 static double chargeBeta = 0.0;          /* with chargeFromOut: S charges toward out + beta (R - out) */
 __declspec(dllexport) void hc_set_charge_from_out(int a) { chargeFromOut = a; chargeBeta = 0.0; }
 __declspec(dllexport) void hc_set_charge_blend(double beta) { chargeFromOut = beta < 1.0; chargeBeta = beta; }
+/* the slow state releases at the slow law with a release time of at least this (ms; 0: the Release time itself) */
+static double memFloorMs = 0.0;
+__declspec(dllexport) void hc_set_mem_floor(double ms) { memFloorMs = ms; }
 /* an MLP for the effective release: inputs R/30, S/30, (R-S)/30, ln(release / 100 ms)/3; 8 tanh units; output w,
    rel_eff = release * sigmoid(w)                                                                           */
 static double W1[8 * 4], B1m[8], W2[8], B2m;
@@ -125,7 +128,7 @@ __declspec(dllexport) void hc_release(const double* Rt, double* g, double* Rout,
             S = -20.0 * log10(gt0 + c * (gs - gt0));
             if (S > src) S = src;
         }
-        else { S -= (tab(&Fs, S) / rel + tab(&As, S)) * dt; if (S < t) S = t; }
+        else { const double relm = rel > memFloorMs * 1e-3 ? rel : memFloorMs * 1e-3; S -= (tab(&Fs, S) / relm + tab(&As, S)) * dt; if (S < t) S = t; }
         if (S < 0.0) S = 0.0;
         /* the output falls with the same law as S, at an effective release time that shrinks with its distance
            above S: rel_eff = min(release, K / (R - S)^p); Ff's first two knot values hold log K (ms) and p */

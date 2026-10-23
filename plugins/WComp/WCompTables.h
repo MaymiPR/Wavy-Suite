@@ -22,16 +22,18 @@ constexpr float makeupRelScale[] = { 0.25699955f, 0.365775158f, 0.450029774f, 0.
 // with the effective release min(release, release * w0(S), K / (R - S)^p)
 constexpr int fsCount = 16, asCount = 7, w0Count = 10;
 constexpr float fsKnot[] = { 0.0f, 0.5f, 1.0f, 2.0f, 3.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 16.0f, 20.0f, 25.0f, 30.0f, 40.0f, 50.0f };
-constexpr float fsLog[] = { 5.52003745f, 0.61151904f, 6.3911905f, -0.125068205f, 2.16539717f, 1.70986645f, 1.89320041f, 2.18251779f, 2.40769367f, 2.82195344f, 3.12982388f, 4.10205148f, 4.2713639f, 5.4748515f, 5.18514577f, 5.98779843f };
+constexpr float fsLog[] = { 5.32451664f, 0.825309257f, 6.30540411f, -0.130337894f, 2.4832813f, 1.66986901f, 1.87475126f, 2.15983769f, 2.44856805f, 2.79773541f, 3.22255644f, 3.94815774f, 4.49888249f, 5.6643381f, 5.16333745f, 6.41846092f };
 constexpr float asKnot[] = { 0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f, 5.0f };
-constexpr float asLog[] = { -29.3339477f, -24.914822f, -12.225953f, -53.6336174f, 8.47296845f, -5.25948218f, -10162.4348f };
+constexpr float asLog[] = { -28.8247757f, -24.9161255f, -12.0542074f, -53.9556266f, 7.97227232f, -5.81945535f, -10162.9876f };
 constexpr float w0Knot[] = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 6.0f, 8.0f, 12.0f, 20.0f, 30.0f };
-constexpr float w0Log[] = { -8.18601063f, -3.64076459f, -2.07065965f, -1.3837976f, -0.734586286f, -0.149538174f, -0.394362068f, -0.483557721f, -4.69205613f, -0.779638054f };
-constexpr float relSeedMs = 66.3775637f, relSeedExp = 0.890783766f, crestMs = 141.875336f;
+constexpr float w0Log[] = { -8.40631232f, -3.5110849f, -1.94415809f, -1.59809896f, -0.549632882f, -0.24064421f, -0.366037136f, -0.530364367f, -3.35948259f, -0.696550281f };
+constexpr float relSeedMs = 68.7678255f, relSeedExp = 0.906208182f, crestMs = 141.665368f;
 // start-up: after a reset the effective release time is pulled toward Release by exp(-t / startupMs)
 constexpr float startupMs = 90.0f;
 // the slow state charges toward out + chargeBlend (R - out), out the reduction after the attack (1: toward R)
 constexpr float chargeBlend = 0.05f;
+// the slow state releases with a release time of at least memoryFloorMs (0: the Release time)
+constexpr float memoryFloorMs = 25.712741f;
 
 // release law, fourth form (nulltest/ident_hc_rel4.py): R falls at fs4(R) / (release * w4(R - S)) + as4(R) dB/s
 // (w4 = w4(0) while R <= S), never below the target; S charges toward R (one-pole on the linear gain, crest4Ms)

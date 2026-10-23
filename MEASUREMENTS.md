@@ -570,9 +570,13 @@ by CMA-ES (below). What is known about the reference's release:
   drums −24.7 → −41.7); the null test's worst case −10.5 → −16.7, its median −41.9 → −40.3. Charging purely from
   the output (β = 0) breaks: before the attack starts the output is 0 dB, the slow state takes its release branch
   and is floored at the target, so it jumps to the full reduction at once.
-- **Not explained:** a sustained bass note with Attack longer than Release (Vintage Drum Crunch: Attack 17.7,
-  Release 13.5 ms) keeps about 6 dB of memory between cycles in the reference; WComp releases to 2 dB there
-  (−8.4 dB on the bass line). Fat Kick on noise stays at −12 dB.
+- **The memory does not drain at very short Release times.** On a sustained bass note with Attack 17.7 and Release
+  13.5 ms (Vintage Drum Crunch) the reference keeps 6–9 dB between cycles; WComp's slow state, which released by the
+  slow law at the Release time, never got above 0.9 dB and the output followed every dip (−8.4 dB on the bass line).
+  The slow state now releases with a release time of at least 25.7 ms (fitted with the rest by CMA-ES; objective
+  −43.70 → −43.81 dB): Vintage Drum Crunch bass −8.4 → −17.0 dB, Lo-Fi Radio bass −24.3 → −27.5; Drum Punch voice
+  −38.0 → −33.5; presets' median −35.5 → −34.8; the null test the same or better everywhere (deep slow setting
+  −31.5 → −33.5). Fat Kick on noise stays at −12 dB.
 - **Reference quirk (tempo sync).** After running synced (BPM or Host) and switching Sync to ms, H-Comp keeps the
   synced release time internally while its Release parameter shows another value; it takes the shown value again
   only once Release itself changes (and, coming from Host, not even then in one test). A fresh instance follows its

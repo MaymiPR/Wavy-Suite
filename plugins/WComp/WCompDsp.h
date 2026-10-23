@@ -249,7 +249,7 @@ private:
             const double gs = std::pow (10.0, -S / 20.0), gt = std::pow (10.0, -src / 20.0);
             S = std::min (src, -20.0 * std::log10 (gt + crestC * (gs - gt)));
         }
-        else { S -= (table (fsKnot, fsLog, fsCount, S) / relS + table (asKnot, asLog, asCount, S)) * dt; S = std::max (S, t); }
+        else { S -= (table (fsKnot, fsLog, fsCount, S) / std::max (relS, memFloorS) + table (asKnot, asLog, asCount, S)) * dt; S = std::max (S, t); }
         S = std::max (S, 0.0);
         double re = relS;
         if (R - S > 1e-9)
@@ -270,6 +270,7 @@ private:
     int i1 = 0, i2 = 0, li1 = 0, li2 = 0, pos = 0, detPos = 0, limPos = 0;
     double startU = 0.0, startC = 0.0;
     static constexpr double chargeBlend = tables::chargeBlend;
+    static constexpr double memFloorS = tables::memoryFloorMs * 1e-3;    // the memory's release time is at least this
     double R = 0.0, S = 0.0, S2 = 0.0, g1 = 1.0, minGain = 1.0, minLimGain = 1.0, sumGain = 0.0;
     int nGain = 0;
 };

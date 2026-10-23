@@ -17,7 +17,13 @@ POOL = ThreadPoolExecutor(8)
 MODE = os.environ.get('HC_OBJ', 'null')       # null: the mean null (dB) over the cases, energy-weighted as a null test; db: rms dB error
 
 
+EXTRA = os.environ.get('HC_FIT_MEMFLOOR') is not None      # one more parameter: ln of the memory's release-time floor (ms)
+
+
 def objective(q, cs, x0, nF, nA):
+    if EXTRA:
+        I8.I2.dll.hc_set_mem_floor(__import__('ctypes').c_double(float(np.exp(q[-1]))))
+        q = q[:-1]
     X = I8.law(q, x0, nF, nA)                 # sets the C model's w0 / K / p globals for this candidate
 
     def one(c):
@@ -72,11 +78,14 @@ def main():
     I8.I2.dll.hc_set_startup(__import__('ctypes').c_double(json.load(open(I8.I2.OUT)).get('startup_ms', 0.0)))
     cs = I8.cases()
     q0 = np.concatenate([x0[:nF + nA], z0])
+    if EXTRA: q0 = np.concatenate([q0, [np.log(float(os.environ['HC_FIT_MEMFLOOR']))]])
     t0 = time.time(); f0 = objective(q0, cs, x0, nF, nA); print('%d cases, one evaluation %.1f s' % (len(cs), time.time() - t0), flush=True)
     best, q = cma(lambda q: objective(q, cs, x0, nF, nA), q0, sigma, gens)
     print('best %.4f dB (start %.4f)' % (best, f0))
     for p in (I8.I2.OUT, I8.W.OUT):
         shutil.copy(p, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'build', os.path.basename(p).replace('.json', '.before_cma.json')))
+    if EXTRA:
+        floor = float(np.exp(q[-1])); q = q[:-1]; print('memory release floor %.1f ms' % floor)
     x = x0.copy(); x[:nF + nA] = q[:nF + nA]
     lw = json.load(open(I8.I2.OUT)); lw['x'] = list(map(float, x)); json.dump(lw, open(I8.I2.OUT, 'w'), indent=1)
     json.dump({'S': I8.W.SX.tolist(), 'z': list(map(float, q[nF + nA:]))}, open(I8.W.OUT, 'w'))
@@ -86,6 +95,8 @@ def main():
         lw = json.load(open(I8.I2.OUT)); lw['charge_from_output'] = int(os.environ['HC_CHARGE_OUT']); json.dump(lw, open(I8.I2.OUT, 'w'), indent=1)
     if os.environ.get('HC_BETA'):
         lw = json.load(open(I8.I2.OUT)); lw['charge_blend'] = float(os.environ['HC_BETA']); json.dump(lw, open(I8.I2.OUT, 'w'), indent=1)
+    if EXTRA:
+        lw = json.load(open(I8.I2.OUT)); lw['memory_floor_ms'] = floor; json.dump(lw, open(I8.I2.OUT, 'w'), indent=1)
 
 
 if __name__ == '__main__':
