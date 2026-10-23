@@ -34,5 +34,6 @@ private:
     juce::Image panelCache;
     int lastSync = -1;
     double lastTick = 0.0, needleAng = wavy::hybrid::VuMeter::angleForGr (0.0f), needleVel = 0.0, limHold = 0.0;
+    double vuGain = 1.0, vuGainVel = 0.0;                  // the GR needle: the averaged linear gain
     bool lampLit = false;
 };

@@ -110,21 +110,32 @@ void WCompEditor::tick()
     const double dt = lastTick > 0.0 ? jlimit (0.0, 0.1, now - lastTick) : 1.0 / 60.0;
     lastTick = now;
 
-    // the needle: GR reads the compressor's reduction on the printed scale; In / Out read the level below full scale on
-    // the same scale (0 dBFS at the right end). Provisional ballistics (not measured yet): a VU-like damped movement,
-    // 99 % in about 300 ms
-    const float gr = jmax (0.0f, proc.grDb.take());
+    // the needle moves like a VU meter: a damped second-order movement, 99 % in about 300 ms. GR averages the
+    // compressor's linear gain (a VU averages the signal, so the moments without compression pull the reading back;
+    // reading the deepest reduction of each frame instead read 2-5 dB more than the reference on drums and voice);
+    // In / Out read the level below full scale on the same scale (0 dBFS at the right end). Provisional: the
+    // reference's needle has not been filmed (its editor does not paint in the capture tools here)
+    proc.grDb.take();
+    const double meanGain = proc.grGain.take (vuGain);
     const float in = jmax (proc.inLDb.take(), proc.inRDb.take()), out = jmax (proc.outLDb.take(), proc.outRDb.take());
     const int m = roundToInt (value (wcomp::meter));
-    const float shown = m == 1 ? gr : jlimit (0.0f, 48.0f, -(m == 0 ? in : out));
-    const double target = VuMeter::angleForGr (shown);
     constexpr double w = 22.0, zeta = 0.8;
-    for (int k = 0; k < 4; ++k)                           // a few sub-steps for stability at the 60 Hz frame rate
+    auto settle = [dt, w, zeta] (double& pos, double& vel, double target)
     {
-        const double h = dt / 4.0;
-        needleVel += (w * w * (target - needleAng) - 2.0 * zeta * w * needleVel) * h;
-        needleAng += needleVel * h;
+        for (int k = 0; k < 4; ++k)                       // a few sub-steps for stability at the 60 Hz frame rate
+        {
+            const double h = dt / 4.0;
+            vel += (w * w * (target - pos) - 2.0 * zeta * w * vel) * h;
+            pos += vel * h;
+        }
+    };
+    settle (vuGain, vuGainVel, meanGain);
+    if (m == 1)
+    {
+        needleAng = VuMeter::angleForGr ((float) jmax (0.0, -20.0 * std::log10 (jlimit (1.0e-6, 1.0, vuGain))));
+        needleVel = 0.0;
     }
+    else settle (needleAng, needleVel, VuMeter::angleForGr (jlimit (0.0f, 48.0f, -(m == 0 ? in : out))));
     vu.setNeedle ((float) needleAng);
 
     // the limiter lamp: lit while the limiter reduces, held briefly so short catches show

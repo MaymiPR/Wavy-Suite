@@ -106,7 +106,7 @@ public:
     // in-place; ch[0..channels-1]
     void process (float* const* ch, int n)
     {
-        minGain = minLimGain = 1.0;
+        minGain = minLimGain = 1.0; sumGain = 0.0; nGain = 0;
         for (int i = 0; i < n; ++i)
         {
             // input side: the detector level and the delayed audio
@@ -122,7 +122,7 @@ public:
             const double v1 = sum1 / (double) b1.size();
             sum2 += v1 - b2[(size_t) i2]; b2[(size_t) i2] = (float) v1; i2 = (i2 + 1) % (int) b2.size();
             const double g = sum2 / (double) b2.size();
-            minGain = std::min (minGain, g);
+            minGain = std::min (minGain, g); sumGain += g; ++nGain;
 
             // the output limiter sees the incoming samples at the current gain (what they will become)
             const double gTarget = std::pow (10.0, -Rt / 20.0);
@@ -155,6 +155,8 @@ public:
     double gainReductionDb() const { return R; }
     int limEstimate = 3;                               // how the limiter estimates the output (3: the current gain times the pending peak; 0-2 tried, worse)
     // the deepest reduction of the smoothed compressor gain during the last process() call (dB, positive)
+    // the mean compressor gain (linear) over the last process() call, for a VU-style needle
+    double blockMeanGain() const { return nGain > 0 ? sumGain / nGain : 1.0; }
     double blockGainReductionDb() const { return minGain < 1.0 ? -20.0 * std::log10 (std::max (minGain, 1e-6)) : 0.0; }
     // the same for the output limiter
     double blockLimiterDb() const { return minLimGain < 1.0 ? -20.0 * std::log10 (std::max (minLimGain, 1e-6)) : 0.0; }
@@ -268,6 +270,7 @@ private:
     int i1 = 0, i2 = 0, li1 = 0, li2 = 0, pos = 0, detPos = 0, limPos = 0;
     double startU = 0.0, startC = 0.0;
     static constexpr double chargeBlend = tables::chargeBlend;
-    double R = 0.0, S = 0.0, S2 = 0.0, g1 = 1.0, minGain = 1.0, minLimGain = 1.0;
+    double R = 0.0, S = 0.0, S2 = 0.0, g1 = 1.0, minGain = 1.0, minLimGain = 1.0, sumGain = 0.0;
+    int nGain = 0;
 };
 }

@@ -213,6 +213,8 @@ static void testProcessor()
     CHECK (maxDiff (a, c) == 0.0);
     CHECK (rms (a, 12000) < rms (x, 12000));
     CHECK (proc.grDb.take() > 1.0f);
+    const double mg = proc.grGain.take (1.0);
+    CHECK (mg < 0.9 && mg > 0.0);                          // the needle's mean gain: compressing
 
     // state round trip
     juce::MemoryBlock mb;
