@@ -35,6 +35,27 @@ def collect_nullset():
     np.savez(NULLSET, cases=np.array(out, dtype=object))
 
 
+PRESETSET = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'build', 'hc_preset_cases.npz')
+
+
+def collect_presets():
+    """program signals' envelopes on the alternating probe at the settings of WComp's factory presets (the reference's
+    own presets): threshold, ratio, attack and release (tempo-synced presets at their release time at 120 BPM); Punch
+    0, Mix 100, Output -18, Limiter Off so the gain stays observable"""
+    import nulltest_wcomp as N, refhost as R, nulltest_wcomp_presets as P
+    S = N.signals(48000)
+    out = []
+    for group, name, v in P.presets():
+        sync = int(v['sync']); rel = v['release'] if sync == 2 else P.synced_ms(int(v['releaseNote']), v['bpm'] if sync == 0 else 120.0)
+        for sig in P.SIGNALS:
+            e = np.abs(S[sig].astype(np.float64))
+            x = (e * (1 - 2 * (np.arange(len(e)) % 2))).astype(np.float32)
+            y = R.render_hc(x, 48000, threshold=v['threshold'], ratio=v['ratio'], attack=v['attack'], release=rel, punch=0.0, output=-18.0)[0]
+            out.append(dict(name=sig, preset=name, thr=v['threshold'], rat=v['ratio'], att=v['attack'], rel=rel, a=e, g=y / np.where(e > 1e-6, x, 1)))
+        print('preset', name, 'done', flush=True)
+    np.savez(PRESETSET, cases=np.array(out, dtype=object))
+
+
 MEMSET = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'build', 'hc_memory_cases.npz')
 
 
@@ -75,6 +96,12 @@ def cases():
             ok = (c['a'] > 1e-4)
             ref = np.abs(c['g'] * c['norm']); ref[~ok] = np.nan
             c['ref'] = ref; c['from'] = int(0.4 * 48000); c['name'] = 'null ' + c['name']
+            for _ in range(WEIGHT): cs.append(c)
+    if os.path.exists(PRESETSET):
+        for c in IR.prepare(list(np.load(PRESETSET, allow_pickle=True)['cases'])):
+            ok = (c['a'] > 1e-4)
+            ref = np.abs(c['g'] * c['norm']); ref[~ok] = np.nan
+            c['ref'] = ref; c['from'] = int(0.4 * 48000); c['name'] = 'preset ' + c['name']
             for _ in range(WEIGHT): cs.append(c)
     return cs
 
@@ -130,5 +157,6 @@ def report(cs=None):
 if __name__ == '__main__':
     if sys.argv[1] == 'collect': collect_nullset()
     elif sys.argv[1] == 'collectmem': collect_memory()
+    elif sys.argv[1] == 'collectpresets': collect_presets()
     elif sys.argv[1] == 'fit': fit(int(sys.argv[2]) if len(sys.argv) > 2 else 30)
     else: report()

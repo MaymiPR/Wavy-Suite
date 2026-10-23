@@ -44,7 +44,8 @@ WBassXEditor::WBassXEditor (WBassXProcessor& p)
     attachSlider (ratio, wbassx::ratio, { 106, 305, 54, 84 }, 1.0);
     attachSlider (response, wbassx::response, { 172, 305, 54, 84 }, 20.0);
     attachSlider (decay, wbassx::decay, { 418, 305, 54, 84 }, -15.0);
-    for (auto* k : { &ratio, &response, &decay }) applyFormat (*k, k->format);
+    for (auto* k : { &ratio, &response }) applyFormat (*k, k->format);
+    applyFormat (decay, decay.format, true);         // a typed "15" means -15 (the reference's PositiveTextEntryToNegative)
 
     freq.format = [] (double v) { return String (roundToInt (v)) + " Hz"; };
     for (float f : { 32.0f, 64.0f, 128.0f, 256.0f }) freq.tickPositions.push_back (std::log2 (f / 32.0f) / 3.0f);

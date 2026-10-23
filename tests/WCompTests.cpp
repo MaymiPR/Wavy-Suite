@@ -6,6 +6,7 @@
 #include "WCompDsp.h"
 #include "WCompAnalog.h"
 #include "WCompProcessor.h"
+#include "WavyFlatUI.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond) do { ++checks; if (! (cond)) { ++failures; std::printf ("FAIL %s:%d  %s\n", __FILE__, __LINE__, #cond); } } while (0)
@@ -237,6 +238,43 @@ static void testProcessor()
     CHECK_NEAR (db (rms (right, 12000)) - db (rms (quiet, 12000)), makeup, 0.1);
 }
 
+static void testValueEntry()
+{
+    // a never-positive range (Threshold) reads "18" as -18; a bipolar one (Output) keeps the sign typed
+    juce::Slider thr, out;
+    thr.setRange (-48.0, 0.0, 0.1); out.setRange (-18.0, 18.0, 0.1);
+    const auto fmt = [] (double v) { return juce::String (v, 1); };
+    wavy::flat::applyFormat (thr, fmt, thr.getMaximum() <= 0.0);
+    wavy::flat::applyFormat (out, fmt, out.getMaximum() <= 0.0);
+    CHECK_NEAR (thr.getValueFromText ("18"), -18.0, 1e-9);
+    CHECK_NEAR (thr.getValueFromText ("-18"), -18.0, 1e-9);
+    CHECK_NEAR (out.getValueFromText ("5"), 5.0, 1e-9);
+    CHECK_NEAR (out.getValueFromText ("-5"), -5.0, 1e-9);
+}
+
+static void testPresets()
+{
+    // every factory preset loads through the host's program list; Mix stays where the user left it
+    WCompProcessor proc;
+    const auto& list = wcomp::factoryPresets();
+    CHECK (list.size() == 26);
+    CHECK (proc.getNumPrograms() == 27);
+    auto* mix = proc.apvts.getParameter (wcomp::mix);
+    mix->setValueNotifyingHost (mix->convertTo0to1 (37.0f));
+    for (int i = 0; i < (int) list.size(); ++i)
+    {
+        proc.setCurrentProgram (i + 1);
+        for (const auto& v : list[(size_t) i].values)
+        {
+            if (std::string (v.id) == wcomp::mix) continue;
+            auto* prm = proc.apvts.getParameter (v.id);
+            CHECK (prm != nullptr);
+            if (prm != nullptr) CHECK_NEAR (prm->convertFrom0to1 (prm->getValue()), v.value, 0.02 + 0.001 * std::abs (v.value));
+        }
+        CHECK_NEAR (proc.apvts.getRawParameterValue (wcomp::mix)->load(), 37.0, 0.05);
+    }
+}
+
 int main()
 {
     juce::ScopedJuceInitialiser_GUI init;
@@ -249,6 +287,8 @@ int main()
     testSync();
     testAnalog();
     testProcessor();
+    testValueEntry();
+    testPresets();
     std::printf ("%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;
 }

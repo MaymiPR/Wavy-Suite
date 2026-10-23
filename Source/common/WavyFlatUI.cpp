@@ -32,13 +32,15 @@ NormalisableRange<float> gainRange (float maxDb)
 
 String gainText (float db) { return db <= -99.95f ? String ("-inf") : String (db, 1); }
 
-void applyFormat (Slider& s, std::function<String (double)> format)
+void applyFormat (Slider& s, std::function<String (double)> format, bool negateTyped)
 {
     s.textFromValueFunction = format;
-    s.valueFromTextFunction = [] (const String& t)
+    s.valueFromTextFunction = [negateTyped] (const String& t)
     {
         const auto x = t.trim();
-        return x.containsIgnoreCase ("inf") ? -100.0 : x.getDoubleValue();
+        if (x.containsIgnoreCase ("inf")) return -100.0;
+        const double v = x.getDoubleValue();
+        return negateTyped ? -std::abs (v) : v;
     };
     s.updateText();
 }

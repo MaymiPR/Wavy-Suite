@@ -4,11 +4,12 @@
 
 | Check | Result |
 |---|---|
-| Unit tests (`WCompTests`, 43 checks, 2026-10-21: latency at 44.1 … 192 kHz, idle identity, static curve and makeup, block-size invariance, stereo link, limiter Off / On ceiling, Mix 0, tempo sync and the long-note fallback, Analog Off identity, Analog noise levels and independent channels, Analog 4 crossover offset, processor: side-chain ignored, state round trip, Mode Mono) | all pass (Windows, local) |
+| Unit tests (`WCompTests`, 609 checks, 2026-10-22: the 26 factory presets load and leave Mix alone; typed values on Threshold read as negative; latency at 44.1 … 192 kHz, idle identity, static curve and makeup, block-size invariance, stereo link, limiter Off / On ceiling, Mix 0, tempo sync and the long-note fallback, Analog Off identity, Analog noise levels and independent channels, Analog 4 crossover offset, processor: side-chain ignored, state round trip, Mode Mono) | all pass (Windows, local) |
 | pluginval, strictness level 10, `--skip-gui-tests`, on `WComp.vst3` (Windows, local, 2026-10-22, after the release refit) | SUCCESS, exit code 0 |
 | The built VST3 (hosted by `tools/RefRender`) against the offline renderer, 5 signals × 5 settings, sync BPM / Host / no host tempo (`nulltest/check_wcomp_plugin.py`) | identical (−85 … −230 dB; the larger values from Release 100.25 against 100) |
 | Analog stage: C++ against the fitted model | the difference is the added noise alone (−82.9 … −109.3 dBFS) |
 | Null test against the reference | [NULL_RESULTS_WCOMP.md](NULL_RESULTS_WCOMP.md): median −39.6 dB over 168 cases (release law refitted by CMA-ES, 2026-10-22; before −37.2); defaults (Analog Off) voice-like −62.5, bass −58.5, drums −31.7, noise −24; not a null on noise and deep slow settings, see MEASUREMENTS.md "WComp model" |
+| Factory presets against the reference (each preset on voice-like, drum loop, bass line, pink noise; Analog Off and the preset's mode) | [NULL_RESULTS_WCOMP_PRESETS.md](NULL_RESULTS_WCOMP_PRESETS.md): median −30.4 dB (Analog Off); weakest on deep, slow presets |
 | VU needle against the reference | not measured (the reference's editor does not paint while the desktop is locked) |
 
 ## WVox

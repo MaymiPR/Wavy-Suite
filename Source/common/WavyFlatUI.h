@@ -24,7 +24,8 @@ juce::NormalisableRange<float> gainRange (float maxDb);
 juce::String gainText (float db);                          // "-inf" below -99.9 dB
 // installs a widget's own value text (the parameter attachment puts the parameter's, with units) and a parser that
 // reads plain numbers and "-inf"
-void applyFormat (juce::Slider&, std::function<juce::String (double)> format);
+// negateTyped: for parameters that are never positive, a typed "18" means -18 (as the references do)
+void applyFormat (juce::Slider&, std::function<juce::String (double)> format, bool negateTyped = false);
 
 // The selection, as in the reference (MEASUREMENTS.md "Selection"): a click marks a control (the primary, yellow)
 // until another one is clicked; hovering shows nothing. A lasso dragged on the background selects every control it

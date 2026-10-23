@@ -50,7 +50,9 @@ WCompEditor::WCompEditor (WCompProcessor& p)
         k.valueArea = valueArea.isEmpty() ? Rectangle<int>() : valueArea - b.getPosition();
         k.format = std::move (fmt); k.selection = &selection;
         attachSlider (k, id, b, reset);
-        if (k.format) wavy::flat::applyFormat (k, k.format);
+        // a knob whose range is never positive (Threshold) takes "18" as -18: the reference's ParamXML flags it
+        // PositiveTextEntryToNegative (only Threshold)
+        if (k.format) wavy::flat::applyFormat (k, k.format, k.getMaximum() <= 0.0);
     };
     analog.steps = 5;
     place (analog, wcomp::analog, { 39, 30, 97, 107 }, kAnalog, 2.0, {}, {});

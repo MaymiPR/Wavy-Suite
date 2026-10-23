@@ -15,6 +15,10 @@
   median −37.2 dB (defaults −62 dB; noise, drums and deep slow settings are not nulls yet;
   docs/NULL_RESULTS_WCOMP.md). VU needle and limiter lamp driven (provisional VU ballistics). Unit tests (`WCompTests`),
   offline renderer (`WCompRender`).
+- **WComp presets and value entry**: the reference's 26 factory presets (*Essentials* and *Studio*, Wavy names; array
+  positions confirmed by loading presets into the reference), which leave Mix alone as the reference does; null test of
+  every preset in docs/NULL_RESULTS_WCOMP_PRESETS.md. Typing a positive number into Threshold sets it negative ("18" →
+  −18 dB), as the reference's ParamXML marks it (PositiveTextEntryToNegative); WBassX's Decay now does the same.
 - **WComp release refit**: the release law's tables refitted by CMA-ES on probes from a settled state, repeated-event
   and memory probes, realistic envelopes and the null-test material (null-test median −37.2 → −39.6 dB; drums at the
   defaults −20.7 → −31.7 dB, voice and bass unchanged).
