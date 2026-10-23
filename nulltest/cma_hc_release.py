@@ -67,6 +67,9 @@ def main():
     sigma = float(sys.argv[2]) if len(sys.argv) > 2 else 0.2
     x0, z0, nF, nA = I8.setup()
     if os.environ.get('HC_ORDER'): I8.I2.dll.hc_set_order(int(os.environ['HC_ORDER']))
+    if os.environ.get('HC_CHARGE_OUT'): I8.I2.dll.hc_set_charge_from_out(int(os.environ['HC_CHARGE_OUT']))
+    if os.environ.get('HC_BETA'): I8.I2.dll.hc_set_charge_blend(__import__('ctypes').c_double(float(os.environ['HC_BETA'])))
+    I8.I2.dll.hc_set_startup(__import__('ctypes').c_double(json.load(open(I8.I2.OUT)).get('startup_ms', 0.0)))
     cs = I8.cases()
     q0 = np.concatenate([x0[:nF + nA], z0])
     t0 = time.time(); f0 = objective(q0, cs, x0, nF, nA); print('%d cases, one evaluation %.1f s' % (len(cs), time.time() - t0), flush=True)
@@ -79,6 +82,10 @@ def main():
     json.dump({'S': I8.W.SX.tolist(), 'z': list(map(float, q[nF + nA:]))}, open(I8.W.OUT, 'w'))
     if os.environ.get('HC_ORDER'):
         lw = json.load(open(I8.I2.OUT)); lw['attack_first'] = int(os.environ['HC_ORDER']); json.dump(lw, open(I8.I2.OUT, 'w'), indent=1)
+    if os.environ.get('HC_CHARGE_OUT'):
+        lw = json.load(open(I8.I2.OUT)); lw['charge_from_output'] = int(os.environ['HC_CHARGE_OUT']); json.dump(lw, open(I8.I2.OUT, 'w'), indent=1)
+    if os.environ.get('HC_BETA'):
+        lw = json.load(open(I8.I2.OUT)); lw['charge_blend'] = float(os.environ['HC_BETA']); json.dump(lw, open(I8.I2.OUT, 'w'), indent=1)
 
 
 if __name__ == '__main__':

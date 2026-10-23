@@ -36,6 +36,11 @@ static double w0_of(double S)
     return exp(W0v[i] + f * (W0v[i + 1] - W0v[i]));
 }
 __declspec(dllexport) void hc_set_charge_from_r(int a) { chargeFromR = a; }
+/* 1: S charges from the output after the attack (the gain the listener gets) instead of R */
+static int chargeFromOut = 0;
+static double chargeBeta = 0.0;          /* with chargeFromOut: S charges toward out + beta (R - out) */
+__declspec(dllexport) void hc_set_charge_from_out(int a) { chargeFromOut = a; chargeBeta = 0.0; }
+__declspec(dllexport) void hc_set_charge_blend(double beta) { chargeFromOut = beta < 1.0; chargeBeta = beta; }
 /* an MLP for the effective release: inputs R/30, S/30, (R-S)/30, ln(release / 100 ms)/3; 8 tanh units; output w,
    rel_eff = release * sigmoid(w)                                                                           */
 static double W1[8 * 4], B1m[8], W2[8], B2m;
@@ -107,7 +112,12 @@ __declspec(dllexport) void hc_release(const double* Rt, double* g, double* Rout,
             ga = gt0 < ga ? gt0 + att_c * (ga - gt0) : gt0;
             t = -20.0 * log10(ga);
         }
-        const double src = chargeFromR ? (R > t ? R : t) : t;   /* what S charges toward: the target, or the output */
+        double src = chargeFromR ? (R > t ? R : t) : t;
+        if (chargeFromOut)                                 /* toward the attack-smoothed reduction (previous sample) */
+        {
+            const double out = -20.0 * log10(g1);
+            src = out + chargeBeta * ((R > t ? R : t) - out);
+        }   /* what S charges toward: the target, or the output */
         if (src > S && (!chargeFromR || t > S || R > S))
         {
             /* charge: a one-pole on the linear gain toward the target, time constant Ff.v[2] ms ("Crest") */

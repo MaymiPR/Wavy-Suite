@@ -234,8 +234,14 @@ private:
         using namespace tables;
         if constexpr (hasRelease4) { stepRelease4 (t); return; }
         const double dt = 1.0 / fs;
-        // the slow state charges toward the output (a one-pole on the linear gain) or releases with the slow law
-        const double src = std::max (R, t);
+        // the slow state charges (a one-pole on the linear gain) toward the reduction the listener gets, after the
+        // attack, blended with R (chargeBlend), or releases with the slow law
+        double src = std::max (R, t);
+        if (chargeBlend < 1.0)
+        {
+            const double out = -20.0 * std::log10 (g1);
+            src = out + chargeBlend * (src - out);
+        }
         if (src > S)
         {
             const double gs = std::pow (10.0, -S / 20.0), gt = std::pow (10.0, -src / 20.0);
@@ -261,6 +267,7 @@ private:
     double sum1 = 0.0, sum2 = 0.0, lsum1 = 0.0, lsum2 = 0.0;
     int i1 = 0, i2 = 0, li1 = 0, li2 = 0, pos = 0, detPos = 0, limPos = 0;
     double startU = 0.0, startC = 0.0;
+    static constexpr double chargeBlend = tables::chargeBlend;
     double R = 0.0, S = 0.0, S2 = 0.0, g1 = 1.0, minGain = 1.0, minLimGain = 1.0;
 };
 }

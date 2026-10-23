@@ -8,6 +8,12 @@ WAVESHELL = r"C:\Program Files\Common Files\VST3\WaveShell1-VST3 17.1_x64.vst3"
 _cache = {}
 STATS = {"silent_retries": 0}
 
+def fresh(name):
+    """forget the cached instance: the next render loads a new one (a Waves plug-in can keep state from the settings
+    of earlier renders that its parameters do not show)"""
+    _cache.pop(name, None)
+
+
 def load(name="RVox Mono"):
     if name not in _cache:
         _cache[name] = pb.load_plugin(WAVESHELL, plugin_name=name)

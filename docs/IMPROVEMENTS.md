@@ -68,7 +68,9 @@ When part of a reference resists identification, keep everything that *is* ident
 
 - **Release law** (the main open item): the two-state law, refitted by CMA-ES (`nulltest/cma_hc_release.py`), nulls
   voice and bass at the defaults (−62 / −59 dB) and drums at −32, but not deep, slow settings or noise (−10 … −35 dB).
-  CMA-ES is the optimiser that works here; use it to compare structures (each run about 20 minutes). What is known and what was tried is in
+  CMA-ES is the optimiser that works here; use it to compare structures (each run about 20 minutes).
+  Open: sustained bass with Attack longer than Release (Vintage Drum Crunch, −8 dB) keeps memory the model does not;
+  Fat Kick on noise (−12 dB). What is known and what was tried is in
   MEASUREMENTS.md "WComp model": a start-up state, the settled program dependence, a Crest average of about 150 ms.
   Next: a state for the duration of the current event; validate on voice-like and bass line first.
 - **Limiter**: H-Comp's limiter sees the true future output; WComp estimates it (−16 … −43 dB under heavy limiting).

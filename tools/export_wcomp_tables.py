@@ -64,6 +64,8 @@ def main():
          'constexpr float relSeedMs = %s, relSeedExp = %s, crestMs = %s;' % (lit(np.exp(w0['z'][nS])), lit(w0['z'][nS + 1]), lit(w0['z'][nS + 2])),
          '// start-up: after a reset the effective release time is pulled toward Release by exp(-t / startupMs)',
          'constexpr float startupMs = %s;' % lit(law.get('startup_ms', 0.0)),
+         '// the slow state charges toward out + chargeBlend (R - out), out the reduction after the attack (1: toward R)',
+         'constexpr float chargeBlend = %s;' % lit(law.get('charge_blend', 1.0)),
          ''] + release4(lit, f) + analog(lit, f) + ['}']
     out = os.path.join(ROOT, 'plugins', 'WComp', 'WCompTables.h')
     open(out, 'w', newline='\n').write('\n'.join(L) + '\n')

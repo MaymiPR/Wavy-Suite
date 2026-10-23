@@ -42,6 +42,7 @@ def main():
     S = N.signals(48000)
     rows = []
     for group, name, v in presets():
+        R.fresh('H-Comp Stereo')               # a new reference per preset: it keeps state from earlier settings
         sync = int(v['sync']); note = int(v['releaseNote'])
         bpm = v['bpm'] if sync == 0 else 120.0          # Host: no host tempo here, both fall back to 120
         rel = v['release'] if sync == 2 else synced_ms(note, bpm)

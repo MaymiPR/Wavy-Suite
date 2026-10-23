@@ -561,7 +561,24 @@ by CMA-ES (below). What is known about the reference's release:
   start-up probes and on program material from 0.05 s: the probes prefer a longer, step-like start-up, program
   material about 85 ms). Null test median −40.0 → −41.9 dB; threshold −24 / ratio 10 / Release 300 −21.9 → −31.5;
   the defaults lose about 3 dB, in their first half second only.
-- Still weak: deep, slow presets (Lo-Fi Radio, Tight Kit, Fat Kick: −8 … −13 dB on some signals), noise (−24 … −35 dB).
+- **The memory follows the reduction the listener gets.** With a long attack (Fat Kick: Attack 33 ms) the target
+  swings to 9 dB on every half-cycle of a kick but the output only reaches about 1.5 dB; the reference then releases
+  almost to 0 between half-cycles, as after short events, while a slow state charged from R (the reduction before the
+  attack) held 5.7 dB. Charging the slow state toward out + 0.05 (R − out), out the reduction after the attack (the
+  previous sample's), and refitting (CMA-ES, 1034 cases: −42.7 → −43.7 dB): presets' null median −32.0 → −35.5 dB
+  (Fat Kick drums −12.9 → −21.7, Drum Punch voice −21.6 → −38.0, Pumping Kit voice −33.1 → −44.5, Drum Knockout
+  drums −24.7 → −41.7); the null test's worst case −10.5 → −16.7, its median −41.9 → −40.3. Charging purely from
+  the output (β = 0) breaks: before the attack starts the output is 0 dB, the slow state takes its release branch
+  and is floored at the target, so it jumps to the full reduction at once.
+- **Not explained:** a sustained bass note with Attack longer than Release (Vintage Drum Crunch: Attack 17.7,
+  Release 13.5 ms) keeps about 6 dB of memory between cycles in the reference; WComp releases to 2 dB there
+  (−8.4 dB on the bass line). Fat Kick on noise stays at −12 dB.
+- **Reference quirk (tempo sync).** After running synced (BPM or Host) and switching Sync to ms, H-Comp keeps the
+  synced release time internally while its Release parameter shows another value; it takes the shown value again
+  only once Release itself changes (and, coming from Host, not even then in one test). A fresh instance follows its
+  parameters exactly (Host sync: the host's tempo, 17.86 ms for 1/64T at 140 BPM, −90 dB). WComp always follows its
+  parameters, so for nulls after a synced preset, reload H-Comp. The preset null test uses a fresh reference per
+  preset for this reason (with one shared instance two presets showed −8 … −10 dB that were really −31 … −37).
 
 **Not done.** The VU needle's ballistics: MeterCapture films the reference's editor, but H-Comp's editor is a web
 view that does not paint while the desktop is locked or the window is covered; the capture has to be repeated with
