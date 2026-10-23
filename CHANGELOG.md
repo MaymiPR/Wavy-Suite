@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- **WComp** (in progress), a hybrid compressor modelled on H-Comp: the Hybrid-line editor (643 x 454, resizable)
+- **WComp** (ready for the next release; Phase 5: in the installers' plug-in list, FocusCheck, sample-rate checks),
+  a hybrid compressor modelled on H-Comp: the Hybrid-line editor (643 x 454, resizable)
   drawn entirely by Wavy on a new shared kit (`Source/common/WavyHybridUI`: the orange panel, bakelite and chrome
   knobs with printed scales, ivory buttons, a VU meter with needle, the amber BPM display) and a Hybrid toolbar style;
   the reference's parameter list and tapers (Ratio's own curve, log Attack / Release, Threshold 0 at the left), a
@@ -26,7 +27,8 @@
   defaults −20.7 → −31.7 dB, voice and bass unchanged); then the presets' settings added to the fit and the
   reference's start-up state modelled (slow release in the first fraction of a second); the release memory now
   charges from the reduction after the attack (long-attack presets: Fat Kick drums −12.9 → −21.7 dB; presets' median
-  −32.0 → −35.5 dB).
+  −32.0 → −35.5 dB); the memory drains no faster than a 16.8 ms release (sustained bass); a final joint fit:
+  null-test median −41.4 dB, presets' median −35.6 dB.
 - WComp Phase 3: measurements of the reference H-Comp (`nulltest/measure_hcomp.py`, `measurements/hcomp/`, MEASUREMENTS.md).
 - **WBassX presets, value entry and meters** (Phase 5): 22 factory presets (*Essentials* and *Studio*, settings
   from the reference's own set converted by the reference itself, Wavy names), which leave Input alone as the

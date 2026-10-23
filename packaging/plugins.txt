@@ -3,3 +3,4 @@
 WVox|WVox|Wvx1
 WBass|WBass|Wbs1
 WBassX|WBassX|Wbx1
+WComp|WComp|Wcp1

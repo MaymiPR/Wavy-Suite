@@ -18,12 +18,16 @@ MODE = os.environ.get('HC_OBJ', 'null')       # null: the mean null (dB) over th
 
 
 EXTRA = os.environ.get('HC_FIT_MEMFLOOR') is not None      # one more parameter: ln of the memory's release-time floor (ms)
+FITBETA = os.environ.get('HC_FIT_BETA') is not None         # one more: logit of the charge blend (before the floor's)
 
 
 def objective(q, cs, x0, nF, nA):
+    if FITBETA:
+        I8.I2.dll.hc_set_charge_blend(__import__('ctypes').c_double(float(1 / (1 + np.exp(-q[-2 if EXTRA else -1])))))
     if EXTRA:
         I8.I2.dll.hc_set_mem_floor(__import__('ctypes').c_double(float(np.exp(q[-1]))))
         q = q[:-1]
+    if FITBETA: q = q[:-1]
     X = I8.law(q, x0, nF, nA)                 # sets the C model's w0 / K / p globals for this candidate
 
     def one(c):
@@ -81,6 +85,7 @@ def main():
     I8.I2.dll.hc_set_startup(__import__('ctypes').c_double(json.load(open(I8.I2.OUT)).get('startup_ms', 0.0)))
     cs = I8.cases()
     q0 = np.concatenate([x0[:nF + nA], z0])
+    if FITBETA: b0 = float(os.environ['HC_FIT_BETA']); q0 = np.concatenate([q0, [np.log(b0 / (1 - b0))]])
     if EXTRA: q0 = np.concatenate([q0, [np.log(float(os.environ['HC_FIT_MEMFLOOR']))]])
     t0 = time.time(); f0 = objective(q0, cs, x0, nF, nA); print('%d cases, one evaluation %.1f s' % (len(cs), time.time() - t0), flush=True)
     best, q = cma(lambda q: objective(q, cs, x0, nF, nA), q0, sigma, gens)
@@ -89,6 +94,8 @@ def main():
         shutil.copy(p, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'build', os.path.basename(p).replace('.json', '.before_cma.json')))
     if EXTRA:
         floor = float(np.exp(q[-1])); q = q[:-1]; print('memory release floor %.1f ms' % floor)
+    if FITBETA:
+        beta = float(1 / (1 + np.exp(-q[-1]))); q = q[:-1]; print('charge blend %.4f' % beta)
     x = x0.copy(); x[:nF + nA] = q[:nF + nA]
     lw = json.load(open(I8.I2.OUT)); lw['x'] = list(map(float, x)); json.dump(lw, open(I8.I2.OUT, 'w'), indent=1)
     json.dump({'S': I8.W.SX.tolist(), 'z': list(map(float, q[nF + nA:]))}, open(I8.W.OUT, 'w'))
@@ -100,6 +107,8 @@ def main():
         lw = json.load(open(I8.I2.OUT)); lw['charge_blend'] = float(os.environ['HC_BETA']); json.dump(lw, open(I8.I2.OUT, 'w'), indent=1)
     if EXTRA:
         lw = json.load(open(I8.I2.OUT)); lw['memory_floor_ms'] = floor; json.dump(lw, open(I8.I2.OUT, 'w'), indent=1)
+    if FITBETA:
+        lw = json.load(open(I8.I2.OUT)); lw['charge_blend'] = beta; json.dump(lw, open(I8.I2.OUT, 'w'), indent=1)
     if os.environ.get('HC_RFLOOR'):
         lw = json.load(open(I8.I2.OUT)); lw['r_floor_at_s'] = int(os.environ['HC_RFLOOR']); json.dump(lw, open(I8.I2.OUT, 'w'), indent=1)
 

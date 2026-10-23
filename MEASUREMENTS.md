@@ -577,6 +577,10 @@ by CMA-ES (below). What is known about the reference's release:
   −43.70 → −43.81 dB): Vintage Drum Crunch bass −8.4 → −17.0 dB, Lo-Fi Radio bass −24.3 → −27.5; Drum Punch voice
   −38.0 → −33.5; presets' median −35.5 → −34.8; the null test the same or better everywhere (deep slow setting
   −31.5 → −33.5). Fat Kick on noise stays at −12 dB.
+- **Final joint fit.** The charge blend and the memory's release floor fitted with all the tables (CMA-ES, 250
+  generations): blend 0.032, floor 16.8 ms, objective −43.81 → −43.97 dB; the null test's median −40.3 → −41.4 dB
+  (worst −16.8), the presets' median −34.8 → −35.6 dB (Vintage Drum Crunch bass −17.0 → −19.1, Lo-Fi Radio bass
+  −27.5 → −31.1). This is the law WComp ships with.
 - **Tried: letting R fall below the slow state.** On noise with Attack 33 ms (Fat Kick) the slow state, charged from
   the output, and the floor R ≥ S hold each other at about 2 dB while the reference stays at 0–0.3 dB. Without the
   floor (the memory then only slows the release) the refit reaches −42.09 dB against −43.81 with it, so the floor
