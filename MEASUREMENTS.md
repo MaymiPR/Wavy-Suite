@@ -580,7 +580,15 @@ by CMA-ES (below). What is known about the reference's release:
   parameters, so for nulls after a synced preset, reload H-Comp. The preset null test uses a fresh reference per
   preset for this reason (with one shared instance two presets showed −8 … −10 dB that were really −31 … −37).
 
-**Not done.** The VU needle's ballistics: MeterCapture films the reference's editor, but H-Comp's editor is a web
-view that does not paint while the desktop is locked or the window is covered; the capture has to be repeated with
-the screen in use. WComp's needle uses VU-like ballistics (99 % in about 300 ms) until then, In / Out reading the level
-below full scale on the printed scale. The limiter lamp's lit appearance was not seen on the reference either.
+**Not done.** The VU needle's ballistics: H-Comp's editor (a web view) paints white in every capture tool here
+(MeterCapture's screen grab, pedalboard's editor window with a screen grab, PrintWindow with full content), with the
+screen on and the desktop unlocked; on 2026-10-20 the same editor did paint (the UI-phase screenshots). Its ParamXML
+and GUIXML show the GR needle is an image strip of 71 frames driven by PARAM_PEAK (an attenuation meter read as the
+peak since the last read), the In / Out needle another strip driven by PARAM_METER_DISPLAY (−30 … 0 dB); the needle's
+movement is the editor's. WComp's audio matches H-Comp's level within 0.1–0.4 dB on the presets, but in FL its GR
+needle read about 9–10 where H-Comp's read about 6. Simulated on preset material, WComp's former needle (the deepest
+reduction of each frame, then VU-like movement) reads 1–3 dB above the mean reduction and 2–5 dB above a VU average
+of the linear gain (Pumping Kit drums 8.9 against 5.4, Master Glue drums 9.3 against 5.8, Lead Guitar voice 10.3
+against 4.9), which matches the readings seen. WComp's GR needle now averages the compressor's linear gain like a
+VU (the same damped movement, 99 % in about 300 ms) — provisional until the reference's needle can be filmed. The
+limiter lamp's lit appearance was not seen on the reference either.
