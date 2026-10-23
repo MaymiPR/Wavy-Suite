@@ -75,6 +75,9 @@ def main():
     if os.environ.get('HC_ORDER'): I8.I2.dll.hc_set_order(int(os.environ['HC_ORDER']))
     if os.environ.get('HC_CHARGE_OUT'): I8.I2.dll.hc_set_charge_from_out(int(os.environ['HC_CHARGE_OUT']))
     if os.environ.get('HC_BETA'): I8.I2.dll.hc_set_charge_blend(__import__('ctypes').c_double(float(os.environ['HC_BETA'])))
+    _L = json.load(open(I8.I2.OUT))
+    if not EXTRA: I8.I2.dll.hc_set_mem_floor(__import__('ctypes').c_double(_L.get('memory_floor_ms', 0.0)))
+    if os.environ.get('HC_RFLOOR'): I8.I2.dll.hc_set_r_floor(int(os.environ['HC_RFLOOR']))
     I8.I2.dll.hc_set_startup(__import__('ctypes').c_double(json.load(open(I8.I2.OUT)).get('startup_ms', 0.0)))
     cs = I8.cases()
     q0 = np.concatenate([x0[:nF + nA], z0])
@@ -97,6 +100,8 @@ def main():
         lw = json.load(open(I8.I2.OUT)); lw['charge_blend'] = float(os.environ['HC_BETA']); json.dump(lw, open(I8.I2.OUT, 'w'), indent=1)
     if EXTRA:
         lw = json.load(open(I8.I2.OUT)); lw['memory_floor_ms'] = floor; json.dump(lw, open(I8.I2.OUT, 'w'), indent=1)
+    if os.environ.get('HC_RFLOOR'):
+        lw = json.load(open(I8.I2.OUT)); lw['r_floor_at_s'] = int(os.environ['HC_RFLOOR']); json.dump(lw, open(I8.I2.OUT, 'w'), indent=1)
 
 
 if __name__ == '__main__':

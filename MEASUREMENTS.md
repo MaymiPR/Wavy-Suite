@@ -577,6 +577,10 @@ by CMA-ES (below). What is known about the reference's release:
   −43.70 → −43.81 dB): Vintage Drum Crunch bass −8.4 → −17.0 dB, Lo-Fi Radio bass −24.3 → −27.5; Drum Punch voice
   −38.0 → −33.5; presets' median −35.5 → −34.8; the null test the same or better everywhere (deep slow setting
   −31.5 → −33.5). Fat Kick on noise stays at −12 dB.
+- **Tried: letting R fall below the slow state.** On noise with Attack 33 ms (Fat Kick) the slow state, charged from
+  the output, and the floor R ≥ S hold each other at about 2 dB while the reference stays at 0–0.3 dB. Without the
+  floor (the memory then only slows the release) the refit reaches −42.09 dB against −43.81 with it, so the floor
+  stays (`hcfast2.c hc_set_r_floor`, `WCompTables.h rFloorAtS`).
 - **Reference quirk (tempo sync).** After running synced (BPM or Host) and switching Sync to ms, H-Comp keeps the
   synced release time internally while its Release parameter shows another value; it takes the shown value again
   only once Release itself changes (and, coming from Host, not even then in one test). A fresh instance follows its

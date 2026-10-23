@@ -256,8 +256,8 @@ private:
             re = std::min ({ re, relS * table (w0Knot, w0Log, w0Count, S), relSeedMs * 1e-3 / std::pow (R - S, (double) relSeedExp) });
         if (startU > 1e-6) { re += startU * (relS - re); startU *= startC; }   // start-up: slow at first, as the reference
         R -= (table (fsKnot, fsLog, fsCount, R) / re + table (asKnot, asLog, asCount, R)) * dt;
-        R = std::max (R, S);
-        R = std::max (R, t);
+        if constexpr (tables::rFloorAtS) R = std::max (R, S);   // otherwise the memory only slows the release
+        R = std::max ({ R, t, 0.0 });
     }
 
     Settings set;

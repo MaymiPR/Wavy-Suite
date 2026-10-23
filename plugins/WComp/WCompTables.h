@@ -34,6 +34,8 @@ constexpr float startupMs = 90.0f;
 constexpr float chargeBlend = 0.05f;
 // the slow state releases with a release time of at least memoryFloorMs (0: the Release time)
 constexpr float memoryFloorMs = 25.712741f;
+// true: R never falls below the slow state; false: the memory only slows the release
+constexpr bool rFloorAtS = true;
 
 // release law, fourth form (nulltest/ident_hc_rel4.py): R falls at fs4(R) / (release * w4(R - S)) + as4(R) dB/s
 // (w4 = w4(0) while R <= S), never below the target; S charges toward R (one-pole on the linear gain, crest4Ms)

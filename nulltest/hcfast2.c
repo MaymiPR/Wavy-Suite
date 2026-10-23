@@ -44,6 +44,10 @@ __declspec(dllexport) void hc_set_charge_blend(double beta) { chargeFromOut = be
 /* the slow state releases at the slow law with a release time of at least this (ms; 0: the Release time itself) */
 static double memFloorMs = 0.0;
 __declspec(dllexport) void hc_set_mem_floor(double ms) { memFloorMs = ms; }
+/* 0: R may fall below the slow state (the memory only slows the release; with S charged from the output a floor
+   latches: S holds the output up and the output holds S) */
+static int rFloorS = 1;
+__declspec(dllexport) void hc_set_r_floor(int a) { rFloorS = a; }
 /* an MLP for the effective release: inputs R/30, S/30, (R-S)/30, ln(release / 100 ms)/3; 8 tanh units; output w,
    rel_eff = release * sigmoid(w)                                                                           */
 static double W1[8 * 4], B1m[8], W2[8], B2m;
@@ -150,7 +154,7 @@ __declspec(dllexport) void hc_release(const double* Rt, double* g, double* Rout,
             }
             R -= (tab(&Fs, R) / re + tab(&As, R)) * dt;
         }
-        if (R < S) R = S;
+        if (rFloorS && R < S) R = S;
         if (R < t) R = t;
         const double gt = pow(10.0, -R / 20.0);
         g1 = attackFirst ? gt : (gt < g1 ? gt + att_c * (g1 - gt) : gt);
