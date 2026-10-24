@@ -337,3 +337,150 @@ default: the slot's polarity is checked in Phase 3.
 - **Tempo sync:** release note values from the host's tempo (AlgXML `IsTempoListener`) or the BPM setting.
 - **UI:** the largest yet: procedurally drawn photoreal knobs, a backlit VU meter with needle ballistics, chrome toggle
   buttons, an LED digit display, on the toolbar layout of the Hybrid line.
+
+---
+
+## 5. WDelay (H-Delay)
+
+### Sources
+- **D1** Local manual `H-Delay.bundle\Contents\Resources\H-Delay.pdf` (12 pages, H-Delay Hybrid Delay User Guide).
+- **D2** Local `H-Delay.bundle\Contents\Resources\ParamXML\1000.xml` (69 parameters; table printed by
+  `nulltest/paramxml_table.py`), `GUIXML\1000.xml`, `ToolbarXML\1001.xml`, `AlgXML\1001.xml` (algorithm `HBDL`: a
+  tempo, track-info and MIDI listener; components `HBDM` mono, `HBDS` stereo, `HBDX` mono-to-stereo, plus "Lab"
+  copies `HLD*`), `ProcessXML\1000.xml` / `1001.xml`, `PageTable\3950.xml`, presets in `Presets\1000.xml` (88).
+- **D3** The installed VST3 (`WaveShell1-VST3 17.1`) as seen by a host (`nulltest/probe_hdelay.py`): components
+  *H-Delay Mono* (uid 1847911073), *H-Delay Stereo* (1849387175), *H-Delay Mono/Stereo* (1850617249; pedalboard
+  cannot load it, one input and two outputs); automatable parameters below; no side-chain bus.
+- **D4** Screenshots of the real editor taken with `tools/MeterCapture` (git-ignored `reference/hdelay/`): stereo and
+  mono at the defaults, MS sync, a Delay drag, Ping Pong, LoFi, Dual.
+
+### Documented behaviour (D1)
+- A "hybrid" delay: slap-back, ping-pong, tempo sync, modulation, filtering, flanging and phasing.
+- **Delay** 1 … 3500 ms, or a note value when synced (default 1/8D, Host sync). Changing the delay time works like a
+  tape machine changing its motor speed: the echoes already recorded change pitch until the new speed reaches the
+  playback head.
+- **Sync** Host (note values of the host tempo), BPM (note values of a BPM set in the plug-in, set by tapping),
+  MS (milliseconds). The time display shows the nearest value when the mode changes.
+- **Tap Pad**: the delay is the interval between the last two clicks (Host: quantised to the nearest note value;
+  BPM: the tap sets the BPM).
+- **Feedback** 0 … 200 % (default 60): repeats decay below 100 and build up above it.
+- **Ping Pong** (stereo components): two delay lines feeding each other, with a start direction (left or right).
+  **Dual**: separate left and right times (the display's halves are dragged; the Delay knob follows the selected
+  side); Feedback, Modulation and the filters stay common.
+- **Phase L / R** invert each delay line (linked on the mono-to-stereo component).
+- **Modulation**: Depth 0 … 100 (default 0), Rate 0.1 … 6000 Hz (default 0.1), a triangle LFO on the delay time
+  (flanging and chorus up to frequency modulation).
+- **LoPass** 20 Hz … 20 kHz or Off, **HiPass** Off or 20 Hz … 20 kHz (both Off by default), **Link** moves both
+  together like a band-pass.
+- **LoFi**: the reduced sample rate of early digital delays, keeping the delay range.
+- **Mix** 0 … 100 (default 100), **Output** ±18 dB, **Analog** Off / 1 … 4 (default 2), an output meter
+  0 … −48 dBFS with a clip light.
+
+### Specifications (D3, measured)
+- **Latency 0** samples, reported and real: the first echo of an impulse lands on the set time at 44.1, 48 and
+  96 kHz (16 537, 18 000, 35 999 samples for 375 ms).
+- The echo is not a single sample: at 48 kHz an impulse comes back as a symmetric kernel over ±14 samples
+  (centre 0.666, side taps −0.020 / +0.021, −0.010, +0.007 …) whose sum is **2/3** (−3.5 dB) with Feedback 0 and
+  Mix 100; at 96 kHz it is twice as wide (centre 0.333). So the wet path has a fixed-frequency low-pass and a gain of
+  2/3, and it is probably interpolated. `PARAM_INTERPOLATION_LP_FREQ` (6280 Hz, display only) is a candidate.
+- Mix 50: the dry signal at 0.707, so probably an equal-power mix law.
+- **Delay changes glide**: in a running instance, changing Delay from 375 to 100 ms put the next echo at 148 ms, and
+  100 → 50 ms put it at 52 ms. The read point moves at a limited speed (the documented tape behaviour). Loading a
+  state with the new time jumps at once.
+- **Harness pitfall**: parameters set through pedalboard before the instance's first block are shown, but the
+  processing keeps its previous values (the echo stayed at 375 ms while Delay read 100 ms). Phase 3 sets settings
+  through the state's preset array (`nulltest/wavesstate.py`), or renders a first block before changing anything.
+  Likewise, values set from outside do not redraw the reference's editor; screenshots of other states are taken by
+  clicking its buttons (MeterCapture `click`).
+
+### Parameters (D2, D3), in preset-array order
+The preset array holds the first 45 parameters (0–44); the right-channel copies (47–54) and the Dual / display
+switches (55–68) are not stored in presets. Parameters 47–54 take their scale from a `Parent` (the left one).
+
+| # | ID | Label | Range | Default | In VST3 |
+|---|---|---|---|---|---|
+| 0 | PARAM_BYPASS_PEDAL | — | toggle (display only) | 0 | bypass |
+| 1 | PARAM_SYNC_ON | Sync | BPM / Host / ms (0 / 1 / 2) | Host | sync |
+| 2 | PARAM_BPM | BPM | 30 … 300, 1 | 120 | bpm |
+| 3 | PARAM_DELAY_TIME_MS | Delay | 1 … 3500 ms, `DelayScale` (Var 2.8547), 1 ms (1001 host steps, 10 ms steps at the top) | 365.85 (reset); a host sees 375 | delay_sec |
+| 4 | PARAM_DELAY_TIME_BPM | Delay | 20 note values: 1/64T 1/64 1/64D 1/32T 1/32 1/32D 1/16T 1/16 1/16D 1/8T 1/8 1/8D 1/4T 1/4 1/4D 1/2T 1/2 1/2D 1B 2B | 11 (1/8D) | delay_bpm |
+| 5 | PARAM_TAP_PAD | Tap Pad | toggle (display only) | 0 | — |
+| 6 | PARAM_MIX | Mix | 0 … 100, 1 (ignored on preset load) | 100 | mix |
+| 7 | PARAM_FEEDBACK | Feedback | 0 … 200, 1 | 60 | feedback |
+| 8, 9 | PARAM_INV_L / R | Phase L / R | + / − | + | phase_l, phase_r |
+| 10 | PARAM_PING_PONG | — | Stereo / PingPong | Stereo | pingpong |
+| 11 | PARAM_NARROW_FB | — | toggle (display only) | 0 | — |
+| 12 | PARAM_DIRECT_GAIN | — | −42 … 0 dB (display only) | 0 | — |
+| 13 | PARAM_LIMITER_RELEASE | Release | 1 … 1000 ms, log (display only): an output limiter's release | 10 | — |
+| 14 | PARAM_OUT_GAIN | Output | ±18 dB, 0.1 | 0 | output |
+| 15 | PARAM_FB_HI_FREQ | LoPass | 19 … 20 138.8 Hz, `FreqScale`; Off at the top (stored 20 100 or 20 139) | Off | lopass |
+| 16 | PARAM_FB_HI_Q | — | 0.5 … 2 (display only) | 0.95 | — |
+| 17 | PARAM_FB_LO_FREQ | HiPass | 19 … 20 138.8 Hz, `FreqScale`; Off at the bottom (19) | Off | hipass |
+| 18 | PARAM_FB_LO_Q | — | 0.5 … 2 (display only) | 0.8 | — |
+| 19 | PARAM_DEPTH | Depth | 0 … 100 %, stored with fractions (0.69 shows as 1 %) | 0 | depth |
+| 20 | PARAM_RATE | Rate | 0.1 … 6000 Hz, `RateScale` (881 host steps) | 0.1 | rate |
+| 21 | PARAM_INTERPOLATION_LO_FI | LoFi | HiFi / LoFi | HiFi | lofi |
+| 22 | PARAM_INTERPOLATION_LP_FREQ | — | 1000 … 24 000 Hz, log (display only) | 6280 | — |
+| 23 | PARAM_ANALOG | Analog | Off / Mod1 … Mod4 (ParamXML's initial value 0; the default preset and a fresh instance: Mod2) | Mod2 | analog |
+| 24–28 | DITHER_NORM / GAIN1 / FREQ1 / GAIN2 / FREQ2 | analog noise −98 dB, shaped (+30 dB at 200 Hz, −12.1 dB at 11.15 kHz), as H-Comp | | | — |
+| 29–35 | THD, THD_SUB / LOW / HF FREQ / GAIN | analog harmonics −29.5 dB, shaped (sub 125 Hz +22.3, low 250 Hz 0, HF 8.88 kHz +7.1 dB), as H-Comp | | | — |
+| 36–38 | ATHD_GAIN / THRESH / NORM | even harmonics −8.3 dB above −20.1 dB, as H-Comp | | | — |
+| 39–43 | IN / OUT_VU L / R, DISPLAY_VU | meters (−30 … 0 dB, clip at 0.999999) | | | — |
+| 44 | PARAM_CLIP_LIGHT | Clip | the clip light | | — |
+| 45 | PARAM_PING_PONG_START_DIRECTION | ppg start | Left / Right | Left | ping_pong_start_direction |
+| 46 | PARAM_TAP_MODE | TAP mode | toggle | 0 | — |
+| 47–54 | *_RIGHT | DlyMsR, DlyBPMRt, FeedbackR, HiFreqR, LoFreqR, DepthR, RateR, TapR | as the left ones | | delay_sec_r, delay_bpm_r |
+| 55 | PARAM_DUAL | Link | Dual off / on (1 = linked) | 1 | — |
+| 56 | PARAM_BALANCED_FB | BalancedFB | On / Off | Off | — |
+| 57–68 | DUAL_LABEL, DISPLAY_R_WHEN_PINGPONG, BPM_DUAL, DELAY_TIME_*_MAIN / LEFT / DISPLAY, REFRESH_DISPLAY | display switches | | | — |
+
+The analog block (24–38) carries H-Comp's numbers exactly, so H-Delay probably uses the same Analog stage; WComp's
+measured Analog model is the starting point. The display-only "narrow feedback", "direct gain", "balanced feedback"
+and the filter Qs (0.95 low-pass, 0.8 high-pass) are fixed design values to be checked in Phase 3. The VST3 has no
+right-channel Feedback, filter or modulation, although ParamXML lists them, so Dual only splits the times.
+
+### GUI geometry (D2, D4)
+View **749 × 292 px** below the Hybrid toolbar (the same toolbar as H-Comp: logo, undo / redo, preset box,
+previous / next, A→B, Setup A, Save, menu); the same orange panel, knob, button and display family as H-Comp.
+- **Tap** pad 22, 58, 99 × 101 (a black rubber pad with the Waves mark, "TAP" below); **LoFi** button 32, 185.
+- **Delay** big knob 130, 27, 152 × 154 (scale "1/64T … 2Bar" when synced, "1 … 3500" in MS); while it is dragged a
+  value box appears in its centre. Delay BPM and Delay ms share the knob (and the R copies for Dual).
+- Button row (stereo) 290 … 432, y 38: **ØL**, **PING PONG**, **DUAL**, **ØR**; mono shows a single **Ø**.
+- **Display** 292, 57, 137 × 74 (amber segment digits): the note value and the BPM ("1/8 D 120 BPM") in Host / BPM,
+  four digits ("0375") in MS; with Ping Pong the time and an "L" / "R" start-direction box; with Dual "L" and "R"
+  halves with a value each. **Sync** radio BPM / HOST / MS 288, 142, 148 × 33.
+- **Feedback** big knob 442, 27 (0 … 200); clip light 613, 39; **output meter** (two bars on stereo, 15 × 177 each
+  at 608 and 623, y 77) on a cream scale 0, 3, 6, 12, 24, 36, 48.
+- Right column: **Dry/Wet** 663, 26; **Output** 663, 106; **Analog** stepped knob 663, 191 (73 × 76 each).
+- Bottom row (96 × 106 knobs): **Depth** 134, 175 and **Rate** 239, 175 under a "MODULATION" bracket; **HiPass**
+  360, 175, **Link** 454, 199 (a small knurled wheel moving both filters), **LoPass** 495, 175 under "FILTERS".
+- The plug-in's name in large type at the lower left. Value texts are shown while a knob is dragged; Alt resets
+  (`OptionReset`); text entry on the knobs and the displays (`ReciveTextEntery`). A 40 px drag up on Delay in MS
+  moved it 375 → 415 ms.
+
+### Presets (D2)
+88 presets, all RealWorld arrays of 45 values (all taken by the reference: `nulltest/read_ref_presets_hd.py` →
+`build/ref_presets_HDelay.json`): Full Reset, PA Default, 22 "Classics", 11 "Modulation", 11 "Ambience",
+22 "Special FX" (several "Watch Out": Feedback over 100), and 20 signed by engineers whose names are in the preset
+names. 34 are for the stereo components only. They use Host or ms sync (none BPM), Ping Pong on 39, LoFi on 30, every
+Analog mode, Mix mostly 100. They will be carried over by their values with Wavy names (no person's or product's
+name).
+
+### Notes for the next phases
+- **Delay line**: interpolated reads (2/3 wet gain, a fixed-frequency kernel), a glide on time changes (the "tape"
+  law: how fast the read point moves, and whether it is a slew or a one-pole), host tempo and BPM sync with the
+  20 note values, the tap pad.
+- **Feedback** above 100 %: what keeps it bounded (`PARAM_LIMITER_RELEASE` 10 ms suggests a limiter in the loop or
+  at the output; the clip light).
+- **Filters** in the feedback loop (the IDs say FB): their slopes and Qs (0.95 / 0.8), Off positions, and Link.
+- **Modulation**: a triangle LFO up to 6 kHz on the delay time; its depth in samples or ms, and whether left and
+  right are in phase.
+- **LoFi**: a reduced-rate delay line (`PARAM_INTERPOLATION_LP_FREQ` 6280 Hz is the likely anti-alias filter).
+- **Ping Pong / Dual / phase** routing on the stereo and mono-to-stereo components; the M>S component needs a JUCE
+  host for measurements (pedalboard cannot load it).
+- **Analog** modes: compare with WComp's measured stage; modes 1–3 add noise, so nulls use Analog Off and Mod4.
+- **Nulls**: with Depth 0 and Analog Off or Mod4 a sample-exact null should be possible. With modulation the null
+  depends on matching the LFO's phase from the start; with modes 1–3 only levels and spectra can be matched.
+- **UI**: the H-Comp kit (`WavyHybridUI`) covers the panel, knobs, buttons and display; new are the tap pad, the
+  vertical bar meter with its scale, the Link wheel, the delay display's layouts (note / BPM, ms, Ping Pong, Dual)
+  and the stepped note scale on the Delay knob.
