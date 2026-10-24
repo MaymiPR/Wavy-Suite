@@ -25,6 +25,10 @@
   11.5 dB as H-Comp does (the provisional VU average read 6.2). In / Out: the peak level on their own dBFS face
   (48 … 0, 24 at the top, now drawn), with the reference's hold-and-release law. The limiter lamp glows amber and
   fades over its 0.833 s hold.
+- **WComp knob feel as measured on H-Comp**: the mouse wheel moves 1/72 of a knob's range per notch (it moved 2.6 times
+  that), Ctrl gives a quarter of the normal rate and keeps the slow / fast difference (it was a flat 1/6), the fast
+  rate starts at 3 px mouse steps, and the stepped knobs have their own rates (Analog a position per 50 px; the synced
+  Release note a value per 30 px slow, 20 fast, 120 / 66.7 with Ctrl). MeterCapture's drag script gained wheel moves.
 - **WComp presets and value entry**: the reference's 26 factory presets (*Essentials* and *Studio*, Wavy names; array
   positions confirmed by loading presets into the reference), which leave Mix alone as the reference does; null test of
   every preset in docs/NULL_RESULTS_WCOMP_PRESETS.md. Typing a positive number into Threshold sets it negative ("18" →

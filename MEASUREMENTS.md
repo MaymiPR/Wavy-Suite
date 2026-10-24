@@ -429,6 +429,20 @@ Measured with the MeterCapture drag / click scripts on the reference editor: kno
 (65, 49, 36), a light 1 px frame) on the value slot under the small knobs or on the cap of the large ones; a
 double-click opens the white entry box there; Alt-click resets. WComp gives the same values on the same script.
 
+Every knob, measured with the drag script (100 px moves, mouse steps of 1 … 30 px 12 ms apart) and the wheel
+(`drag=x,y,n,0,wheel`, n notches; logs parsed by `nulltest/parse_drags.py`), 2026-10-23:
+- **Continuous knobs** (Threshold, Ratio, Mix, Output, Punch, Attack, Release): the same share of their range per pixel
+  whatever the knob — 0.001 per px on mouse steps up to 2 px, 0.002 from 3 px. **Ctrl** gives a quarter of either
+  (0.00025 / 0.0005), so slow and fast still differ.
+- **Analog** (5 positions): one position per 50 px dragged, at any speed and with Ctrl alike.
+- **Release in BPM / Host** (the note, 20 values): one value per 30 px slow, 20 px fast, 120 px with Ctrl slow and
+  66.7 px with Ctrl fast, counted from where the drag began.
+- **Wheel**: 1/72 of the range per notch on the continuous knobs, one position per notch on the stepped ones; Ctrl
+  changes nothing.
+- WComp before: the same plain rates (fast from 4 px), Ctrl a flat 1/6 at any speed, Analog and the note by the
+  continuous rate (a step per 250 / 50 px), the wheel 2.6 times the reference's (JUCE's 15 % per unit). Now it gives
+  the reference's values on every one of these scripts (the wheel within the display's last digit).
+
 
 # WComp: measurements of the reference (Phase 3)
 

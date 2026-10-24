@@ -108,6 +108,11 @@ Knob::Knob (Kind k, float startDeg, float endDeg) : kind (k)
     setMouseDragSensitivity (500);
     setVelocityModeParameters (1.0, 1, 0.0, false);
     setScrollWheelEnabled (true);
+    // measured on H-Comp (MeterCapture drag scripts): 1000 px for the range on mouse steps up to 2 px, 500 px above;
+    // Ctrl: a quarter of either
+    feel.slowMaxStep = 2.0f;
+    feel.ctrlFactor = 0.25f;
+    feel.ctrlScalesSpeed = true;
 }
 
 float Knob::pointerAngle() const
@@ -131,6 +136,27 @@ void Knob::mouseUp (const MouseEvent& e)
     if (! feel.up (*this, e, centre, selection)) Slider::mouseUp (e);
 }
 void Knob::mouseDoubleClick (const MouseEvent&) { showTextBox(); }
+
+// the wheel (measured on H-Comp): 1/72 of the range per notch, a stepped knob one step per notch; Ctrl changes nothing.
+// JUCE gives a Windows notch as 60 / 256.
+void Knob::mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& w)
+{
+    if (e.mods.isAnyMouseButtonDown() || ! isEnabled() || getMaximum() <= getMinimum()) return;
+    const double notches = (std::abs (w.deltaX) > std::abs (w.deltaY) ? -w.deltaX : w.deltaY) * (w.isReversed ? -1.0 : 1.0) / (60.0 / 256.0);
+    double v = getValue();
+    if (steps > 0 && getInterval() > 0.0)
+    {
+        wheelAcc += notches;
+        const double whole = std::trunc (wheelAcc);
+        wheelAcc -= whole;
+        v += whole * getInterval();
+    }
+    else v = proportionOfLengthToValue (jlimit (0.0, 1.0, valueToProportionOfLength (v) + notches / 72.0));
+    v = jlimit (getMinimum(), getMaximum(), v);
+    if (v == getValue()) return;
+    ScopedDragNotification drag (*this);
+    setValue (v, sendNotificationSync);
+}
 
 namespace kd = knobdata;
 

@@ -147,6 +147,7 @@ bool WavesDrag::down (Slider& s, const MouseEvent& e, Rectangle<int>, Selection*
     if (resetOnAlt (s, e)) return true;
     active = true;
     virt = last = e.position;
+    startValue = s.getValue(); stepAcc = 0.0;
     e.source.enableUnboundedMouseMovement (true, false);         // hide the cursor, no screen edge
     s.Slider::mouseDown (e);
     ganged = sel != nullptr && sel->grouped() && sel->contains (&s);
@@ -163,7 +164,19 @@ void WavesDrag::drag (Slider& s, const MouseEvent& e, Selection* sel)
     if (kind == Rotary)
     {
         const float step = std::abs (std::abs (d.y) > std::abs (d.x) ? d.y : d.x);
-        k = e.mods.isCtrlDown() ? 1.0f / 6.0f : step <= 3.0f ? 0.5f : 1.0f;
+        const bool slow = step <= slowMaxStep, ctrl = e.mods.isCtrlDown();
+        if (stepPx[0] > 0.0f && s.getInterval() > 0.0)      // stepped: whole steps from where the drag began
+        {
+            stepAcc += -d.y / stepPx[(ctrl ? 2 : 0) + (slow ? 0 : 1)];
+            const double whole = std::trunc (stepAcc + (stepAcc >= 0.0 ? 1.0e-6 : -1.0e-6));   // 100 x 1/50 is 1.99999...
+            const double v = jlimit (s.getMinimum(), s.getMaximum(), startValue + whole * s.getInterval());
+            if (v != s.getValue()) s.setValue (v, sendNotificationSync);
+            const double moved = s.valueToProportionOfLength (s.getValue()) - before;
+            if (ganged && sel != nullptr && sel->gangMove && std::abs (moved) > 1.0e-9)
+                sel->gangMove (&s, (float) moved * referenceScale);
+            return;
+        }
+        k = ctrl ? (ctrlScalesSpeed ? ctrlFactor * (slow ? 0.5f : 1.0f) : ctrlFactor) : slow ? 0.5f : 1.0f;
     }
     else if (e.mods.isCtrlDown())
         k = 0.25f;

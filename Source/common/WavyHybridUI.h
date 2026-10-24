@@ -49,6 +49,7 @@ public:
     void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
     void mouseDoubleClick (const juce::MouseEvent&) override;
+    void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
     void mouseEnter (const juce::MouseEvent&) override { if (onHover) onHover (this, true); }
     void mouseExit (const juce::MouseEvent&) override { if (onHover) onHover (this, false); }
     bool hitTest (int x, int y) override;
@@ -60,6 +61,7 @@ public:
     wavy::flat::Selection* selection = nullptr;
     std::function<juce::String (double)> format;
     std::function<void (Knob*, bool)> onHover;
+    double wheelAcc = 0.0;                            // notches not yet turned into steps (stepped knobs)
     float ringRadius() const { return kind == Small ? 21.0f : kind == Large ? 30.0f : 41.0f; }
     juce::Rectangle<int> valueArea;                   // the value slot (local): the value box while selected, the entry box
     float radius() const { return kind == Small ? 32.4f : kind == Large ? 53.9f : 73.0f; }

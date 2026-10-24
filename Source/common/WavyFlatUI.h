@@ -77,7 +77,14 @@ struct WavesDrag
     const Kind kind;
     bool active = false, ganged = false;
     float referenceScale = 1.0f;     // this control's 0..1 range on the reference's scale (Input: 2/3, it stops at 0 dB)
+    // rotary: mouse steps up to slowMaxStep px move at half speed; Ctrl scales the rate (and, with ctrlScalesSpeed, keeps
+    // the slow / fast difference: H-Comp's 1/4; MaxxBass's 1/6 at any speed)
+    float slowMaxStep = 3.0f, ctrlFactor = 1.0f / 6.0f;
+    bool ctrlScalesSpeed = false;
+    // a stepped control's own rate, in px per step: slow, fast, Ctrl slow, Ctrl fast (0: the continuous law above)
+    float stepPx[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     juce::Point<float> virt, last;
+    double startValue = 0.0, stepAcc = 0.0;
 };
 
 // vertical gain fader: dark track, 17 x 28 thumb with a coloured centre line, value text below

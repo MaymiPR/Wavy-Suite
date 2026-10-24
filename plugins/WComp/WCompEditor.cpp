@@ -55,6 +55,7 @@ WCompEditor::WCompEditor (WCompProcessor& p)
         if (k.format) wavy::flat::applyFormat (k, k.format, k.getMaximum() <= 0.0);
     };
     analog.steps = 5;
+    for (auto& px : analog.feel.stepPx) px = 50.0f;           // measured: a step per 50 px at any speed, Ctrl or not
     place (analog, wcomp::analog, { 39, 30, 97, 107 }, kAnalog, 2.0, {}, {});
     place (output, wcomp::output, { 505, 30, 97, 107 }, kOutput, 0.0, { 599, 85, 37, 13 }, [] (double v) { return String (v, 1); });
     place (ratio, wcomp::ratio, { 6, 142, 161, 143 }, kRatio, 3.0, { 68, 213, 37, 13 }, [] (double v) { return String (v, 2); });
@@ -69,6 +70,10 @@ WCompEditor::WCompEditor (WCompProcessor& p)
     releaseNote.textFromValueFunction = [] (double v) { static const char* n[] = { "1/64T", "1/64", "1/64D", "1/32T", "1/32", "1/32D", "1/16T",
         "1/16", "1/16D", "1/8T", "1/8", "1/8D", "1/4T", "1/4", "1/4D", "1/2T", "1/2", "1/2D", "1 Bar", "2 Bar" }; return String (n[jlimit (0, 19, roundToInt (v))]); };
     releaseNote.steps = 20;
+    {                                                         // measured: px per step, slow / fast / Ctrl slow / Ctrl fast
+        const float px[4] = { 30.0f, 20.0f, 120.0f, 200.0f / 3.0f };
+        std::copy (px, px + 4, releaseNote.feel.stepPx);
+    }
 
     auto& meterSel = make<ButtonGroup> (*p.apvts.getParameter (wcomp::meter), &p.undo, StringArray { "IN", "GR", "OUT" }, false);
     addToContent (meterSel, Rectangle<int> (245, 27, 151, 21).expanded (4));

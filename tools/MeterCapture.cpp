@@ -1,6 +1,6 @@
 // Records a plug-in editor's meters while audio plays (Windows), to measure meter ballistics the host cannot read.
 //   MeterCapture <plugin.vst3> "<sub-plugin name>[@uid]" <out.raw> [paramName=value ...] [in=<mono float32 48 kHz file>]
-//   ... [design=<width>] drag=x,y,dx,dy[,ctrl|shift|alt] ...   (drag script instead of the capture, see DragScript)
+//   ... [design=<width>] drag=x,y,dx,dy[,ctrl|shift|alt|wheel|wheelctrl] ...   (drag script instead of the capture, see DragScript)
 //   ... gl=1 [crop=x0,y0,x1,y1]   (read the editor's OpenGL frames back instead of grabbing the screen, see GlCapture)
 //   paramName=value sets the normalised value, paramName:=text the value the parameter's text parses to.
 // Loads the plug-in (a shell's sub-plugin by name), opens its editor, feeds a fixed schedule of 50 Hz tone bursts from
@@ -275,6 +275,19 @@ public:
             }
             const WORD vk = mod == "ctrl" ? VK_CONTROL : mod == "shift" ? VK_SHIFT : mod == "alt" ? VK_MENU : 0;
             SetCursorPos (start.x, start.y); sleep (150);
+            if (mod.startsWith ("wheel"))                         // dx mouse-wheel notches (+ up), one every 80 ms; "wheelctrl": Ctrl held
+            {
+                const bool ctl = mod == "wheelctrl";
+                if (ctl) { keybd_event (VK_CONTROL, 0, 0, 0); sleep (50); }
+                for (int i = 0; i < (int) std::abs (dx); ++i)
+                {
+                    mouse_event (MOUSEEVENTF_WHEEL, 0, 0, (DWORD) (dx > 0 ? WHEEL_DELTA : -WHEEL_DELTA), 0);
+                    sleep (80);
+                }
+                if (ctl) keybd_event (VK_CONTROL, 0, KEYEVENTF_KEYUP, 0);
+                sleep (300);
+                dump ("after"); continue;
+            }
             if (mod == "hover")                                   // no click: what does hovering show?
             {
                 sleep (400); shot ("hover");
