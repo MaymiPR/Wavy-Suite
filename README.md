@@ -32,24 +32,26 @@ The installers are not code-signed or notarized; see [packaging/](packaging) for
 | **WVox** | vocal compressor / gate / limiter (three-control) | released: steady material nulls, dynamic material is close (see below) |
 | **WBass** | psychoacoustic bass enhancer (harmonic generator) | ready for the next release: close, not a null (median −36.8 dB, see below) |
 | **WBassX** | psychoacoustic bass enhancer with harmonics compressor, filters and monitor modes | ready for the next release: close, not a null (median −48.5 dB, see below) |
-| **WComp** | hybrid compressor with punch, tempo-synced release, analog modes and limiter | ready for the next release: close, not a null on every material (median −41.4 dB, see below) |
+| **WComp** | hybrid compressor with punch, tempo-synced release, analog modes and limiter | ready for the next release: close, not a null on every material (median −47.0 dB, see below) |
 | WDelay, WBass Ride, WVox Ride, WVox Chain, WVox Bend | | planned, one at a time |
 
 ### WComp null test (honest numbers)
 
 Residual of WComp against the reference over 14 signals × 12 settings (the default, fast and slow releases, heavy
-ratios, Mix, the output limiter, the four Analog modes), lower is better: **median −41.4 dB**, worst −16.8 dB; the
-reference's 26 factory presets (each on voice, drums, bass and pink noise): **median −35.6 dB**.
+ratios, Mix, the output limiter, the four Analog modes), lower is better: **median −47.0 dB**, worst −24.5 dB; the
+reference's 26 factory presets (each on voice, drums, bass and pink noise): **median −43.7 dB**, worst −20.8 dB.
 
-- At the default settings: tones and sweeps −84 dB (a null), voice-like −59 dB, bass line −55 dB, drums −32 dB,
-  noise −22 dB.
-- Weakest: noise at most settings (−22 … −35 dB), deep and slow settings (threshold −24 / ratio 10 / Release 300:
-  about −33 dB median), and a few presets on one signal (Fat Kick on noise −12 dB, Drum Punch on bass −17 dB).
+- At the default settings: tones and sweeps −84 dB (a null), voice-like −61 dB, bass line −57 dB, white noise −43 dB,
+  drums −33 dB, pink noise −32 dB.
+- Weakest: low notes under long attacks (30 … 60 ms: −15 … −20 dB on a bass line), a long release on voice (300 ms at
+  threshold −24: −22 dB), fast attacks on drums (about −23 dB), and a few presets on drums (Hard Squash −21 dB).
 - Analog modes: mode 4 nulls at −82 … −100 dB on loud material; modes 1–3 add random noise as the reference does,
   which no null can remove (mode 2, the default, is limited to about −54 … −69 dB by its noise alone).
 - How: the detector, static curve, makeup, attack, smoothing, mix, limiter, tempo sync and the Analog stage were
   identified on the reference; the program-dependent release is a fitted two-state law (its tables found by CMA-ES on
-  1034 measured cases), not the reference's algorithm. Two reference quirks are documented: a slow start-up after a
+  1034 measured cases), not the reference's algorithm, and a small learned correction (a GRU over WComp's own states,
+  trained on 4300 renders of the reference) fixes most of what that structure misses: low notes under long attacks,
+  long releases, deep compression (null test −41.4 → −47.0 dB, presets −35.6 → −43.7). Two reference quirks are documented: a slow start-up after a
   reset (modelled) and a hidden synced release time that survives switching Sync back to ms (not copied: reload H-Comp
   before nulling after a synced preset). The VU needle and limiter lamp follow the reference's, filmed from its editor's
   OpenGL frames. Details: [docs/NULL_RESULTS_WCOMP.md](docs/NULL_RESULTS_WCOMP.md),

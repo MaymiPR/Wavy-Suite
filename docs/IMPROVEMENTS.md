@@ -66,12 +66,12 @@ When part of a reference resists identification, keep everything that *is* ident
 
 ## WComp
 
-- **Release law** (the main open item): the two-state law, refitted by CMA-ES (`nulltest/cma_hc_release.py`), nulls
-  voice and bass at the defaults (−62 / −59 dB) and drums at −32, but not deep, slow settings or noise (−10 … −35 dB).
-  CMA-ES is the optimiser that works here; use it to compare structures (each run about 20 minutes).
-  Open: Fat Kick on noise (−12 dB), Drum Punch and Vintage Drum Crunch on bass (−17 dB). What is known and what was tried is in
-  MEASUREMENTS.md "WComp model": a start-up state, the settled program dependence, a Crest average of about 150 ms.
-  Next: a state for the duration of the current event; validate on voice-like and bass line first.
+- **Release law and level detection**: the two-state law (CMA-ES, `nulltest/cma_hc_release.py`) plus the learned gain
+  correction (`nulltest/train_wcomp.py`, MEASUREMENTS.md "WComp learned gain correction"). Still weakest: low notes
+  under long attacks (bass at Attack 30 … 60 ms: −15 … −20 dB), Release 300 on voice (−22 dB), fast attacks on drums
+  (−23 dB). The reference's level detection averages across low cycles in a way the held-peak structure does not;
+  identifying that (rather than correcting it) would help most. More training data around those settings is the
+  cheap next step (render_trainset_wcomp.py, then retrain; keep the steady-tone guard and the no-worse penalty).
 - **Limiter**: H-Comp's limiter sees the true future output; WComp estimates it (−16 … −43 dB under heavy limiting).
 - **VU print**: drawn about a centre about 0.4 px from the printed arc's (MEASUREMENTS.md "WComp needle"). The needle's
   edges are a little harder than the reference's (its strip images are resampled; within 0.1 in darkness).

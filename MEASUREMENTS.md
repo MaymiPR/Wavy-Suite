@@ -625,6 +625,39 @@ by CMA-ES (below). What is known about the reference's release:
   parameters, so for nulls after a synced preset, reload H-Comp. The preset null test uses a fresh reference per
   preset for this reason (with one shared instance two presets showed −8 … −10 dB that were really −31 … −37).
 
+### WComp learned gain correction
+
+**Why.** One-parameter sweeps from Threshold −24, Ratio 4 (`nulltest/sweep_wcomp.py`) showed the weak nulls were wider
+than the null-test grid: voice, drums, bass and noise all −22 … −26 dB there; long attacks on bass −15 dB (15 ms) to
+−8 dB (30 … 60 ms); Release 300 on voice −17. On a steady 55 Hz tone H-Comp's reduction depends on the attack time
+(−7.0 / −6.1 / −4.8 / −3.4 dB of gain at Attack 0.5 / 7 / 30 / 100 ms) while WComp's stays at −6 dB, and at 1 kHz
+neither depends on it; a pilot tone through both (`pilot_cycle.py`) shows H-Comp's gain simply settling higher, not
+dipping inside the cycles: its level detection averages across the low waveform's cycles in a way the identified
+structure (a held peak, then the release law, then the attack on the gain) does not. Removing the release floor
+R ≥ S does not create the dependence.
+
+**What.** A GRU (64 units) reads WComp's own states every 16 samples (the held peak against the threshold, the target
+and release states R and S, the reduction after the attack and out, the settings; WCompRender `trace=`) and corrects
+the compressor's gain in dB, held over the step (`plugins/WComp/WCompNet.h`, `GainNet` in WCompDsp.h). Guards: no
+correction without reduction, nor while the target stayed within 0.05 dB over 20 ms (a steady tone above about
+750 Hz, which the analytical model nulls already: without this guard the correction cost 1 kHz tones 20 … 30 dB).
+Trained (`nulltest/train_wcomp.py`, PyTorch) on 4300 cases rendered through both (`render_trainset_wcomp.py`):
+random settings and signals, hot drums / bass / plucks / voice up to +3 dBFS, the null test's and the presets'
+settings on every signal at random levels; Mix 100, Output cancelling the makeup. The loss is the null itself for
+the weak cases (worse than −35 dB) plus a penalty on every case more than 0.5 dB worse than without the correction
+(or than −60 dB if it was better), the weak cases alone for the first 300 epochs. What did not work: the mean null in
+dB over all cases (the good cases' gradients drowned the weak ones), training without the steady-tone guard, too
+little data at the common settings (the default drum loop at its +2.7 dBFS level went from −31.6 to −24 dB until the
+common settings were added densely).
+
+**Result.** 200 unseen cases: the weak ones −25.8 → −36.6 dB, all −48.3 → −52.6, 106 better and 15 worse by more than
+1 dB (the worst: −96.3 → −73.4). Null test (168 cases): median −41.4 → −47.0 dB, worst −16.8 → −24.5, 70 cases
+better and one worse by more than 1 dB (pink noise at Ratio 50, −72.9 → −71.2). Presets: median −35.6 → −43.7 dB,
+worst −11.9 → −20.8, 82 better and 4 worse (all from −59 … −78 dB, still there: Fat Kick voice −77.7 → −72.4). The
+sweeps: the base setting −44 / −31 / −47 / −41 dB (voice, drums, bass, noise); bass under long attacks −31 (15 ms),
+−15 (30 ms), −20 dB (60 ms); Release 300 on voice −22.5. Steady 55 Hz under Attack 30: −4.93 dB (H-Comp −4.79). Cost:
+about 1 % of a core more (60 s of stereo at 48 kHz: 1.39 → 1.99 s).
+
 ### WComp needle (filmed)
 
 **How it was filmed.** Outside FL, H-Comp's editor renders (about 62 OpenGL frames a second, 48 draw calls each) but

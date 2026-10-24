@@ -24,9 +24,11 @@ static std::vector<float> tone (double f, double secs, double db, double fs = 48
 }
 
 // stereo in place; returns the output aligned with the input (latency removed)
-static std::vector<std::vector<float>> run (std::vector<std::vector<float>> x, const Settings& s, int block = 512, double fs = 48000.0)
+static std::vector<std::vector<float>> run (std::vector<std::vector<float>> x, const Settings& s, int block = 512, double fs = 48000.0,
+                                            bool learned = true)
 {
     wcomp::Compressor c;
+    c.learned = learned;
     c.prepare (fs, (int) x.size());
     c.setSettings (s);
     const int lat = c.latency();
@@ -88,6 +90,23 @@ static void testStatic()
     const double xx = 0.75 * (20.0 * std::log10 (std::pow (10.0, -0.5) + 0.001) + 30.0);
     // h is within 0.6 dB of x (the knee); the release ripple adds a little
     CHECK (gain - makeup < -xx + 0.8 && gain - makeup > -xx - 0.3);
+}
+
+// the learned correction leaves steady high tones (which the analytical model nulls) within 0.1 dB and corrects a low
+// note under a long attack toward the reference (filmed on H-Comp: 55 Hz -6 dBFS, threshold -24, ratio 4, attack 30:
+// the gain -4.79 dB against the analytical model's -6.11)
+static void testLearned()
+{
+    Settings s; s.thresholdDb = -24.0f; s.ratio = 4.0f;
+    auto x = tone (1000.0, 2.0, -6.0);
+    const double on = db (rms (run ({ x, x }, s)[0], 72000)), off = db (rms (run ({ x, x }, s, 512, 48000.0, false)[0], 72000));
+    CHECK_NEAR (on, off, 0.1);
+    s.attackMs = 30.0f;
+    auto b = tone (55.0, 2.5, -6.0);
+    const double gOn = db (rms (run ({ b, b }, s)[0], 72000)) - db (rms (b, 72000));
+    const double gOff = db (rms (run ({ b, b }, s, 512, 48000.0, false)[0], 72000)) - db (rms (b, 72000));
+    std::printf ("learned: 55 Hz under attack 30: %.2f dB (analytical %.2f, reference -4.79)\n", gOn, gOff);
+    CHECK (std::abs (gOn + 4.79) < std::abs (gOff + 4.79));
 }
 
 static void testBlockIndependence()
@@ -354,6 +373,7 @@ int main()
     testLatency();
     testIdentity();
     testStatic();
+    testLearned();
     testBlockIndependence();
     testLinkAndLimiter();
     testMix();

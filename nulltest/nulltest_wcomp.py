@@ -36,7 +36,8 @@ def ours(x, fs, thr, rat, att, rel, pu, mix, out, lim, analog=0):
     fi, fo = os.path.join(TMP, "cin%d.f32" % os.getpid()), os.path.join(TMP, "cout%d.f32" % os.getpid())
     x.T.astype(np.float32).tofile(fi)
     args = [EXE, fi, fo, str(ch), str(fs), "threshold=%g" % thr, "ratio=%g" % rat, "attack=%g" % att, "release=%g" % rel,
-            "punch=%g" % pu, "mix=%g" % mix, "output=%g" % out, "limiter=%d" % (lim == 'On'), "analog=%d" % analog]
+            "punch=%g" % pu, "mix=%g" % mix, "output=%g" % out, "limiter=%d" % (lim == 'On'), "analog=%d" % analog,
+            "learned=%s" % os.environ.get("WCOMP_LEARNED", "1")]      # WCOMP_LEARNED=0: the analytical model alone
     subprocess.run(args, check=True, capture_output=True)
     return np.fromfile(fo, np.float32).reshape(-1, ch).T
 

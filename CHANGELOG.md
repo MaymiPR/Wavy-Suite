@@ -25,6 +25,11 @@
   11.5 dB as H-Comp does (the provisional VU average read 6.2). In / Out: the peak level on their own dBFS face
   (48 … 0, 24 at the top, now drawn), with the reference's hold-and-release law. The limiter lamp glows amber and
   fades over its 0.833 s hold.
+- **WComp learned gain correction**: a small GRU reads the compressor's own states and corrects its gain where H-Comp's
+  level detection departs from the identified structure (low notes under long attacks, long releases, deep
+  compression); none on steady tones or without reduction. Null test median −41.4 → −47.0 dB (worst −16.8 → −24.5, one
+  case worse by more than 1 dB), presets −35.6 → −43.7 dB (Drum Punch on bass −17 → −43, Vintage Drum Crunch on bass
+  −19 → −43, Fat Kick on noise −12 → −31); unseen cases −25.8 → −36.6 dB on the weak ones. About 1 % of a core.
 - **Wheel and Ctrl fine-tuning on WVox, WBass and WBassX, as measured on RVox, RBass and MaxxBass**: the wheel turns
   every control 1/72 of its range per notch, over the whole control (the faders took no wheel at all, the knobs 2.5
   times too much); Ctrl fine-tunes the faders at the reference's rates (0.19 of the normal rate on quicker mouse moves,

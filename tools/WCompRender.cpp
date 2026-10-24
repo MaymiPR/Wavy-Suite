@@ -2,6 +2,8 @@
 //   WCompRender in.f32 out.f32 channels sampleRate [key=value ...]
 // Files are raw interleaved 32-bit floats; the output is aligned with the input (the latency removed).
 // Keys: threshold ratio attack release punch mix (0..100) output limiter (0/1) analog (0 Off, 1..4) block
+//       learned=0: without the learned gain correction (as the training set is rendered)
+//       trace=<file>: per processed sample (the latency first) six floats: held peak, target, R, S (dB), the gains g1, g
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -18,17 +20,21 @@ int main (int argc, char** argv)
     wcomp::Compressor::Settings s;
     wcomp::Analog analog;
     int block = 512, analogMode = 0;
+    std::string tracePath;
+    std::vector<float> trace;
     for (int i = 5; i < argc; ++i)
     {
         const std::string a = argv[i];
         const auto eq = a.find ('=');
         if (eq == std::string::npos) continue;
         const std::string k = a.substr (0, eq); const float v = (float) std::atof (a.c_str() + eq + 1);
+        if (k == "trace") { tracePath = a.substr (eq + 1); continue; }
         if (k == "threshold") s.thresholdDb = v; else if (k == "ratio") s.ratio = v; else if (k == "attack") s.attackMs = v;
         else if (k == "release") s.releaseMs = v; else if (k == "punch") s.punch = v; else if (k == "mix") s.mix = v / 100.0f;
         else if (k == "output") s.outputDb = v; else if (k == "limiter") s.limiter = v > 0.5f; else if (k == "block") block = (int) v;
         else if (k == "analog") analogMode = (int) v;
         else if (k == "limest") comp.limEstimate = (int) v;
+        else if (k == "learned") comp.learned = v > 0.5f;
     }
     FILE* f = std::fopen (argv[1], "rb");
     if (! f) { std::fprintf (stderr, "cannot read %s\n", argv[1]); return 1; }
@@ -39,6 +45,7 @@ int main (int argc, char** argv)
     std::fclose (f);
     comp.prepare (fs, ch);
     comp.setSettings (s);
+    if (! tracePath.empty()) comp.trace = &trace;
     analog.prepare (fs, ch);
     analog.setMode (analogMode);
     const int lat = comp.latency();
@@ -55,5 +62,11 @@ int main (int argc, char** argv)
     f = std::fopen (argv[2], "wb");
     std::fwrite (inter.data(), sizeof (float), inter.size(), f);
     std::fclose (f);
+    if (! tracePath.empty())
+    {
+        f = std::fopen (tracePath.c_str(), "wb");
+        std::fwrite (trace.data(), sizeof (float), trace.size(), f);
+        std::fclose (f);
+    }
     return 0;
 }

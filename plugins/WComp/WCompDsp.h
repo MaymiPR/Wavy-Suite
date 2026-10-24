@@ -9,14 +9,58 @@
 //   attack    a one-pole on the linear gain (falling only), time constant = Attack
 //   smoothing two box filters (38 and 27 samples), then makeup, the dry / wet mix and the output gain
 //   limiter   a 64-sample look-ahead peak limiter on the output (Off: as the reference's "clip", On: held longer)
+//   learned   a small GRU (GainNet, trained on renders of the reference by nulltest/train_wcomp.py) reads these states
+//             and the settings every 16 samples and corrects the gain (dB, held over the step; none without
+//             reduction): where the reference's level detection departs from this structure (low notes with long
+//             attacks, long releases, deep compression)
 // All sizes in samples are for 44.1 / 48 kHz and scale by 2 / 4 at 88.2-96 / 176.4-192 kHz (the latency does).
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <vector>
 #include "WCompTables.h"
+#include "WCompNet.h"
 
 namespace wcomp
 {
+// the learned gain correction: one GRU step (PyTorch layout) per call; returns the correction in dB
+class GainNet
+{
+public:
+    void reset() { std::fill (h, h + gainnet::hidden, 0.0f); }
+    float step (const float* in)
+    {
+        constexpr int H = gainnet::hidden, I = gainnet::inputs;
+        float nh[H];
+        for (int j = 0; j < H; ++j)
+        {
+            float g[3];
+            for (int q = 0; q < 3; ++q)
+            {
+                const int row = q * H + j;
+                float a = gainnet::bih[row];
+                for (int k = 0; k < I; ++k) a += gainnet::Wih[row * I + k] * in[k];
+                g[q] = a;
+            }
+            float hr = gainnet::bhh[j], hz = gainnet::bhh[H + j], hn = gainnet::bhh[2 * H + j];
+            for (int m = 0; m < H; ++m)
+            {
+                hr += gainnet::Whh[j * H + m] * h[m];
+                hz += gainnet::Whh[(H + j) * H + m] * h[m];
+                hn += gainnet::Whh[(2 * H + j) * H + m] * h[m];
+            }
+            const float r = 1.0f / (1.0f + std::exp (-(g[0] + hr))), z = 1.0f / (1.0f + std::exp (-(g[1] + hz)));
+            const float n = std::tanh (g[2] + r * hn);
+            nh[j] = (1.0f - z) * n + z * h[j];
+        }
+        float o = gainnet::bout[0];
+        for (int m = 0; m < H; ++m) { h[m] = nh[m]; o += gainnet::Wout[m] * h[m]; }
+        return 9.0f * std::tanh (o / 9.0f);
+    }
+private:
+    float h[gainnet::hidden] {};
+};
+
 class Compressor
 {
 public:
@@ -53,6 +97,7 @@ public:
         pos = 0; detPos = 0; limPos = 0;
         startU = tables::startupMs > 0.0f ? 1.0 : 0.0;
         R = 0.0; S = tables::hasRelease4 ? (double) tables::start4Db : 0.0; S2 = tables::hasRelease4 ? (double) tables::start4FastDb : 0.0; g1 = 1.0;
+        net.reset(); netCount = 0; corrGain = 1.0; flatPos = flatFill = 0; std::fill (std::begin (flatHist), std::end (flatHist), 0.0f);
     }
 
     int latency() const { return la; }
@@ -121,8 +166,40 @@ public:
             sum1 += g1 - b1[(size_t) i1]; b1[(size_t) i1] = (float) g1; i1 = (i1 + 1) % (int) b1.size();
             const double v1 = sum1 / (double) b1.size();
             sum2 += v1 - b2[(size_t) i2]; b2[(size_t) i2] = (float) v1; i2 = (i2 + 1) % (int) b2.size();
-            const double g = sum2 / (double) b2.size();
+            double g = sum2 / (double) b2.size();
+            if (learned)
+            {
+                // the steps fall on samples la, la + 16, ... after a reset, as in the training (render_trainset_wcomp.py)
+                if (netCount >= la && (netCount - la) % (16 * scale) == 0)
+                {
+                    const double out = -20.0 * std::log10 (std::max (g, 1e-6));
+                    const float in[gainnet::inputs] = {
+                        (float) (std::clamp (20.0 * std::log10 (h + 1e-5) - set.thresholdDb, -40.0, 40.0) / 24.0), (float) (Rt / 24.0),
+                        (float) (R / 24.0), (float) (S / 24.0), (float) (-20.0 * std::log10 (std::max (g1, 1e-6)) / 24.0), (float) (out / 24.0),
+                        (float) (std::log (set.attackMs) / std::log (100.0)), (float) (std::log (set.releaseMs) / std::log (3000.0)),
+                        (float) (1.0 / set.ratio), (float) (set.punch / 30.0), (float) (set.thresholdDb / 48.0) };
+                    // the guards (as in nulltest/train_wcomp.py): no correction without reduction, nor while the target
+                    // stayed within 0.05 dB over the last 60 steps (20 ms: a steady tone, which the analytical model nulls)
+                    flatHist[(size_t) flatPos] = (float) Rt; flatPos = (flatPos + 1) % flatSteps;
+                    if (flatFill < flatSteps) ++flatFill;
+                    float lo = (float) Rt, hi = (float) Rt;
+                    for (int q = 0; q < flatSteps; ++q)
+                    {
+                        const float v = q < flatFill ? flatHist[(size_t) q] : flatHist[(size_t) ((flatPos + flatSteps - flatFill) % flatSteps)];
+                        lo = std::min (lo, v); hi = std::max (hi, v);
+                    }
+                    const double guard = std::clamp (R + out, 0.0, 1.0) * std::clamp ((hi - lo - 0.05) / 0.15, 0.0, 1.0);
+                    corrGain = std::pow (10.0, net.step (in) * guard / 20.0);
+                }
+                if (netCount < std::numeric_limits<int>::max()) ++netCount;
+                g *= corrGain;
+            }
             minGain = std::min (minGain, g);
+            if (trace != nullptr)                      // per sample: held peak, target and release states (dB), gains
+            {
+                const float v[6] = { (float) h, (float) Rt, (float) R, (float) S, (float) g1, (float) g };
+                trace->insert (trace->end(), v, v + 6);
+            }
 
             // the output limiter sees the incoming samples at the current gain (what they will become)
             const double gTarget = std::pow (10.0, -Rt / 20.0);
@@ -153,6 +230,8 @@ public:
     }
 
     double gainReductionDb() const { return R; }
+    bool learned = true;                               // the learned correction (GainNet); off: the analytical model alone
+    std::vector<float>* trace = nullptr;               // tools/WCompRender trace=: the model's states for nulltest/train_wcomp.py
     int limEstimate = 3;                               // how the limiter estimates the output (3: the current gain times the pending peak; 0-2 tried, worse)
     // the deepest reduction of the smoothed compressor gain during the last process() call (dB, positive)
     double blockGainReductionDb() const { return minGain < 1.0 ? -20.0 * std::log10 (std::max (minGain, 1e-6)) : 0.0; }
@@ -270,5 +349,10 @@ private:
     static constexpr double chargeBlend = tables::chargeBlend;
     static constexpr double memFloorS = tables::memoryFloorMs * 1e-3;    // the memory's release time is at least this
     double R = 0.0, S = 0.0, S2 = 0.0, g1 = 1.0, minGain = 1.0, minLimGain = 1.0;
+    GainNet net;
+    static constexpr int flatSteps = 60;
+    float flatHist[flatSteps] {};
+    int netCount = 0, flatPos = 0, flatFill = 0;
+    double corrGain = 1.0;
 };
 }
