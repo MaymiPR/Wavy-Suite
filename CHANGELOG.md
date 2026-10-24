@@ -35,6 +35,10 @@
   times too much); Ctrl fine-tunes the faders at the reference's rates (0.19 of the normal rate on quicker mouse moves,
   0.037 on slow ones; WVox and WBass fell into JUCE's velocity mode with Ctrl, WBassX moved a flat quarter); WBass's
   Freq moves 1.53 times its track, as the reference's.
+- **Ctrl during a drag, on all four plug-ins**: pressing or releasing Ctrl while a control is already being dragged
+  now switches the fine adjustment on or off, as on the references. In FL, which keeps the keyboard focus, the rate
+  stayed as it was at the mouse-down. WBassX's knobs take the reference's Ctrl law (a quarter of the rate, keeping the
+  slow / fast split; it was a flat 1/6). `MeterCapture hostwin=1` and the `midctrl` / `ctrlup` drag modes reproduce it.
 - **WComp knob feel as measured on H-Comp**: the mouse wheel moves 1/72 of a knob's range per notch (it moved 2.6 times
   that), Ctrl gives a quarter of the normal rate and keeps the slow / fast difference (it was a flat 1/6), the fast
   rate starts at 3 px mouse steps, and the stepped knobs have their own rates (Analog a position per 50 px; the synced

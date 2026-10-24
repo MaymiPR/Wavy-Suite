@@ -164,7 +164,7 @@ void WavesDrag::drag (Slider& s, const MouseEvent& e, Selection* sel)
     if (kind == Rotary)
     {
         const float step = std::abs (std::abs (d.y) > std::abs (d.x) ? d.y : d.x);
-        const bool slow = step <= slowMaxStep, ctrl = e.mods.isCtrlDown();
+        const bool slow = step <= slowMaxStep, ctrl = ctrlHeldNow();
         if (stepPx[0] > 0.0f && s.getInterval() > 0.0)      // stepped: whole steps from where the drag began
         {
             stepAcc += -d.y / stepPx[(ctrl ? 2 : 0) + (slow ? 0 : 1)];
@@ -178,7 +178,7 @@ void WavesDrag::drag (Slider& s, const MouseEvent& e, Selection* sel)
         }
         k = ctrl ? (ctrlScalesSpeed ? ctrlFactor * (slow ? 0.5f : 1.0f) : ctrlFactor) : slow ? 0.5f : 1.0f;
     }
-    else if (e.mods.isCtrlDown())
+    else if (ctrlHeldNow())
         k = std::abs (std::abs (d.y) > std::abs (d.x) ? d.y : d.x) <= 2.0f ? linCtrlSlow : linCtrlFast;
     virt += d * k;
     s.Slider::mouseDrag (e.withNewPosition (virt));
@@ -286,6 +286,9 @@ Knob::Knob (String l) : label (std::move (l))
     setUpFeel (*this, 500);
     setScrollWheelEnabled (true);
     setRotaryParameters (MathConstants<float>::pi * 1.25f, MathConstants<float>::pi * 2.75f, true);
+    // Ctrl: a quarter of the rate, keeping the slow / fast difference (measured on MaxxBass, as H-Comp's)
+    feel.ctrlFactor = 0.25f;
+    feel.ctrlScalesSpeed = true;
 }
 
 void Knob::mouseDown (const MouseEvent& e)

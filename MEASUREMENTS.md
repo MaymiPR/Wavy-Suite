@@ -458,9 +458,18 @@ Measured the same way on RVox, RBass and MaxxBass (`nulltest/feel/`: 50 px drags
   about 0.037 on steps up to 2 px (RBass Freq 0.28 / 0.038, MaxxBass Freq 0.23 / 0.067). Ours: WVox's and WBass's
   faders switched to JUCE's velocity mode with Ctrl (slow moves did nothing), WBassX's moved a flat quarter. Now
   measured rates (`Fader` in WavyRenUI, `WavesDrag` for the Flat kit).
-- **Knobs** (MaxxBass): as H-Comp's; WBassX already matched them.
+- **Knobs** (MaxxBass): as H-Comp's, Ctrl a quarter of the rate keeping the slow / fast split; WBassX's took a flat
+  1/6 with Ctrl, now H-Comp's law.
 - After the change our three give the reference's values on all of these scripts within the display's last digit
   (Freq on the wheel 1 Hz apart: its steps are whole Hz).
+- **Ctrl pressed or released during a drag** (`nulltest/feel/midctrl_feel.sh`, modes `midctrl` / `ctrlup`: the drag
+  starts plain, Ctrl goes down or up halfway, 10 px steps), 2026-10-23: on all four references the rate switches at
+  once, both ways (H-Comp Threshold −30.0, RVox −14.0, MaxxBass Ratio 1.41). Ours kept the rate of the mouse-down when
+  the host keeps the keyboard focus, as FL does: JUCE refreshes its modifier keys from key messages and mouse buttons
+  only, and FL sends the plug-in no key messages. Reproduced in `MeterCapture hostwin=1` (the editor in a plain Win32
+  window that keeps the focus); the controls now read the key itself during a drag (`ctrlHeldNow` in
+  `WavyWheel.h`), and WComp, WVox, WBass and WBassX give the reference's values on both modes (WComp −30.0, WVox
+  −14.3, WBassX 1.41).
 
 
 # WComp: measurements of the reference (Phase 3)

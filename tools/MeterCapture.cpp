@@ -1,7 +1,8 @@
 // Records a plug-in editor's meters while audio plays (Windows), to measure meter ballistics the host cannot read.
 //   MeterCapture <plugin.vst3> "<sub-plugin name>[@uid]" <out.raw> [paramName=value ...] [in=<mono float32 48 kHz file>]
-//   ... [design=<width>] drag=x,y,dx,dy[,ctrl|shift|alt|wheel|wheelctrl] ...   (drag script instead of the capture, see DragScript)
+//   ... [design=<width>] drag=x,y,dx,dy[,ctrl|shift|alt|wheel|wheelctrl|midctrl|ctrlup] ...   (drag script instead of the capture, see DragScript)
 //   ... gl=1 [crop=x0,y0,x1,y1]   (read the editor's OpenGL frames back instead of grabbing the screen, see GlCapture)
+//   ... hostwin=1   (the editor inside a plain Win32 window that keeps the keyboard focus, as FL hosts it)
 //   paramName=value sets the normalised value, paramName:=text the value the parameter's text parses to.
 // Loads the plug-in (a shell's sub-plugin by name), opens its editor, feeds a fixed schedule of 50 Hz tone bursts from
 // a real-time paced thread, and grabs the editor's screen area every ~25 ms. out.raw: per frame a double timestamp
@@ -273,7 +274,9 @@ public:
                 start = { roundToInt ((pos.x + x * s) * scale), roundToInt ((pos.y + y * s) * scale) };
                 stepScale = s * (float) scale;
             }
-            const WORD vk = mod == "ctrl" ? VK_CONTROL : mod == "shift" ? VK_SHIFT : mod == "alt" ? VK_MENU : 0;
+            // midctrl: Ctrl pressed half way through the drag; ctrlup: Ctrl held from the start, released half way
+            const bool midCtrl = mod == "midctrl", ctrlUp = mod == "ctrlup";
+            const WORD vk = mod == "ctrl" || ctrlUp ? VK_CONTROL : mod == "shift" ? VK_SHIFT : mod == "alt" ? VK_MENU : 0;
             SetCursorPos (start.x, start.y); sleep (150);
             if (mod.startsWith ("wheel"))                         // dx mouse-wheel notches (+ up), one every 80 ms; "wheelctrl": Ctrl held
             {
@@ -326,6 +329,8 @@ public:
             {
                 SetCursorPos (start.x + roundToInt (dx * stepScale * (float) i / steps), start.y + roundToInt (dy * stepScale * (float) i / steps));
                 sleep (12);
+                if (i == steps / 2 && midCtrl) { keybd_event (VK_CONTROL, 0, 0, 0); sleep (30); }
+                if (i == steps / 2 && ctrlUp) { keybd_event (VK_CONTROL, 0, KEYEVENTF_KEYUP, 0); sleep (30); }
                 if (i == steps / 2)
                 {
                     shot ("mid");
@@ -336,7 +341,8 @@ public:
             }
             sleep (80);
             mouse_event (MOUSEEVENTF_LEFTUP, 0, 0, 0, 0); sleep (50);
-            if (vk) keybd_event ((BYTE) vk, 0, KEYEVENTF_KEYUP, 0);
+            if (vk && ! ctrlUp) keybd_event ((BYTE) vk, 0, KEYEVENTF_KEYUP, 0);
+            if (midCtrl) keybd_event (VK_CONTROL, 0, KEYEVENTF_KEYUP, 0);
             sleep (300);
             shot ("after");
             SetCursorPos (start.x + 400, start.y + 300); sleep (600);   // mouse away: does the highlight stay?
@@ -459,12 +465,34 @@ public:
                 }
             std::printf ("SwapBuffers imports patched: %d\n", GlCapture::install());
         }
-        window = std::make_unique<DocumentWindow> ("MeterCapture", Colours::black, DocumentWindow::closeButton);
-        window->setUsingNativeTitleBar (true);
-        window->setContentNonOwned (plugin->createEditorIfNeeded(), true);
-        window->setTopLeftPosition (100, 100);
-        window->setVisible (true);
-        window->setAlwaysOnTop (true);
+        if (args.contains ("hostwin=1"))
+        {
+            // as FL hosts it: the editor a child of the host's own (non-JUCE) window, which keeps the keyboard focus,
+            // so the plug-in sees no key messages (a modifier pressed during a drag reaches it only by its key state)
+            auto* ed = plugin->createEditorIfNeeded();
+            WNDCLASSW wc {};
+            wc.lpfnWndProc = DefWindowProcW; wc.hInstance = GetModuleHandleW (nullptr); wc.lpszClassName = L"MeterCaptureHost";
+            RegisterClassW (&wc);
+            RECT r { 0, 0, ed->getWidth(), ed->getHeight() };
+            AdjustWindowRect (&r, WS_OVERLAPPEDWINDOW, FALSE);
+            hostHwnd = CreateWindowExW (WS_EX_TOPMOST, L"MeterCaptureHost", L"MeterCapture host", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                                        100, 100, r.right - r.left, r.bottom - r.top, nullptr, nullptr, wc.hInstance, nullptr);
+            ed->setTopLeftPosition (0, 0);
+            ed->addToDesktop (0, hostHwnd);
+            ed->setVisible (true);
+            SetFocus (hostHwnd);
+            editorComp = ed;
+        }
+        else
+        {
+            window = std::make_unique<DocumentWindow> ("MeterCapture", Colours::black, DocumentWindow::closeButton);
+            window->setUsingNativeTitleBar (true);
+            window->setContentNonOwned (plugin->createEditorIfNeeded(), true);
+            window->setTopLeftPosition (100, 100);
+            window->setVisible (true);
+            window->setAlwaysOnTop (true);
+            editorComp = window->getContentComponent();
+        }
         StringArray drags; float design = 800.0f;
         for (int i = 3; i < args.size(); ++i)
         {
@@ -473,7 +501,7 @@ public:
         }
         if (! drags.isEmpty())
         {
-            dragScript = std::make_unique<DragScript> (*plugin, *window->getContentComponent(), drags, design, File (args[2]));
+            dragScript = std::make_unique<DragScript> (*plugin, *editorComp, drags, design, File (args[2]));
             dragWatch = std::make_unique<DragWatch> (*dragScript);
             dragScript->startThread();
             dragWatch->startTimer (100);
@@ -487,7 +515,7 @@ public:
                 in.assign ((const float*) mb.getData(), (const float*) mb.getData() + mb.getSize() / sizeof (float));
             }
         feeder = std::make_unique<Feeder> (*plugin, std::move (in));
-        capture = std::make_unique<Capture> (*window->getContentComponent(), *feeder, args[2]);
+        capture = std::make_unique<Capture> (*editorComp, *feeder, args[2]);
         capture->gl = gl;
         if (gl)
         {
@@ -512,6 +540,7 @@ public:
         feeder.reset();                                  // before the plug-in: it clears the play head it set
         if (window) window->setContentNonOwned (nullptr, false);
         window.reset();
+        if (hostHwnd != nullptr) { if (editorComp) editorComp->removeFromDesktop(); DestroyWindow (hostHwnd); }
         plugin.reset();
     }
 private:
@@ -519,6 +548,8 @@ private:
     std::vector<std::unique_ptr<AudioPluginInstance>> keepLoaded;
     std::unique_ptr<AudioPluginInstance> plugin;
     std::unique_ptr<DocumentWindow> window;
+    HWND hostHwnd = nullptr;                          // hostwin=1: the plain Win32 window the editor sits in
+    Component* editorComp = nullptr;
     std::unique_ptr<Feeder> feeder;
     std::unique_ptr<DragScript> dragScript;
     std::unique_ptr<DragWatch> dragWatch;

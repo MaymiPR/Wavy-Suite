@@ -40,7 +40,7 @@ void Fader::mouseDrag (const MouseEvent& e)
     const auto d = e.position - last;
     last = e.position;
     const float step = std::abs (kind == Horizontal ? d.x : d.y);
-    const float k = e.mods.isCtrlDown() ? (step <= 2.0f ? ctrlSlow : ctrlFast) : plainScale;
+    const float k = ctrlHeldNow() ? (step <= 2.0f ? ctrlSlow : ctrlFast) : plainScale;
     virt += d * k;
     Slider::mouseDrag (e.withNewPosition (virt));
 }

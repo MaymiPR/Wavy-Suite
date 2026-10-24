@@ -8,6 +8,11 @@
 
 namespace wavy
 {
+// Ctrl held right now. A host that keeps the keyboard focus (FL) sends the plug-in no key messages, so JUCE's
+// modifiers stay as they were at the mouse-down; the references read the key itself, so pressing or releasing Ctrl
+// during a drag switches the fine adjustment on and off (measured: MeterCapture hostwin=1, midctrl / ctrlup)
+inline bool ctrlHeldNow() { return juce::ModifierKeys::getCurrentModifiersRealtime().isCtrlDown(); }
+
 // acc: notches not yet turned into steps (stepped controls); scale: a control whose range is not the reference's (measured)
 inline void wavesWheel (juce::Slider& s, const juce::MouseEvent& e, const juce::MouseWheelDetails& w, double& acc, bool stepped,
                         double scale = 1.0)
