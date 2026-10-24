@@ -45,6 +45,9 @@ public:
     // that on mouse steps of 3 px and more, ctrlSlow on smaller ones
     float plainScale = 1.0f, ctrlFast = 0.19f, ctrlSlow = 0.037f;
     juce::Point<float> virt, last;
+    // the cursor is hidden while dragging and comes back where it was grabbed, moved as far as the thumb (measured)
+    juce::Point<float> downAt;
+    double thumbAtDown = 0.0;
 
     const Kind kind;
     const int offsetX;

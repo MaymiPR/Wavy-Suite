@@ -470,6 +470,11 @@ Measured the same way on RVox, RBass and MaxxBass (`nulltest/feel/`: 50 px drags
   window that keeps the focus); the controls now read the key itself during a drag (`ctrlHeldNow` in
   `WavyWheel.h`), and WComp, WVox, WBass and WBassX give the reference's values on both modes (WComp −30.0, WVox
   −14.3, WBassX 1.41).
+- **The cursor during a fader drag** (RVox Gain, RBass Freq; MeterCapture now prints where the cursor is after the
+  release), 2026-10-23: hidden while dragging, and put back where it was grabbed, moved as far as the thumb moved
+  (RVox Gain: a 100 px drag ends on 235, a 60 px Ctrl drag on 223; RBass Freq: 234 and 268). WVox's and WBass's
+  faders showed the cursor and left it where the mouse went; now as the reference (WVox 238 and 223, the 3 px from
+  its Gain taper, −24.0 dB where RVox reads −23.4; WBass 233 and 268).
 
 
 # WComp: measurements of the reference (Phase 3)

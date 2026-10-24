@@ -345,6 +345,11 @@ public:
             if (midCtrl) keybd_event (VK_CONTROL, 0, KEYEVENTF_KEYUP, 0);
             sleep (300);
             shot ("after");
+            {
+                POINT cp; GetCursorPos (&cp);                     // where the cursor is put back, in design pixels
+                std::printf ("cursor after release: %.1f,%.1f (drag ended at %.1f,%.1f)\n", x + (cp.x - start.x) / stepScale,
+                             y + (cp.y - start.y) / stepScale, x + dx, y + dy);
+            }
             SetCursorPos (start.x + 400, start.y + 300); sleep (600);   // mouse away: does the highlight stay?
             shot ("away");
             std::printf ("cursor during drag: %s\n", hidden ? "HIDDEN" : "visible");

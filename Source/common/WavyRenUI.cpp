@@ -31,7 +31,9 @@ Fader::Fader (Kind k, int thumbOffsetX) : kind (k), offsetX (thumbOffsetX)
 
 void Fader::mouseDown (const MouseEvent& e)
 {
-    virt = last = e.position;
+    virt = last = downAt = e.position;
+    thumbAtDown = getPositionOfValue (getValue());
+    e.source.enableUnboundedMouseMovement (true, false);
     Slider::mouseDown (e);
 }
 
@@ -60,6 +62,13 @@ void Fader::valueChanged() { Slider::valueChanged(); if (kind == Big) resized();
 void Fader::mouseUp (const MouseEvent& e)
 {
     Slider::mouseUp (e);
+    e.source.enableUnboundedMouseMovement (false);
+    if (e.mouseWasDraggedSinceMouseDown())
+    {
+        const auto moved = (float) (getPositionOfValue (getValue()) - thumbAtDown);
+        const auto at = downAt + (kind == Horizontal ? juce::Point<float> (moved, 0.0f) : juce::Point<float> (0.0f, moved));
+        Desktop::setMousePosition (localPointToGlobal (at).roundToInt());
+    }
     if (e.mouseWasClicked() && ! e.mods.isAltDown() && valueTextBounds().contains (e.getPosition()))
         showTextBox();
 }
