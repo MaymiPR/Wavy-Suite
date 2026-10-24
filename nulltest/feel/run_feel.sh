@@ -1,6 +1,7 @@
 #!/bin/bash
 # run from build/meters with MC=../MeterCapture_artefacts/Release/MeterCapture.exe NT=../../nulltest (see nulltest/feel/README)
 # runs the knob-feel script on a plug-in: run_feel.sh <tag> <vst3> <name> <design width> <x,y,axis> ...   (axis v / h)
+# EXTRA=away=0: the mouse stays over the editor between drags (leaving the window loses travel on the next drag)
 tag=$1; vst=$2; name=$3; design=$4; shift 4
 D=""
 for c in "$@"; do
@@ -12,5 +13,5 @@ for c in "$@"; do
     done
     D="$D drag=$x,$y,3,0,wheel drag=$x,$y,-3,0,wheel drag=$x,$y,3,0,wheelctrl drag=$x,$y,-3,0,wheelctrl"
 done
-timeout 900 "$MC" "$vst" "$name" x.raw design=$design $D > feel_$tag.log 2>&1
+timeout 900 "$MC" "$vst" "$name" x.raw design=$design $EXTRA $D > feel_$tag.log 2>&1
 py -3.15 -I "$NT"/parse_drags_any.py feel_$tag.log > feel_$tag.txt

@@ -16,8 +16,10 @@ inline const juce::Colour kPrint (34, 22, 12), kIvory (226, 223, 208), kIvoryDar
 juce::Font font (float h, bool bold = true);
 
 // the orange panel with its shading and fine grain (area in design pixels). The rendered panel is kept in `cache`,
-// owned by the editor (a function-static image would outlive JUCE and hang the host at unload).
-void drawPanel (juce::Graphics&, juce::Rectangle<int> area, juce::Image& cache);
+// owned by the editor (a function-static image would outlive JUCE and hang the host at unload). Each reference editor
+// shades its panel its own way (measured): H-Comp's evenly, H-Delay's with a warm highlight at the upper left.
+enum class PanelLook { hComp, hDelay };
+void drawPanel (juce::Graphics&, juce::Rectangle<int> area, juce::Image& cache, PanelLook = PanelLook::hComp);
 
 // a scale printed around a knob: ticks from angle a0 to a1 (radians, JUCE convention: clockwise from 12 o'clock)
 struct Scale
@@ -34,15 +36,17 @@ void drawScale (juce::Graphics&, juce::Point<float> centre, float a0, float a1, 
 // Arial Bold for the numbers; em is the font size in pixels, hs its horizontal scale, angle a rotation in radians
 void printText (juce::Graphics&, const juce::String&, juce::Point<float> centre, float em, float hs, bool black, float angle = 0.0f);
 
-// A rotary knob in the reference's style. Kind Small: black bakelite, radius 32.4. Large / Huge: a black knob with ten
-// flutes in a satin chrome skirt (radius 53.9 / 73). As the reference's filmstrip, the knob turns under a fixed light
+// A rotary knob in the reference's style. Kind Small: black bakelite, radius 32.4; Mini: the same, radius 23.65, its
+// pointer a light line on the cap (H-Delay's right column); Knurled: H-Delay's small knob, radius 32.4, a knurled rim.
+// Large / Huge / Grand: a black knob with ten flutes in a
+// satin chrome skirt (radius 53.9 / 73 on H-Comp, 63.6 on H-Delay). As the reference's filmstrip, the knob turns under a fixed light
 // from the upper left: the flutes turn with the value, the shading and the cast shadow stay; rendered from the measured
 // shading model (WavyHybridKnobData.h). The pointer is a dark fin with a cream line, shaded by its angle to the light,
 // casting a soft shadow that turns with it.
 class Knob : public juce::Slider
 {
 public:
-    enum Kind { Small, Large, Huge };
+    enum Kind { Small, Large, Huge, Grand, Mini, Knurled };
     Knob (Kind k, float startDeg, float endDeg);     // the reference's angles (0 = down, clockwise)
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override;
@@ -62,9 +66,9 @@ public:
     std::function<juce::String (double)> format;
     std::function<void (Knob*, bool)> onHover;
     double wheelAcc = 0.0;                            // notches not yet turned into steps (stepped knobs)
-    float ringRadius() const { return kind == Small ? 21.0f : kind == Large ? 30.0f : 41.0f; }
+    float ringRadius() const { return kind == Small ? 21.0f : kind == Large ? 30.0f : kind == Huge ? 41.0f : kind == Grand ? 34.0f : kind == Knurled ? 21.0f : 15.0f; }
     juce::Rectangle<int> valueArea;                   // the value slot (local): the value box while selected, the entry box
-    float radius() const { return kind == Small ? 32.4f : kind == Large ? 53.9f : 73.0f; }
+    float radius() const { return kind == Small ? 32.4f : kind == Large ? 53.9f : kind == Huge ? 73.0f : kind == Grand ? 63.6f : kind == Knurled ? 32.4f : 23.65f; }
     float pointerAngle() const;
     float paintExtent() const;                        // how far the drawing (shadow, pointer) reaches from the centre
 
@@ -90,6 +94,29 @@ private:
     int selected = 0;
 };
 
+// several toggles side by side in one black frame, each on its own parameter (H-Delay's Phase L / Ping Pong / Dual /
+// Phase R row): `widths` are the buttons' widths in px, frame lines included (the reference's control rectangles)
+class ToggleRow : public juce::Component
+{
+public:
+    struct Item { juce::RangedAudioParameter* param; juce::String label; float width; };
+    ToggleRow (std::vector<Item>, juce::UndoManager*);
+    void paint (juce::Graphics&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+    void setVisibleItems (int n) { if (n != shown) { shown = n; repaint(); } }   // the mono component shows the first only
+private:
+    juce::Rectangle<float> buttonRect (int i) const;
+    std::vector<Item> items;
+    std::vector<std::unique_ptr<juce::ParameterAttachment>> attachments;
+    std::vector<bool> on;
+    int shown;
+};
+
+// one ivory button face (the ButtonGroup's), lit or not, its label centred
+void drawButtonFace (juce::Graphics&, juce::Rectangle<float>, const juce::String& label, bool on);
+// a black frame with its soft shadow on the panel, around buttons (frame: the outer edge of the 1 px black line)
+void drawButtonFrame (juce::Graphics&, juce::Rectangle<float> frame);
+
 // the VU meter's dial and needle, over the housing's black window frame (the housing is part of the panel drawing)
 class VuMeter : public juce::Component
 {
@@ -110,9 +137,13 @@ void drawVuHousing (juce::Graphics&, juce::Rectangle<float> housing, juce::Point
 
 // amber LED text in a black window (the BPM display); with digits: a small caption and large 7-segment digits
 void drawLedDisplay (juce::Graphics&, juce::Rectangle<float> box, const juce::String& text, const juce::String& digits = {});
+// text in the display's segment font: cells of cellW x cellH from `origin` (the first cell's top left) at `pitch`,
+// strokes t px thick, leaning right by `slant` px per px of height
+void drawSegText (juce::Graphics&, juce::Point<float> origin, const juce::String& text, float cellW, float cellH, float pitch,
+                  float t, float slant);
 
 // the product logo: a heavy first letter and the rest light ("WCOMP"), from its left edge, centred vertically
-void drawLogo (juce::Graphics&, juce::Point<float> leftCentre, const juce::String& first, const juce::String& rest);
+void drawLogo (juce::Graphics&, juce::Point<float> leftCentre, const juce::String& first, const juce::String& rest, float size = 1.0f);
 
 // the value entry (double-click) sits on each knob's value slot; the text box is invisible otherwise
 class HybridLook : public wavy::flat::FlatLook

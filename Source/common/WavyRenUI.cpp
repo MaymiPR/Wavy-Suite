@@ -216,10 +216,11 @@ public:
 };
 
 Editor::Editor (AudioProcessor& p, AudioProcessorValueTreeState& state, UndoManager& u, RangedAudioParameter* mode,
-                const String& product, const String& version, int designW, int designH, wavy::Toolbar::Style tbStyle)
+                const String& product, const String& version, int designW, int designH, wavy::Toolbar::Style tbStyle,
+                const StringArray& modes)
     : AudioProcessorEditor (&p), apvts (state), undo (u), W (designW), H (designH),
       contentComp (std::make_unique<Content> (*this)),
-      toolbar (std::make_unique<wavy::Toolbar> (u, state, StringArray { "Stereo", "Mono" }, mode, product, version, tbStyle)),
+      toolbar (std::make_unique<wavy::Toolbar> (u, state, modes, mode, product, version, tbStyle)),
       modeParam (mode)
 {
     // never take the keyboard focus: the host keeps its shortcuts (space = play / pause) while the window is open
@@ -233,6 +234,7 @@ Editor::Editor (AudioProcessor& p, AudioProcessorValueTreeState& state, UndoMana
     toolbar->setMouseClickGrabsKeyboardFocus (false);
     contentComp->addAndMakeVisible (*toolbar);
     toolbar->setTopLeftPosition (0, 0);
+    if (tbStyle == wavy::Toolbar::Style::Hybrid) toolbar->setSize (W, wavy::Toolbar::hybridHeight);   // the editor's width
     toolbar->getWindowScale = [this] { return (float) getWidth() / (float) W; };
     toolbar->setWindowScale = [this] (float s) { setSize (roundToInt (W * s), roundToInt (H * s)); };
 

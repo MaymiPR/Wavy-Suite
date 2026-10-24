@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **WDelay** (Phase 2: the editor; the audio passes through until the DSP), a hybrid delay modelled on H-Delay: the
+  Hybrid-line editor (749 x 292, resizable) drawn by Wavy — the Delay and Feedback knobs in chrome skirts, the knurled
+  modulation and filter knobs, the right column's small knobs, the tap pad, the Link wheel, the amber time display
+  (note and tempo, ms, Ping Pong's start side, Dual's two sides), the output meter's red triangles and the clip light —
+  on H-Delay's panel shading; its parameter list and tapers (the Delay taper as read from the reference), Mono / Stereo /
+  M>S modes; knob, wheel, Ctrl, display and Link feel as measured on the reference. The Hybrid kit gains these knob kinds
+  (fitted with a centre per layer), a row of independent toggles and the panel's second look; the Hybrid toolbar follows
+  a wider editor.
+- **MeterCapture** `away=0`: the drag script keeps the mouse over the editor between drags (leaving it lost travel on
+  the next drag, on the references too); the cursor's position after each release is printed.
 - **WComp** (ready for the next release; Phase 5: in the installers' plug-in list, FocusCheck, sample-rate checks),
   a hybrid compressor modelled on H-Comp: the Hybrid-line editor (643 x 454, resizable)
   drawn entirely by Wavy on a new shared kit (`Source/common/WavyHybridUI`: the orange panel, bakelite and chrome

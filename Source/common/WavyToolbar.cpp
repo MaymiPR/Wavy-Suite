@@ -44,22 +44,25 @@ juce::Rectangle<int> Toolbar::rect (Item i) const
             case Menu:   return { 776, 10, 24, 17 };
             default:     return {};
         }
-    if (style == Style::Hybrid)    // measured on the reference (H-Comp): boxes on y 2 ... 16
+    if (style == Style::Hybrid)    // measured on the reference (H-Comp): boxes on y 2 ... 16; a wider editor (H-Delay,
+    {                              // 749) widens the preset box and moves the rest right
+        const int x = getWidth() - hybridWidth;
         switch (i)
         {
             case About:  return { 2, 2, 98, 15 };       // the orange logo block (the reference's is 2 ... 156)
             case Mode:   return { 102, 2, 55, 15 };
             case Undo:   return { 159, 2, 32, 15 };
             case Redo:   return { 193, 2, 32, 15 };
-            case Preset: return { 227, 2, 191, 15 };
-            case Prev:   return { 420, 2, 32, 15 };
-            case Next:   return { 454, 2, 32, 15 };
-            case Copy:   return { 488, 2, 44, 15 };
-            case Setup:  return { 534, 2, 44, 15 };
-            case Save:   return { 580, 2, 44, 15 };
-            case Menu:   return { 626, 2, 15, 15 };
+            case Preset: return { 227, 2, 191 + x, 15 };
+            case Prev:   return { 420 + x, 2, 32, 15 };
+            case Next:   return { 454 + x, 2, 32, 15 };
+            case Copy:   return { 488 + x, 2, 44, 15 };
+            case Setup:  return { 534 + x, 2, 44, 15 };
+            case Save:   return { 580 + x, 2, 44, 15 };
+            case Menu:   return { 626 + x, 2, 15, 15 };
             default:     return {};
         }
+    }
     switch (i)
     {
         case About:  return { 4, 2, 16, 15 };

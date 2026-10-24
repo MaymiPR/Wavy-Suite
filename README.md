@@ -33,7 +33,8 @@ The installers are not code-signed or notarized; see [packaging/](packaging) for
 | **WBass** | psychoacoustic bass enhancer (harmonic generator) | ready for the next release: close, not a null (median −36.8 dB, see below) |
 | **WBassX** | psychoacoustic bass enhancer with harmonics compressor, filters and monitor modes | ready for the next release: close, not a null (median −48.5 dB, see below) |
 | **WComp** | hybrid compressor with punch, tempo-synced release, analog modes and limiter | ready for the next release: close, not a null on every material (median −47.0 dB, see below) |
-| WDelay, WBass Ride, WVox Ride, WVox Chain, WVox Bend | | planned, one at a time |
+| **WDelay** | hybrid delay with tape-style time changes, ping-pong, modulation, filters, LoFi and analog modes | in development: the editor (Phase 2); the audio passes through until the DSP |
+| WBass Ride, WVox Ride, WVox Chain, WVox Bend | | planned, one at a time |
 
 ### WComp null test (honest numbers)
 

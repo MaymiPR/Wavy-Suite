@@ -77,7 +77,8 @@ class Editor : public juce::AudioProcessorEditor, private juce::Timer
 public:
     Editor (juce::AudioProcessor&, juce::AudioProcessorValueTreeState&, juce::UndoManager&,
             juce::RangedAudioParameter* modeParam, const juce::String& product, const juce::String& version,
-            int designW, int designH, wavy::Toolbar::Style toolbarStyle = wavy::Toolbar::Style::Renaissance);
+            int designW, int designH, wavy::Toolbar::Style toolbarStyle = wavy::Toolbar::Style::Renaissance,
+            const juce::StringArray& modes = { "Stereo", "Mono" });
     ~Editor() override;
     void resized() override;
     void parentHierarchyChanged() override;

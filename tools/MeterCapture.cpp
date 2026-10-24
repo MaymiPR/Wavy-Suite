@@ -3,6 +3,7 @@
 //   ... [design=<width>] drag=x,y,dx,dy[,ctrl|shift|alt|wheel|wheelctrl|midctrl|ctrlup] ...   (drag script instead of the capture, see DragScript)
 //   ... gl=1 [crop=x0,y0,x1,y1]   (read the editor's OpenGL frames back instead of grabbing the screen, see GlCapture)
 //   ... hostwin=1   (the editor inside a plain Win32 window that keeps the keyboard focus, as FL hosts it)
+//   ... away=0   (the drag script leaves the mouse over the editor between drags)
 //   paramName=value sets the normalised value, paramName:=text the value the parameter's text parses to.
 // Loads the plug-in (a shell's sub-plugin by name), opens its editor, feeds a fixed schedule of 50 Hz tone bursts from
 // a real-time paced thread, and grabs the editor's screen area every ~25 ms. out.raw: per frame a double timestamp
@@ -248,6 +249,7 @@ public:
     DragScript (AudioPluginInstance& p, Component& ed, StringArray d, float designW, File shotBase)
         : Thread ("drag"), plugin (p), editor (ed), drags (std::move (d)), design (designW), shots (shotBase) {}
     std::atomic<bool> done { false };
+    bool moveAway = true;                             // away=0: the mouse stays over the editor between drags
     void run() override
     {
         sleep (2000);
@@ -350,8 +352,11 @@ public:
                 std::printf ("cursor after release: %.1f,%.1f (drag ended at %.1f,%.1f)\n", x + (cp.x - start.x) / stepScale,
                              y + (cp.y - start.y) / stepScale, x + dx, y + dy);
             }
-            SetCursorPos (start.x + 400, start.y + 300); sleep (600);   // mouse away: does the highlight stay?
-            shot ("away");
+            if (moveAway)
+            {
+                SetCursorPos (start.x + 400, start.y + 300); sleep (600);   // mouse away: does the highlight stay?
+                shot ("away");
+            }
             std::printf ("cursor during drag: %s\n", hidden ? "HIDDEN" : "visible");
             dump ("after");
         }
@@ -507,6 +512,7 @@ public:
         if (! drags.isEmpty())
         {
             dragScript = std::make_unique<DragScript> (*plugin, *editorComp, drags, design, File (args[2]));
+            dragScript->moveAway = ! args.contains ("away=0");
             dragWatch = std::make_unique<DragWatch> (*dragScript);
             dragScript->startThread();
             dragWatch->startTimer (100);

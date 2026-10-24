@@ -720,3 +720,51 @@ the print: `measure_vu_face.py`. Summary: `measurements/hcomp/needle.json`.
   (screen grab, 38 fps), its GR needle averages 11.5 dB on the drums (H-Comp 11.5) and 5.9 on the voice (5.6).
 - **Residual.** The printed arc's centre is (320.3, 220.7), about 0.4 px up-left of the centre WComp draws its print
   about; the numbers, dots and ticks were measured individually and sit within about 0.5 px.
+
+# WDelay: the editor (Phase 2)
+
+Measured on the user's own install (*H-Delay Stereo* / *Mono*, `tools/MeterCapture` screenshots and drag scripts on the
+real editor; screenshots stay in the git-ignored `reference/hdelay/`), 2026-10-24.
+
+### Parameter tapers (read from the reference: each parameter set to 101 normalised values, its text read back)
+- **Delay**: 1 ms per 1/1000 of the range up to 501 ms at the middle (exact), then a curve to 3500 ms that no simple law
+  fits within the display's 1 ms (a power law is 57 ms off, a cubic 14 ms); WDelay keeps the reference's values at
+  201 points and interpolates between them.
+- **Rate** 0.1 … 6000 Hz and both **filters** 19 … 20 138.8 Hz: logarithmic (the middle at 24.5 Hz and 619 Hz, the
+  geometric means); HiPass is Off at the bottom, LoPass Off at the top (from 20 100 Hz). **BPM** 30 … 300,
+  **Feedback**, **Mix**, **Depth**, **Output**: linear. The reference keeps fractional values (its presets store Depth
+  0.69 %, Delay 243.9 ms), so WDelay's values are continuous and only their texts are rounded.
+
+### Drawn appearance (fitted on the screenshots)
+- **Panel**: a base colour (183.5, 100.5, 36) with a broad warm highlight (+42.5, +55.9, +15.8) centred at (107, 73)
+  over about 100 × 106 px, darkened from y 229 to 0.75 at the bottom and toward the side edges (0.77 left, 0.70 right,
+  over about 21 px), a bright line under the toolbar; residual 2.4 levels rms (the grain).
+- **Knobs**, fitted as H-Comp's (`tools/fit_hybrid_knobs.py`, captures of Feedback, Mix, Output and the four small knobs
+  typed to nine values): Delay and Feedback are fluted black knobs in a chrome skirt of radius 63.4, the flute ring
+  (mean radius 49, ten flutes ±2.3 px) 1.1 px right of the skirt's centre and the cap 1.1 px right and 2.3 px down (a
+  raised knob seen a little from above; fitting all three about one centre blurred it), the filmstrip's flutes up to
+  3° off the pointer's angle (each capture's own flute phase is used); the pointer fin from radius 45.5 to 64.5. The
+  small knobs (radius 32.4, centres at (181.4, 223.2), (286.2, 222.6), (407.2, 222.6), (542.3, 222.6)) have a knurled
+  rim; the right column's (radius 23.65) a light line on the cap from the centre to 13.5 px. Scales: 21 ticks of 14.1°
+  from 39° to 321° on every knob (Analog 5), radii 64.3 … 72.2 / 33.5 … 38.7 / 24.7 … 30.6.
+- **Meter**: two red triangles, one per channel, pointing inward along the cream scale; the printed marks lie at
+  y = 83.3 + 157.3 (1 − 10^(−dB/40)) within 0.5 px (0 at 83.3, 6 at 129.3, 24 at 201, 48 at 231.7; rest at 239.3).
+- **Display** 292, 66, 139 × 72: dark glass with a smoky streak; amber segment characters (255, 180, 37 at their
+  brightest): the note as a stacked fraction and T / D, the tempo in 13.5 × 23 px digits with "BPM" under it (Host,
+  BPM), four digits of ms (MS), the time and the start side in an amber box (Ping Pong), "L" and "R" halves (Dual).
+- **Toolbar**: H-Comp's, its preset box 106 px wider (the editor is 749 px wide, H-Comp's 643).
+
+### Control feel (MeterCapture drag, click and wheel scripts)
+- **Knobs**: H-Comp's law on every knob — 0.001 of the range per px on mouse steps up to 2 px, 0.002 from 3 px, Ctrl a
+  quarter of either; the wheel 1/72 of the range per notch; Analog one position per 50 px; the Delay note one value
+  per 50 px slow, two per 50 px fast (H-Comp's note law, kept). WDelay gives the same values on these scripts within
+  the display's last digit (Feedback 60 → 70 / 70 → 50, Output −1.8 → −1.6 with Ctrl, Delay in MS 375 → 425 ms slow,
+  −100 ms fast, Rate 0.10 → 0.17 Hz).
+- **Display**: dragged or wheeled with the same law, it sets the time in MS and the tempo over its digits in BPM
+  (+27 BPM for 50 px fast, +12 for three notches); over a note value it does nothing.
+- **Link** wheel: both filters by the same share of their range, with the knobs' law, as far as the one nearer its end
+  allows (HiPass 154 → 77 Hz and LoPass Off → 10.0 kHz for 50 px fast down; three notches 77 → 103 Hz,
+  10.0 → 13.3 kHz; WDelay 13.4).
+- **Test artefact**: the drag script moves the mouse out of the editor after each drag; the next drag then loses part
+  of its travel on both the reference and ours (Rate 0.10 → 0.12 instead of 0.17 Hz). `away=0` keeps the mouse over the
+  editor; even so some scripted drags on the reference do nothing at random, so laws are read from fresh sessions.

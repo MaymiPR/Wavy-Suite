@@ -42,9 +42,12 @@ target_link_libraries(WavyCommon PUBLIC
     juce::juce_dsp
     PRIVATE juce::juce_recommended_config_flags)
 
-# wavy_add_plugin(<Target> <Product name> <Folder> <4-char code> <clap id> SOURCES ...)
+# wavy_add_plugin(<Target> <Product name> <4-char code> <clap id> [CATEGORIES <VST3 categories>] SOURCES ...)
 function(wavy_add_plugin target product code clapid)
-    cmake_parse_arguments(P "" "" "SOURCES" ${ARGN})
+    cmake_parse_arguments(P "" "" "SOURCES;CATEGORIES" ${ARGN})
+    if(NOT P_CATEGORIES)
+        set(P_CATEGORIES Fx Dynamics)
+    endif()
     set(formats VST3)
     if(APPLE)
         list(APPEND formats AU)
@@ -60,7 +63,7 @@ function(wavy_add_plugin target product code clapid)
         NEEDS_MIDI_OUTPUT FALSE
         COPY_PLUGIN_AFTER_BUILD FALSE
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE   # the host keeps its transport shortcuts
-        VST3_CATEGORIES Fx Dynamics
+        VST3_CATEGORIES ${P_CATEGORIES}
         AU_MAIN_TYPE kAudioUnitType_Effect)
     target_sources(${target} PRIVATE ${P_SOURCES})
     target_link_libraries(${target} PRIVATE WavyCommon juce::juce_recommended_warning_flags)
@@ -80,6 +83,7 @@ add_subdirectory(plugins/WVox)
 add_subdirectory(plugins/WBass)
 add_subdirectory(plugins/WBassX)
 add_subdirectory(plugins/WComp)
+add_subdirectory(plugins/WDelay)
 
 # Offline renderer of the WVox DSP (null test, tuning). No JUCE needed.
 add_executable(WVoxRender tools/WVoxRender.cpp)

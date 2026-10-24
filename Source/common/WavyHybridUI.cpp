@@ -25,10 +25,41 @@ static float refToJuce (float deg) { return rad (deg + 180.0f); }
 // The panel, measured on the reference: a flat orange plate (187, 105, 39) brightened along the top (1.115 at y 28,
 // fading to 1 by y 170), darkened along the bottom (from y 385 to 0.64 at the edge) and toward the left and right
 // edges (0.76 at the outer columns, 1 by about 50 px in), with a 1 px dark border and a faint fixed grain.
-static const Image& panelImage (Image& img, int w, int h)
+//
+// H-Delay's panel (fitted on the reference's screenshot, rms 2.4 levels): a base colour (183.5, 100.5, 36) with a broad
+// warm highlight (+42.5, +55.9, +15.8 at (107, 73), widths 100 x 106 px) at the upper left, darkened toward the bottom
+// (from y 229 to 0.75 at the edge) and the left and right edges (0.77 and 0.70 at the outer columns, over about
+// 21 px), a bright line along the top under the toolbar.
+static Colour hDelayPanel (float x, float y)
+{
+    const float blob = std::exp (-square ((x - 107.1f) / 100.4f) - square ((y - 73.12f) / 105.7f));
+    const float k = (1.0f - 0.2535f * square (jlimit (0.0f, 1.0f, (y - 229.3f) / (292.0f - 229.3f))))
+                  * (1.0f - 0.229f * std::exp (-x / 22.65f)) * (1.0f - 0.2993f * std::exp (-(749.0f - x) / 20.33f))
+                  * (1.0f + 0.7836f * std::exp (-(y - 19.0f) / 3.0f));
+    return Colour::fromFloatRGBA ((183.5f + 42.52f * blob) * k / 255.0f, (100.5f + 55.87f * blob) * k / 255.0f,
+                                  (35.97f + 15.76f * blob) * k / 255.0f, 1.0f);
+}
+
+static const Image& panelImage (Image& img, int w, int h, PanelLook look)
 {
     if (img.isNull() || img.getWidth() != w || img.getHeight() != h)
     {
+        if (look == PanelLook::hDelay)
+        {
+            img = Image (Image::RGB, w, h, false);
+            Random r (1234);
+            Image::BitmapData bd (img, Image::BitmapData::writeOnly);
+            for (int y = 0; y < h; ++y)
+                for (int x = 0; x < w; ++x)
+                {
+                    const auto c = hDelayPanel ((float) x + 0.5f, (float) y + 19.5f);       // design y: under the toolbar
+                    const float k = 1.0f + (r.nextFloat() - 0.5f) * 0.035f;
+                    bd.setPixelColour (x, y, Colour ((uint8) jlimit (0.0f, 255.0f, c.getFloatRed() * 255.0f * k),
+                                                     (uint8) jlimit (0.0f, 255.0f, c.getFloatGreen() * 255.0f * k),
+                                                     (uint8) jlimit (0.0f, 255.0f, c.getFloatBlue() * 255.0f * k)));
+                }
+            return img;
+        }
         img = Image (Image::RGB, w, h, false);
         Random r (1234);
         Image::BitmapData bd (img, Image::BitmapData::writeOnly);
@@ -63,10 +94,10 @@ static const Image& panelImage (Image& img, int w, int h)
     return img;
 }
 
-void drawPanel (Graphics& g, Rectangle<int> area, Image& cache)
+void drawPanel (Graphics& g, Rectangle<int> area, Image& cache, PanelLook look)
 {
     g.setOpacity (1.0f);
-    g.drawImageAt (panelImage (cache, area.getWidth(), area.getHeight()), area.getX(), area.getY());
+    g.drawImageAt (panelImage (cache, area.getWidth(), area.getHeight(), look), area.getX(), area.getY());
 }
 
 void drawScale (Graphics& g, Point<float> c, float a0, float a1, const Scale& s)
@@ -141,7 +172,18 @@ void Knob::mouseDoubleClick (const MouseEvent&) { showTextBox(); }
 void Knob::mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& w) { wavesWheel (*this, e, w, wheelAcc, steps > 0); }
 namespace kd = knobdata;
 
-static const kd::Kind& knobData (Knob::Kind k) { return k == Knob::Small ? kd::kSmall : k == Knob::Large ? kd::kLarge : kd::kHuge; }
+static const kd::Kind& knobData (Knob::Kind k)
+{
+    switch (k)
+    {
+        case Knob::Small: return kd::kSmall;
+        case Knob::Large: return kd::kLarge;
+        case Knob::Huge:  return kd::kHuge;
+        case Knob::Grand: return kd::kGrand;
+        case Knob::Knurled: return kd::kKnurled;
+        default:          return kd::kMini;
+    }
+}
 
 // the angular basis of the shading model (tools/fit_hybrid_knobs.py): 1, cos/sin 1..3, the highlight lobes, the flutes
 static void knobBasis (float th, float lobeTh, float* b)
@@ -191,8 +233,9 @@ const Image& Knob::bodyImage (float scale, float delta, float& extent)
     float eMax = K.edge[0];
     for (int k = 3; k < 9; ++k) eMax += std::abs (K.edge[k]);
     // after a turn only the fluted rim changes: from 8 px inside it (the fit's flute terms stop there) to past the
-    // outermost flute
-    const float ringLo = K.emin - 8.5f, ringHi = (K.skirt.n > 0 ? eMax : K.rs) + 1.5f;
+    // outermost flute (widened by the flute ring's and the cap's offsets from the skirt's centre)
+    const float off = std::hypot (K.fdx, K.fdy) + std::hypot (K.cdx, K.cdy);
+    const float ringLo = K.emin - 8.5f - off, ringHi = (K.skirt.n > 0 ? eMax : K.rs) + 1.5f + off;
     Random grain (77);
     std::vector<float> brush (512);                   // the skirt's brushed grain: a fixed value per thin ring
     for (auto& v : brush) v = (grain.nextFloat() - 0.5f) * 9.0f;
@@ -213,20 +256,29 @@ const Image& Knob::bodyImage (float scale, float delta, float& extent)
                 {
                     const float x = ((float) px + ((float) sx + 0.5f) / (float) sub) / scale - extent;
                     const float y = ((float) py + ((float) sy + 0.5f) / (float) sub) / scale - extent;
-                    const float r = std::sqrt (x * x + y * y);
-                    float th = std::atan2 (x, -y);
-                    if (th < 0.0f) th += MathConstants<float>::twoPi;
-                    const float tk = th - delta;                                         // the angle on the turned knob
+                    // polar coordinates about the skirt's centre, the flute ring's and the cap's (a raised knob seen a
+                    // little from above: its top lies lower right of its base; the same point on concentric knobs)
+                    auto polar = [] (float px_, float py_, float& rr, float& tt)
+                    {
+                        rr = std::sqrt (px_ * px_ + py_ * py_);
+                        tt = std::atan2 (px_, -py_);
+                        if (tt < 0.0f) tt += MathConstants<float>::twoPi;
+                    };
+                    float r, th, rf, thf, rc, thc;
+                    polar (x, y, r, th);
+                    polar (x - K.fdx, y - K.fdy, rf, thf);
+                    polar (x - K.cdx, y - K.cdy, rc, thc);
+                    const float tk = thf - delta;                                        // the angle on the turned knob
                     float e = K.edge[0];
                     for (int k = 1; k <= 3; ++k)
                         e += K.edge[2 * k + 1] * std::cos ((float) (k * kd::kLobes) * tk) + K.edge[2 * k + 2] * std::sin ((float) (k * kd::kLobes) * tk);
-                    if (r < e || (K.skirt.n > 0 && r < K.rs))
+                    if (rf < e || (K.skirt.n > 0 && r < K.rs))
                     {
-                        knobBasis (th, tk, b);
-                        if (r < rimLo) knobTable (K.inner, r, b, rgb);
-                        else if (r < e) knobTable (K.rim, (r - rimLo) / (e - rimLo), b, rgb);
+                        if (rf < e && rc < rimLo) { knobBasis (thc, thc - delta, b); knobTable (K.inner, rc, b, rgb); }
+                        else if (rf < e) { knobBasis (thf, tk, b); knobTable (K.rim, (rf - rimLo) / (e - rimLo), b, rgb); }
                         else
                         {
+                            knobBasis (th, th - delta, b);
                             knobTable (K.skirt, r, b, rgb);
                             const float gr = brush[(size_t) jlimit (0, 511, (int) (r * 6.0f))];
                             rgb[0] += gr; rgb[1] += gr; rgb[2] += gr;
@@ -249,12 +301,24 @@ const Image& Knob::bodyImage (float scale, float delta, float& extent)
 }
 
 // the pointer: a dark fin with two facets lit by their angle to the light, a cream line along its ridge
+// the Mini knob's pointer (measured, reference/hdelay/knobs): a light line 2.3 px wide on the cap from the centre to 13.5 px,
+// brightest when it points toward the light
+static void capLine (Graphics& g, Point<float> c, float a)
+{
+    const Point<float> d (std::sin (a), -std::cos (a));
+    const float k = 0.86f + 0.14f * std::cos (a - kd::kLight);
+    g.setColour (Colour (218, 211, 199).withMultipliedBrightness (k));
+    g.drawLine (Line<float> (c + d * 0.5f, c + d * 13.5f), 2.3f);
+}
+
 static void fin (Graphics& g, Point<float> c, float a, Knob::Kind kind)
 {
-    // measured (reference/wcomp/knobs): where the ridge starts, the rim, the tip
-    const float r0 = kind == Knob::Small ? 27.5f : kind == Knob::Large ? 40.5f : 57.0f;
-    const float rr = kind == Knob::Small ? 31.6f : kind == Knob::Large ? 44.0f : 61.5f;
-    const float rt = kind == Knob::Small ? 42.6f : kind == Knob::Large ? 59.6f : 82.0f;
+    if (kind == Knob::Mini) { capLine (g, c, a); return; }
+    // measured (reference/wcomp/knobs, reference/hdelay/knobs): where the ridge starts, the rim, the tip
+    if (kind == Knob::Knurled) kind = Knob::Small;
+    const float r0 = kind == Knob::Small ? 27.5f : kind == Knob::Large ? 40.5f : kind == Knob::Huge ? 57.0f : 45.5f;
+    const float rr = kind == Knob::Small ? 31.6f : kind == Knob::Large ? 44.0f : kind == Knob::Huge ? 61.5f : 48.5f;
+    const float rt = kind == Knob::Small ? 42.6f : kind == Knob::Large ? 59.6f : kind == Knob::Huge ? 82.0f : 64.5f;
     const float hw = 0.4f * (rt - rr), hw0 = kind == Knob::Small ? 1.8f : 2.4f;
     const Point<float> d (std::sin (a), -std::cos (a)), p (std::cos (a), std::sin (a));      // outward, and to the right
     auto at = [&] (float r, float w) { return c + d * r + p * w; };
@@ -314,7 +378,7 @@ void Knob::paint (Graphics& g)
     const auto& img = bodyImage (scale, turn, ext);
     g.setImageResamplingQuality (Graphics::highResamplingQuality);
     g.drawImageTransformed (img, AffineTransform::scale (1.0f / scale).translated (c.x - ext, c.y - ext));
-    fin (g, c, pointerAngle(), kind);
+    fin (g, c + Point<float> (knobData (kind).fdx, knobData (kind).fdy), pointerAngle(), kind);
     // selected (measured): a thin yellow ring on the cap, and the value in a dark box on the value slot
     if (selection != nullptr && selection->contains (this))
     {
@@ -362,9 +426,8 @@ Rectangle<float> ButtonGroup::buttonRect (int i) const
     return { b.getX() + (float) i * (w + 1.0f), b.getY(), w, b.getHeight() };
 }
 
-void ButtonGroup::paint (Graphics& g)
+void drawButtonFrame (Graphics& g, Rectangle<float> f)
 {
-    const auto f = getLocalBounds().toFloat().reduced (kShadow);
     for (int k = 4; k >= 1; --k)
     {
         g.setColour (Colours::black.withAlpha (0.07f));
@@ -372,11 +435,11 @@ void ButtonGroup::paint (Graphics& g)
     }
     g.setColour (Colour (2, 2, 2));
     g.fillRect (f);
-    const int n = toggle ? 1 : labels.size();
-    for (int i = 0; i < n; ++i)
+}
+
+void drawButtonFace (Graphics& g, Rectangle<float> r, const String& label, bool on)
+{
     {
-        const auto r = buttonRect (i);
-        const bool on = toggle ? selected != 0 : selected == i;
         // the face's profile, top to bottom, measured on a 19 px button (as a share of the face colour)
         const Colour face = on ? Colour (163, 158, 137) : Colour (205, 203, 195);
         static const float upP[] = { 0.0f, 0.053f, 0.105f, 0.158f, 0.684f, 0.737f, 0.789f, 0.842f, 0.895f, 1.0f };
@@ -401,12 +464,55 @@ void ButtonGroup::paint (Graphics& g)
             // yellow, outlined in dark (measured (217, 210, 62))
             g.setColour (Colours::black.withAlpha (0.45f));
             for (auto d : { Point<float> (-0.8f, 0.0f), Point<float> (0.8f, 0.0f), Point<float> (0.0f, -0.8f), Point<float> (0.0f, 0.8f) })
-                printText (g, labels[toggle ? 0 : i], c + d, 9.75f, 1.05f, false);
+                printText (g, label, c + d, 9.75f, 1.05f, false);
             g.setColour (Colour (240, 232, 64));
         }
         else g.setColour (Colour (66, 66, 64));
-        printText (g, labels[toggle ? 0 : i], c, 9.75f, 1.05f, false);
+        printText (g, label, c, 9.75f, 1.05f, false);
     }
+}
+
+void ButtonGroup::paint (Graphics& g)
+{
+    drawButtonFrame (g, getLocalBounds().toFloat().reduced (kShadow));
+    const int n = toggle ? 1 : labels.size();
+    for (int i = 0; i < n; ++i)
+        drawButtonFace (g, buttonRect (i), labels[toggle ? 0 : i], toggle ? selected != 0 : selected == i);
+}
+
+//==============================================================================
+ToggleRow::ToggleRow (std::vector<Item> it, UndoManager* um) : items (std::move (it)), on (items.size(), false), shown ((int) items.size())
+{
+    for (size_t i = 0; i < items.size(); ++i)
+    {
+        attachments.push_back (std::make_unique<ParameterAttachment> (*items[i].param, [this, i] (float x) { on[i] = x > 0.5f; repaint(); }, um));
+        attachments.back()->sendInitialUpdate();
+    }
+}
+
+// the buttons 1 px apart inside the frame, as the ButtonGroup's; each takes its width from the reference's rectangles
+Rectangle<float> ToggleRow::buttonRect (int i) const
+{
+    const auto b = getLocalBounds().toFloat().reduced (kShadow).reduced (1.0f);
+    float x = b.getX();
+    for (int k = 0; k < i; ++k) x += items[(size_t) k].width;
+    return { x, b.getY(), items[(size_t) i].width - 1.0f, b.getHeight() };
+}
+
+void ToggleRow::paint (Graphics& g)
+{
+    float w = 1.0f;
+    for (int i = 0; i < shown; ++i) w += items[(size_t) i].width;
+    const auto f = getLocalBounds().toFloat().reduced (kShadow);
+    drawButtonFrame (g, f.withWidth (w));
+    for (int i = 0; i < shown; ++i) drawButtonFace (g, buttonRect (i), items[(size_t) i].label, on[(size_t) i]);
+}
+
+void ToggleRow::mouseDown (const MouseEvent& e)
+{
+    for (int i = 0; i < shown; ++i)
+        if (buttonRect (i).contains (e.position))
+            attachments[(size_t) i]->setValueAsCompleteGesture (on[(size_t) i] ? 0.0f : 1.0f);
 }
 
 void ButtonGroup::mouseDown (const MouseEvent& e)
@@ -723,7 +829,7 @@ void drawVuHousing (Graphics& g, Rectangle<float> h, Point<float> archCentre, fl
 // stroke of M), thickness t, leaning right by `slant` px per px of height (measured on the reference's display)
 static void segChar (Graphics& g, Rectangle<float> r, juce_wchar ch, float t, float slant)
 {
-    enum { A = 1, B = 2, C = 4, D = 8, E = 16, F = 32, G = 64, I = 128 };
+    enum { A = 1, B = 2, C = 4, D = 8, E = 16, F = 32, G = 64, I = 128, J = 256 };
     int m = 0;
     switch (CharacterFunctions::toUpperCase (ch))
     {
@@ -742,6 +848,9 @@ static void segChar (Graphics& g, Rectangle<float> r, juce_wchar ch, float t, fl
         case 'F': m = A | F | G | E; break;
         case 'H': m = B | C | E | F | G; break;
         case 'T': m = A | I; break;
+        case 'L': m = D | E | F; break;
+        case 'R': m = A | B | E | F | G | J; break;           // J: the leg from the middle to the lower right
+        case 'D': m = A | B | C | D | E | F; break;           // as the reference's display draws it
         case '-': m = G; break;
         default: break;
     }
@@ -761,6 +870,19 @@ static void segChar (Graphics& g, Rectangle<float> r, juce_wchar ch, float t, fl
     if (m & B) rect (w - t, gap, t, hm - gap);
     if (m & C) rect (w - t, hm + t, t, h - hm - t - gap);
     if (m & I) rect (std::round (w * 0.5f - t * 0.5f), gap, t, hm - gap);
+    if (m & J)
+    {
+        Path p;
+        p.startNewSubPath (x0 + w * 0.45f, y0 + hm + t);
+        p.lineTo (x0 + w - t * 0.5f, y0 + h - gap);
+        g.strokePath (p, PathStrokeType (t), AffineTransform::shear (-slant, 0.0f).translated (slant * (y0 + h), 0.0f));
+    }
+}
+
+void drawSegText (Graphics& g, Point<float> origin, const String& text, float cellW, float cellH, float pitch, float t, float slant)
+{
+    for (int i = 0; i < text.length(); ++i)
+        segChar (g, { origin.x + pitch * (float) i, origin.y, cellW, cellH }, text[i], t, slant);
 }
 
 void drawLedDisplay (Graphics& g, Rectangle<float> box, const String& text, const String& digits)
@@ -784,9 +906,10 @@ void drawLedDisplay (Graphics& g, Rectangle<float> box, const String& text, cons
                  digits[i], 2.0f, 0.1f);
 }
 
-void drawLogo (Graphics& g, Point<float> leftCentre, const String& first, const String& rest)
+void drawLogo (Graphics& g, Point<float> leftCentre, const String& first, const String& rest, float size)
 {
-    // measured: the first letter Arial Black 32 px, the rest Arial 30.5 px, 2.7 px apart, inks centred on one line
+    // measured (H-Comp, size 1): the first letter Arial Black 32 px, the rest Arial 30.5 px, 2.7 px apart, inks centred
+    // on one line
     auto ink = [] (const Font& f, const String& t, Path& p)
     {
         GlyphArrangement ga;
@@ -795,11 +918,11 @@ void drawLogo (Graphics& g, Point<float> leftCentre, const String& first, const 
         return p.getBounds();
     };
     Path p1, p2;
-    const auto b1 = ink (Font (FontOptions ("Arial Black", 10.0f, Font::plain).withPointHeight (32.0f)), first, p1);
-    const auto b2 = ink (Font (FontOptions ("Arial", 10.0f, Font::plain).withPointHeight (30.5f)), rest, p2);
+    const auto b1 = ink (Font (FontOptions ("Arial Black", 10.0f, Font::plain).withPointHeight (32.0f * size)), first, p1);
+    const auto b2 = ink (Font (FontOptions ("Arial", 10.0f, Font::plain).withPointHeight (30.5f * size)), rest, p2);
     g.setColour (Colour (22, 14, 8));
     g.fillPath (p1, AffineTransform::translation (leftCentre.x - b1.getX(), leftCentre.y - b1.getCentreY()));
-    g.fillPath (p2, AffineTransform::translation (leftCentre.x + b1.getWidth() + 2.7f - b2.getX(), leftCentre.y - b2.getCentreY()));
+    g.fillPath (p2, AffineTransform::translation (leftCentre.x + b1.getWidth() + 2.7f * size - b2.getX(), leftCentre.y - b2.getCentreY()));
 }
 
 //==============================================================================
