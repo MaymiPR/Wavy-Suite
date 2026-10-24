@@ -25,7 +25,24 @@ Fader::Fader (Kind k, int thumbOffsetX) : kind (k), offsetX (thumbOffsetX)
     setNumDecimalPlacesToDisplay (1);
     setScrollWheelEnabled (true);
     setMouseDragSensitivity (150);
+    setVelocityModeParameters (1.0, 1, 0.0, false);    // Ctrl must not switch to JUCE's velocity mode: it fine-tunes
     applyFormat();
+}
+
+void Fader::mouseDown (const MouseEvent& e)
+{
+    virt = last = e.position;
+    Slider::mouseDown (e);
+}
+
+void Fader::mouseDrag (const MouseEvent& e)
+{
+    const auto d = e.position - last;
+    last = e.position;
+    const float step = std::abs (kind == Horizontal ? d.x : d.y);
+    const float k = e.mods.isCtrlDown() ? (step <= 2.0f ? ctrlSlow : ctrlFast) : plainScale;
+    virt += d * k;
+    Slider::mouseDrag (e.withNewPosition (virt));
 }
 
 void Fader::applyFormat()
@@ -184,6 +201,8 @@ public:
     void mouseDown (const MouseEvent& e) override { ed.contentMouseDown (e); }
     void mouseDrag (const MouseEvent& e) override { ed.contentMouseDrag (e); }
     void mouseUp (const MouseEvent& e) override { ed.contentMouseUp (e); }
+    // the controls take clicks on their thumbs only, the wheel over their whole area (as the references)
+    void mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& w) override { wavy::forwardWheel (*this, e, w); }
     Editor& ed;
 };
 

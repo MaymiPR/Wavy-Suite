@@ -137,27 +137,8 @@ void Knob::mouseUp (const MouseEvent& e)
 }
 void Knob::mouseDoubleClick (const MouseEvent&) { showTextBox(); }
 
-// the wheel (measured on H-Comp): 1/72 of the range per notch, a stepped knob one step per notch; Ctrl changes nothing.
-// JUCE gives a Windows notch as 60 / 256.
-void Knob::mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& w)
-{
-    if (e.mods.isAnyMouseButtonDown() || ! isEnabled() || getMaximum() <= getMinimum()) return;
-    const double notches = (std::abs (w.deltaX) > std::abs (w.deltaY) ? -w.deltaX : w.deltaY) * (w.isReversed ? -1.0 : 1.0) / (60.0 / 256.0);
-    double v = getValue();
-    if (steps > 0 && getInterval() > 0.0)
-    {
-        wheelAcc += notches;
-        const double whole = std::trunc (wheelAcc);
-        wheelAcc -= whole;
-        v += whole * getInterval();
-    }
-    else v = proportionOfLengthToValue (jlimit (0.0, 1.0, valueToProportionOfLength (v) + notches / 72.0));
-    v = jlimit (getMinimum(), getMaximum(), v);
-    if (v == getValue()) return;
-    ScopedDragNotification drag (*this);
-    setValue (v, sendNotificationSync);
-}
-
+// the wheel: the reference's rule (WavyWheel.h), one step per notch on the stepped knobs
+void Knob::mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& w) { wavesWheel (*this, e, w, wheelAcc, steps > 0); }
 namespace kd = knobdata;
 
 static const kd::Kind& knobData (Knob::Kind k) { return k == Knob::Small ? kd::kSmall : k == Knob::Large ? kd::kLarge : kd::kHuge; }

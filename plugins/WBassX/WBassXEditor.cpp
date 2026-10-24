@@ -37,6 +37,9 @@ WBassXEditor::WBassXEditor (WBassXProcessor& p)
     attachSlider (origBass, wbassx::origBass, { 592, 90, 31, 250 }, 0.0);
     attachSlider (harmonics, wbassx::harmonics, { 630, 90, 31, 250 }, -100.0);
     for (auto* f : { &input, &origBass, &harmonics }) applyFormat (*f, f->format);
+    // measured on MaxxBass: Input's wheel and slow Ctrl steps go 1.6 times as far here (its range is 2/3 of the
+    // reference's scale)
+    input.wheelScale = 1.6; input.feel.linCtrlSlow *= 1.6f;
 
     ratio.format = [] (double v) { return String (v, 2) + ":1"; };
     response.format = [] (double v) { return String (v, 1); };
@@ -52,6 +55,7 @@ WBassXEditor::WBassXEditor (WBassXProcessor& p)
     freq.x0 = 7.0f; freq.x1 = 271.0f; freq.y = 16.0f;
     freq.textArea = { 284, 10, 50, 13 };
     attachSlider (freq, wbassx::freq, { 86, 286, 344, 26 }, 80.0);    // wide enough for the entry box (x 380 ... 429)
+    freq.wheelScale = 1.2;                                                 // measured on MaxxBass's Freq
 
     for (auto* f : { &input, &origBass, &harmonics }) f->selection = &selection;
     for (auto* k : { &ratio, &response, &decay }) k->selection = &selection;

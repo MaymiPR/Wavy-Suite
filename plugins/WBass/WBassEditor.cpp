@@ -19,6 +19,10 @@ WBassEditor::WBassEditor (WBassProcessor& p)
     freq.format = [] (double v) { return String (roundToInt (v)); };
     freq.negateTyped = false;
     freq.textArea = { 129, 6, 42, 16 };
+    // measured on RBass: Freq moves the whole range in 98 px of mouse (1.53 times its track), with Ctrl 0.28 of the
+    // track's rate on mouse steps over 2 px and 0.038 on smaller ones
+    freq.plainScale = 1.53f; freq.ctrlFast = 0.283f; freq.ctrlSlow = 0.038f;
+    freq.wheelScale = 1.25;                         // and its wheel 1.25 times the share of the range
     gain.trackTop = 20;
     attach (intensity, wbass::intensity, { 135, 99, 102, 207 }, 0.0);
     attach (gain, wbass::gain, { 292, 85, 42, 215 }, 0.0);

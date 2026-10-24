@@ -1,0 +1,7 @@
+Control-feel scripts (MeterCapture drag scripts on a plug-in's real editor; they move the real mouse). Run from
+build/meters with MC=../MeterCapture_artefacts/Release/MeterCapture.exe NT=../../nulltest exported:
+  run_feel.sh    50 px drags (slow / fast, plain / Ctrl) and 3-notch wheel moves on each control
+  scan_thumb.sh  finds a fader's thumb (where a drag takes)
+  fader_feel.sh  drag rates from the default thumbs, a fresh session per mode
+  ctrl_feel.sh   200 px Ctrl drags in mouse steps of 1, 2, 3 and 10 px, a fresh session per step size
+Logs are parsed by ../parse_drags_any.py. Results: MEASUREMENTS.md "Wheel and Ctrl on the Waves controls".

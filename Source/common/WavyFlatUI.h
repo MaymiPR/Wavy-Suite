@@ -5,6 +5,7 @@
 // The widgets draw themselves; FlatLook only supplies the layout and the value text boxes.
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <functional>
+#include "WavyWheel.h"
 
 namespace wavy::flat
 {
@@ -81,6 +82,9 @@ struct WavesDrag
     // the slow / fast difference: H-Comp's 1/4; MaxxBass's 1/6 at any speed)
     float slowMaxStep = 3.0f, ctrlFactor = 1.0f / 6.0f;
     bool ctrlScalesSpeed = false;
+    // linear (faders, sliders): Ctrl moves this share of the plain rate on mouse steps over 2 px / up to 2 px (measured on
+    // MaxxBass's faders; its Freq slider sets its own)
+    float linCtrlFast = 0.19f, linCtrlSlow = 0.037f;
     // a stepped control's own rate, in px per step: slow, fast, Ctrl slow, Ctrl fast (0: the continuous law above)
     float stepPx[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     juce::Point<float> virt, last;
@@ -97,6 +101,8 @@ public:
     void mouseDown (const juce::MouseEvent&) override;
     void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
+    void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w) override { wavesWheel (*this, e, w, wheelAcc, false, wheelScale); }
+    double wheelAcc = 0.0, wheelScale = 1.0;
     WavesDrag feel { WavesDrag::Linear };
     Selection* selection = nullptr;
     std::function<juce::String (double)> format;
@@ -116,6 +122,8 @@ public:
     void mouseDown (const juce::MouseEvent&) override;
     void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
+    void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w) override { wavesWheel (*this, e, w, wheelAcc, false, wheelScale); }
+    double wheelAcc = 0.0, wheelScale = 1.0;
     WavesDrag feel { WavesDrag::Rotary };
     Selection* selection = nullptr;
     std::function<juce::String (double)> format;
@@ -136,6 +144,8 @@ public:
     void mouseDown (const juce::MouseEvent&) override;
     void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
+    void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w) override { wavesWheel (*this, e, w, wheelAcc, false, wheelScale); }
+    double wheelAcc = 0.0, wheelScale = 1.0;
     WavesDrag feel { WavesDrag::Linear };
     Selection* selection = nullptr;
     void mouseEnter (const juce::MouseEvent&) override { repaint(); }

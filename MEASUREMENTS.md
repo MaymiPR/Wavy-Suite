@@ -443,6 +443,25 @@ Every knob, measured with the drag script (100 px moves, mouse steps of 1 … 30
   continuous rate (a step per 250 / 50 px), the wheel 2.6 times the reference's (JUCE's 15 % per unit). Now it gives
   the reference's values on every one of these scripts (the wheel within the display's last digit).
 
+### Wheel and Ctrl on the Waves controls (all plugins)
+
+Measured the same way on RVox, RBass and MaxxBass (`nulltest/feel/`: 50 px drags, 200 px Ctrl drags in mouse steps of
+1, 2, 3 and 10 px, each from the default value in a fresh session; 3-notch wheel moves), 2026-10-24:
+- **Wheel**: every control takes it over its whole area (the faders take clicks on the thumb only), 1/72 of its range
+  per notch as on H-Comp, a stepped control one step per notch; Ctrl changes nothing. Our controls: JUCE's wheel
+  (2.5 times as far) on the knobs, none at all on the faders (their hit test is the thumb). Now the shared rule
+  (`Source/common/WavyWheel.h`), the editors forwarding the wheel to the control under the mouse; measured scale
+  factors where a control's range is not the reference's: WBassX Input 1.6 (its range is 2/3 of the reference's
+  scale), Freq 1.2 on WBass and WBassX.
+- **Faders and sliders**: the thumb follows the mouse (RBass's Freq at 1.53 times its track: the whole range in 98 px);
+  no slow / fast difference without Ctrl. **Ctrl** gives about 0.19 of that rate on mouse steps of 3 px and more and
+  about 0.037 on steps up to 2 px (RBass Freq 0.28 / 0.038, MaxxBass Freq 0.23 / 0.067). Ours: WVox's and WBass's
+  faders switched to JUCE's velocity mode with Ctrl (slow moves did nothing), WBassX's moved a flat quarter. Now
+  measured rates (`Fader` in WavyRenUI, `WavesDrag` for the Flat kit).
+- **Knobs** (MaxxBass): as H-Comp's; WBassX already matched them.
+- After the change our three give the reference's values on all of these scripts within the display's last digit
+  (Freq on the wheel 1 Hz apart: its steps are whole Hz).
+
 
 # WComp: measurements of the reference (Phase 3)
 

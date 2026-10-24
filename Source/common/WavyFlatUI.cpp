@@ -179,7 +179,7 @@ void WavesDrag::drag (Slider& s, const MouseEvent& e, Selection* sel)
         k = ctrl ? (ctrlScalesSpeed ? ctrlFactor * (slow ? 0.5f : 1.0f) : ctrlFactor) : slow ? 0.5f : 1.0f;
     }
     else if (e.mods.isCtrlDown())
-        k = 0.25f;
+        k = std::abs (std::abs (d.y) > std::abs (d.x) ? d.y : d.x) <= 2.0f ? linCtrlSlow : linCtrlFast;
     virt += d * k;
     s.Slider::mouseDrag (e.withNewPosition (virt));
     const double step = s.valueToProportionOfLength (s.getValue()) - before;
@@ -344,6 +344,7 @@ HSlider::HSlider()
     setSliderSnapsToMousePosition (false);
     setUpFeel (*this, 264);
     setScrollWheelEnabled (true);
+    feel.linCtrlFast = 0.234f; feel.linCtrlSlow = 0.067f;   // measured on MaxxBass's Freq (finer than its faders)
 }
 
 void HSlider::mouseDown (const MouseEvent& e)

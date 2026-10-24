@@ -5,6 +5,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <functional>
 #include "WavyToolbar.h"
+#include "WavyWheel.h"
 
 namespace wavy::ren
 {
@@ -32,10 +33,18 @@ public:
     void applyFormat();
 
     void valueChanged() override;
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
     void mouseDoubleClick (const juce::MouseEvent&) override;
+    void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w) override { wavesWheel (*this, e, w, wheelAcc, false, wheelScale); }
     bool hitTest (int x, int y) override;
     juce::Rectangle<int> valueTextBounds() const;
+    double wheelAcc = 0.0, wheelScale = 1.0;
+    // the drag (measured on RVox / RBass): the thumb follows the mouse (times plainScale); with Ctrl it moves ctrlFast of
+    // that on mouse steps of 3 px and more, ctrlSlow on smaller ones
+    float plainScale = 1.0f, ctrlFast = 0.19f, ctrlSlow = 0.037f;
+    juce::Point<float> virt, last;
 
     const Kind kind;
     const int offsetX;

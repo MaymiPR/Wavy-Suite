@@ -25,6 +25,11 @@
   11.5 dB as H-Comp does (the provisional VU average read 6.2). In / Out: the peak level on their own dBFS face
   (48 … 0, 24 at the top, now drawn), with the reference's hold-and-release law. The limiter lamp glows amber and
   fades over its 0.833 s hold.
+- **Wheel and Ctrl fine-tuning on WVox, WBass and WBassX, as measured on RVox, RBass and MaxxBass**: the wheel turns
+  every control 1/72 of its range per notch, over the whole control (the faders took no wheel at all, the knobs 2.5
+  times too much); Ctrl fine-tunes the faders at the reference's rates (0.19 of the normal rate on quicker mouse moves,
+  0.037 on slow ones; WVox and WBass fell into JUCE's velocity mode with Ctrl, WBassX moved a flat quarter); WBass's
+  Freq moves 1.53 times its track, as the reference's.
 - **WComp knob feel as measured on H-Comp**: the mouse wheel moves 1/72 of a knob's range per notch (it moved 2.6 times
   that), Ctrl gives a quarter of the normal rate and keeps the slow / fast difference (it was a flat 1/6), the fast
   rate starts at 3 px mouse steps, and the stepped knobs have their own rates (Analog a position per 50 px; the synced
