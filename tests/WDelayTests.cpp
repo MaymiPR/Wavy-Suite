@@ -1,7 +1,9 @@
-// Unit tests for WDelay (Phase 2: the parameters and the editor; the DSP comes in Phase 4). Run: WDelayTests (exit code
-// 0 = all passed).
+// Unit tests for WDelay: the parameters, the editor's display, the DSP against the laws measured on the reference.
+// Run: WDelayTests (exit code 0 = all passed).
 #include <cmath>
 #include <cstdio>
+#include <utility>
+#include <vector>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "WDelayProcessor.h"
 #include "WDelayEditor.h"
@@ -50,7 +52,7 @@ static void testTexts()
     CHECK (wdelay::rateText (6000.0f) == "6.00k Hz");
 }
 
-// defaults as a fresh reference instance; the audio passes through unchanged until the DSP is in (Phase 4)
+// defaults as a fresh reference instance; an impulse through the processor comes back after 1/8D at 120 BPM
 static void testProcessor()
 {
     WDelayProcessor p;
@@ -64,14 +66,24 @@ static void testProcessor()
     CHECK_NEAR (v (wdelay::hipass), 19.0, 1.0e-3);
     CHECK_NEAR (v (wdelay::lopass), 20138.77, 0.05);
     CHECK (p.getLatencySamples() == 0);
+    auto set = [&p] (const char* id, float x) { auto* q = p.apvts.getParameter (id); q->setValueNotifyingHost (q->convertTo0to1 (x)); };
+    set (wdelay::analog, 0.0f);
+    set (wdelay::feedback, 0.0f);
     p.setPlayConfigDetails (2, 2, 48000.0, 512);
     p.prepareToPlay (48000.0, 512);
-    juce::AudioBuffer<float> b (2, 512);
-    for (int i = 0; i < 512; ++i) { b.setSample (0, i, std::sin ((float) i * 0.1f)); b.setSample (1, i, 0.5f); }
+    std::vector<float> out[2];
     juce::MidiBuffer m;
-    p.processBlock (b, m);
-    CHECK_NEAR (b.getSample (0, 100), std::sin (10.0f), 1.0e-6);
-    CHECK_NEAR (b.getSample (1, 100), 0.5f, 1.0e-6);
+    for (int blk = 0; blk < 40; ++blk)
+    {
+        juce::AudioBuffer<float> b (2, 512);
+        b.clear();
+        if (blk == 0) { b.setSample (0, 100, 0.001f); b.setSample (1, 100, 0.001f); }
+        p.processBlock (b, m);
+        for (int c = 0; c < 2; ++c) out[c].insert (out[c].end(), b.getReadPointer (c), b.getReadPointer (c) + 512);
+    }
+    CHECK_NEAR (out[0][100], 0.0, 1.0e-12);                                // Mix 100: no dry signal
+    CHECK_NEAR (out[0][100 + 18000] / 0.001, 0.997395, 2.0e-5);              // the kernel's centre (measured 0.997395)
+    CHECK_NEAR (out[1][100 + 18000 + 1] / 0.001, 0.031919, 2.0e-5);          // and the tap after it (0.031919)
     // the state round trip
     p.apvts.getParameter (wdelay::feedback)->setValueNotifyingHost (p.apvts.getParameter (wdelay::feedback)->convertTo0to1 (137.0f));
     juce::MemoryBlock st;
@@ -144,6 +156,92 @@ static void testDisplayClicks()
     CHECK_NEAR (knobValue(), get (wdelay::delayR), 1.0e-3);
 }
 
+// the DSP alone (WDelayDsp.h) against the identified laws
+static void testDsp()
+{
+    using namespace wdelay::dsp;
+    const double fs = 48000.0;
+    auto run = [fs] (Settings s, std::vector<float> l, std::vector<float> r, int ch = 2)
+    {
+        Delay d; d.prepare (fs);
+        for (size_t i = 0; i < l.size(); i += 256)
+        {
+            const int n = (int) std::min<size_t> (256, l.size() - i);
+            float* w[2] = { l.data() + i, r.data() + i };
+            d.process (w, ch, n, s);
+        }
+        return std::make_pair (l, r);
+    };
+    auto echo = [] (const std::vector<float>& y, int at) { double e = 0.0; for (int k = -30; k <= 30; ++k) e += y[(size_t) (at + k)]; return e; };
+    Settings s; s.timeL = s.timeR = 4800.0; s.feedback = 0.0f;
+    // the gain stage: an impulse of a comes back at a / (1 + a)
+    for (float a : { 0.001f, 0.5f, 1.0f, 2.0f })
+    {
+        std::vector<float> l (20000, 0.0f), r (20000, 0.0f); l[100] = r[100] = a;
+        auto y = run (s, l, r);
+        CHECK_NEAR (echo (y.first, 100 + 4800) / a, 1.0 / (1.0 + a), 1.0e-4);
+    }
+    // feedback: each echo Feedback / 100 of the one before, one sample later
+    {
+        Settings f = s; f.feedback = 0.6f;
+        std::vector<float> l (30000, 0.0f), r (30000, 0.0f); l[100] = r[100] = 0.0001f;
+        auto y = run (f, l, r);
+        CHECK_NEAR (echo (y.first, 100 + 2 * 4800 + 1) / echo (y.first, 100 + 4800), 0.6 / (1.0 + 0.0001 * 0.6 * 0.9999), 2.0e-4);
+        int pk = 0; for (int k = -5; k <= 5; ++k) if (std::abs (y.first[(size_t) (100 + 2 * 4800 + k)]) > std::abs (y.first[(size_t) (100 + 2 * 4800 + pk)])) pk = k;
+        CHECK (pk == 1);
+    }
+    // Mix: equal power
+    {
+        Settings m = s; m.mix = 0.25f;
+        std::vector<float> l (20000, 0.0f), r (20000, 0.0f); l[100] = r[100] = 0.001f;
+        auto y = run (m, l, r);
+        CHECK_NEAR (y.first[100] / 0.001, std::cos (0.25 * 1.5707963267948966), 1.0e-5);
+        CHECK_NEAR (echo (y.first, 4900) / 0.001, std::sin (0.25 * 1.5707963267948966) * 0.999, 1.0e-4);
+    }
+    // Ping Pong: the start side, then the other at the same level, then Feedback^2
+    {
+        Settings pp = s; pp.pingPong = true; pp.feedback = 0.3f;
+        std::vector<float> l (40000, 0.0f), r (40000, 0.0f); l[100] = 0.001f;
+        auto y = run (pp, l, r);
+        CHECK_NEAR (echo (y.first, 4900) / 0.001, 0.7071 * 0.999, 2.0e-3);
+        CHECK_NEAR (echo (y.second, 4900), 0.0, 1.0e-9);
+        CHECK_NEAR (echo (y.second, 100 + 2 * 4800 + 1) / echo (y.first, 4900), 1.0, 2.0e-3);
+        CHECK_NEAR (echo (y.first, 100 + 3 * 4800 + 2) / echo (y.first, 4900), 0.09, 2.0e-3);
+    }
+    // the glide: from 375 to 100 ms at most twice the speed (the delay falls one sample per sample)
+    {
+        Settings g = s; g.timeL = g.timeR = 18000.0;
+        Delay d; d.prepare (fs);
+        std::vector<float> l (512, 0.0f), r (512, 0.0f);
+        float* w[2] = { l.data(), r.data() };
+        d.process (w, 2, 512, g);                                       // starts at 375 ms
+        g.timeL = g.timeR = 4800.0;
+        std::vector<float> x (24000, 0.0f), xr (24000, 0.0f);
+        x[0] = xr[0] = 0.001f;                                          // written while the delay glides
+        float* w2[2] = { x.data(), xr.data() };
+        d.process (w2, 2, 24000, g);
+        int pk = 0; for (int k = 1; k < 24000; ++k) if (std::abs (x[(size_t) k]) > std::abs (x[(size_t) pk])) pk = k;
+        CHECK (pk > 8900 && pk < 9100);                                 // read at d ~ 18000 - t: t = 18000 / 2 = 9000
+    }
+    // Dual: the right side's own time; without Dual both sides take the left's
+    {
+        Settings du = s; du.timeR = 7200.0; du.dual = true;
+        std::vector<float> l (20000, 0.0f), r (20000, 0.0f); l[100] = r[100] = 0.001f;
+        auto y = run (du, l, r);
+        CHECK (std::abs (echo (y.second, 7300)) > 0.0009 && std::abs (echo (y.second, 4900)) < 1.0e-6);
+        du.dual = false;
+        auto z = run (du, l, r);
+        CHECK (std::abs (echo (z.second, 4900)) > 0.0009);
+    }
+    // Mode Mono (one line): the channels do not mix
+    {
+        Settings mo = s; mo.mode = 1;
+        std::vector<float> l (20000, 0.0f), r (20000, 0.0f); l[100] = 0.001f;
+        auto y = run (mo, l, r, 1);
+        CHECK_NEAR (echo (y.first, 4900) / 0.001, 0.999, 1.0e-4);
+    }
+}
+
 int main()
 {
     juce::ScopedJuceInitialiser_GUI init;
@@ -152,6 +250,7 @@ int main()
     testTexts();
     testProcessor();
     testDisplayClicks();
+    testDsp();
     std::printf ("%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;
 }

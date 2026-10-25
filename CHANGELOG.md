@@ -17,6 +17,18 @@
   Arial Bold labels); one control selected at a time as the reference (knob ring, button and group outlines, tap pad);
   the panel's edges, black print, brackets, the name, the lamp and the Link wheel. Mean difference to the reference
   13.9 → 8.0 levels. A note longer than 3500 ms at the tempo is not taken (the reference stops at 1 bar at 120 BPM).
+- **WDelay DSP** (Phase 4, `plugins/WDelay/WDelayDsp.h`):
+  - **What it models:** H-Delay's delay path as identified. A 32-phase Kaiser-sinc interpolator with 31 taps round
+    the delay, the tape glide (T + 16 samples), the linked 1 / (1 + peak) gain stage in the loop (10 ms recovery),
+    the loop's extra sample, RBJ HiPass / LoPass with the reference's frequency warp, LoFi's 6277 Hz interpolator,
+    the triangle LFO on the target, Ping Pong's crossed lines, Dual, Phase on the delay's input and the equal-power
+    mix. The Analog stage colours the input, with H-Delay's own modes 1–3 fitted and mode 4 shared with H-Comp.
+  - **Nulls** (`docs/NULL_RESULTS_WDELAY.md`): −95 … −104 dB at the defaults, with filters, Ping Pong and Feedback
+    up to 200 %. Analog 4 −83 … −90 dB; Analog 1–3 −40 … −55 dB, their noise included.
+  - **Known limits:** glide tails −40 … −80 dB, LoFi −70 dB, modulation −5 … −16 dB, the feedback loop at 96 kHz.
+  - **Tools:** unit tests (85 checks), an offline renderer (`WDelayRender`) and the null suite
+    (`nulltest/nulltest_wdelay.py`). WComp's Analog stage takes a table set; WDelayRender renders its pre-roll in
+    whole blocks, as RefRender does.
 - **WDelay Phase 3: measurements of H-Delay** (`nulltest/measure_hdelay.py`, `measurements/hdelay/`, MEASUREMENTS.md):
   the 32-phase Kaiser-sinc interpolator, the tape glide law, the 1 / (1 + peak) gain stage in the loop, feedback,
   filters, LoFi, modulation, routing, mix and the Analog modes. `RefRender` gains a silent pre-roll and timed

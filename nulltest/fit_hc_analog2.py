@@ -1,6 +1,8 @@
 """WComp Phase 4: the Analog stage, general form: y = L(x) + H2( g( H1(x) ) ), on the datasets of ident_hc_analog.py.
 
     python -I fit_hc_analog2.py <mode> [nfev]       writes build/hc_analog<mode>_fit2.json
+    ANALOG_PREFIX=hd: H-Delay's datasets (ident_hd_analog.py), build/hd_analog<mode>_fit2.json, starting from H-Comp's
+    fit of the same mode; "export" then writes measurements/hdelay/analog_model.json
 
 L: gain times first-order sections; H1, H2: first-order sections (1 + s/wz) / (1 + s/wp) (bilinear); g a table over u
 (piecewise linear, knots on a log-like scale, both signs: odd and even parts free).
@@ -12,12 +14,14 @@ from scipy import optimize
 import fit_hc_analog as F
 
 BUILD = F.BUILD
+PREFIX = os.environ.get('ANALOG_PREFIX', 'hc')
 NL, N1, N2 = 2, 3, 2
 POS = np.array([1e-4, 2e-4, 4e-4, 7e-4, 1e-3, 1.5e-3, 2.2e-3, 3.3e-3, 5e-3, 1e-2, 2e-2, 5e-2, 0.1, 0.2, 0.4, 0.7, 1.2])
 KN = np.concatenate([-POS[::-1], [0.0], POS])
 
 
-BP_MODES = (3,)            # H1 starts with a band-pass biquad (f0, Q): the broad dip of mode 3 (mode 2 fits as well without)
+BP_MODES = tuple(int(m) for m in os.environ.get('ANALOG_BP', '3').split(','))   # H1 starts with a band-pass biquad (f0, Q): the
+# broad dip of mode 3 (mode 2 fits as well without); H-Delay's mode 1 is such a dip too, low (ANALOG_BP=1,3)
 MODE = 0
 
 
@@ -96,8 +100,9 @@ def report(q, cs):
 def main():
     mode = int(sys.argv[1]); nfev = int(sys.argv[2]) if len(sys.argv) > 2 else 60
     cs = F.load(mode)
-    out = os.path.join(BUILD, 'hc_analog%d_fit2.json' % mode)
-    q = np.array(json.load(open(out))['q']) if os.path.exists(out) else q_init(mode)
+    out = os.path.join(BUILD, '%s_analog%d_fit2.json' % (PREFIX, mode))
+    start = os.path.join(BUILD, 'hc_analog%d_fit2.json' % mode)
+    q = np.array(json.load(open(out if os.path.exists(out) else start))['q']) if os.path.exists(out) or os.path.exists(start) else q_init(mode)
     r = residuals(q, cs); print('start %.4f' % np.sqrt(np.mean(r ** 2)), flush=True)
     s = optimize.least_squares(residuals, q, args=(cs,), diff_step=1e-4, max_nfev=nfev, loss='soft_l1', f_scale=0.3)
     q = s.x; r = residuals(q, cs); print('fit %.4f' % np.sqrt(np.mean(r ** 2)))
@@ -113,10 +118,11 @@ def export():
     """measurements/hcomp/analog_model.json from the fits (a mode not fitted yet: its starting point)."""
     modes = {}
     for m in (1, 2, 3, 4):
-        p = os.path.join(BUILD, 'hc_analog%d_fit2.json' % m)
+        p = os.path.join(BUILD, '%s_analog%d_fit2.json' % (PREFIX, m))
+        if PREFIX == 'hd' and m == 4: p = os.path.join(BUILD, 'hc_analog4_fit2.json')     # H-Delay's mode 4 is H-Comp's
         modes[str(m)] = json.load(open(p))['q'] if os.path.exists(p) else list(map(float, q_init(m)))
         print('mode', m, 'fitted' if os.path.exists(p) else 'NOT fitted (start values)')
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'measurements', 'hcomp', 'analog_model.json')
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'measurements', 'hdelay' if PREFIX == 'hd' else 'hcomp', 'analog_model.json')
     json.dump({'NL': NL, 'N1': N1, 'N2': N2, 'knots': KN.tolist(), 'modes': modes, 'bandpass_modes': list(BP_MODES),
                'model': 'y = (1 + gain) L(x) + H2(g(H1(x))) + noise; q = [L (log fz, log fp) x NL, H1 x N1, H2 x N2, gain, g on knots, (log f0, log Q of a band-pass before H1, bandpass_modes only)]'},
               open(out, 'w'), indent=1)

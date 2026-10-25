@@ -29,6 +29,9 @@ public:
         setMode (mode);
     }
 
+    // the four modes' tables (H-Comp's by default; WDelay gives H-Delay's, whose modes 1-3 differ)
+    const tables::AnalogMode* modes = tables::analog;
+
     // 0: Off (an identity), 1 .. 4
     void setMode (int m)
     {
@@ -38,7 +41,7 @@ public:
         built = m;
         for (auto& c : chans) { for (auto& s : c.st) s = {}; c.bx1 = c.bx2 = c.by1 = c.by2 = 0.0; std::fill (c.noise.begin(), c.noise.end(), 0.0); c.np = 0; }
         if (m == 0) return;
-        const auto& t = tables::analog[m - 1];
+        const auto& t = modes[m - 1];
         int k = 0;
         for (int i = 0; i < tables::analogLin; ++i) coef[(size_t) k++] = section (t.lin[i][0], t.lin[i][1]);
         for (int i = 0; i < tables::analogPre; ++i) coef[(size_t) k++] = section (t.pre[i][0], t.pre[i][1]);
@@ -59,7 +62,7 @@ public:
     void process (float* const* ch, int n)
     {
         if (mode == 0) return;
-        const auto& t = tables::analog[mode - 1];
+        const auto& t = modes[mode - 1];
         constexpr int nl = tables::analogLin, n1 = tables::analogPre, n2 = tables::analogPost;
         for (int c = 0; c < channels; ++c)
         {

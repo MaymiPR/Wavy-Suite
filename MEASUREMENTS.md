@@ -884,7 +884,8 @@ Feedback 0, Mix 100, Delay 375 ms, small impulses (0.001).
   - The wet gain is 1 / (1 + peak): an impulse of a comes back at a / (1 + a) (1.0 → 0.500, 0.5 → 0.667, 0.25 →
     0.800, 0.1 → 0.909), with the kernel unchanged.
   - It takes the peak at once, the sample itself included.
-  - The gain recovers toward 1 as a one-pole: per-sample coefficient 0.99776, 9.3 ms.
+  - The gain recovers toward 1 as a one-pole of 10 ms (per-sample 0.997919; Phase 4 refit, the 9.3 ms first read
+    from a poor log fit).
   - Linked across the channels: a 1.0 impulse on L brings R's 0.01 down to 0.5 as well.
   - A steady sine of amplitude A comes back at 1 / (1 + A), with odd harmonics: h3 −48 dB at A 0.5, −59 at 0.1.
   - This stage is what keeps Feedback above 100 % bounded.
@@ -915,7 +916,8 @@ Feedback 0, Mix 100, Delay 375 ms, small impulses (0.001).
 ### Routing, mix and output
 - **Mix** is equal-power: dry cos(π/2 · m), wet sin(π/2 · m) (25 %: 0.924 / 0.383). **Output** is an exact dB gain on
   both. Nothing limits the output (+18 dB passes a 0.9 sine at 7.15).
-- **Phase L / R** invert their side's wet signal only; the dry signal stays.
+- **Phase L / R** invert their side's input to the delay line; the dry signal stays. (In Ping Pong, Phase R gives
+  (L − R) / √2 into the line; Phase 4.)
 - **Ping Pong** takes (L + R) / √2 into one line.
   - The first echo comes on the start side, the second on the other side at the same level, then every further pass
     at Feedback² (Feedback 30: 0.707, 0.706, 0.064, 0.064, 0.0057 …).
@@ -924,7 +926,8 @@ Feedback 0, Mix 100, Delay 375 ms, small impulses (0.001).
 - **Mono** behaves as the stereo component. **Mono/Stereo** feeds its single input into Ping Pong at √2.
 
 ### Analog
-The stage comes after the mix: it colours the dry signal too.
+The stage colours the input, before the dry / wet split (Phase 4: with Mix 50 its noise comes back in the echo, at a
+correlation of 0.50 at the delay's lag), so the dry and the delayed signal both carry it.
 - **Mode 4** is H-Comp's: WComp's fitted model applied to H-Delay's Analog-Off output nulls it at −100 dB (peaks 0.55)
   and −79 dB (peaks 0.06).
 - **Modes 1–3 are not H-Comp's**, although ParamXML carries the same numbers: no H-Comp mode nulls them better than
@@ -946,3 +949,53 @@ Sample-exact nulls should be possible with Depth 0 and Analog Off or 4. Still to
 - how Feedback 200 % settles;
 - the modulation at audio rates;
 - the Analog modes 1–3.
+
+## WDelay model (Phase 4 identification), 2026-10-25
+`plugins/WDelay/WDelayDsp.h` (shared by the plug-in and `tools/WDelayRender`) against the reference through the same
+host (`nulltest/nulltest_wdelay.py`).
+- **Harness.**
+  - Both sides get the same silent pre-roll, rendered in whole blocks as `tools/RefRender` renders it: a 3 s
+    pre-roll is 144 384 samples, not 144 000, which matters while a glide or the LFO runs.
+  - The reference's first block runs at its defaults, Analog Mod2 included, and puts that noise into its delay line.
+    Cases therefore start with Feedback 0 and set the case's Feedback at the input's start.
+- **Interpolator.**
+  - A Kaiser-windowed sinc, half-length 511/32 and β 4.968, its edge value kept. Its 31 taps sit around ceil(d).
+  - The read is (⌊32 d⌋ + 1) / 32. A whole d is read 1/32 late, about the tap d itself.
+  - Impulses null at −95 dB.
+  - The window is not quite Kaiser (up to 4e-4 off). The sinc hides that in the normal kernel, but LoFi, the same
+    window under a sinc at 6277 Hz, shows it: LoFi nulls at −70 dB.
+- **Gain stage:** the recovery is a one-pole of exactly 10 ms. Nulls went from −50 to −100 dB with it.
+- **Glide.**
+  - d' = max(−1, (T − d) / (T + 16)), each sample's step taken before its read. The offset is sharp: 15.5 or 16.5
+    lose 30 dB on a falling glide.
+  - Glides that run inside the input null at −60 … −83 dB. In the slow tail of a glide the delay drifts across a
+    1/32 phase every many samples, and a sample's difference in when that happens leaves −40 … −50 dB on broadband
+    material. Double- or float-precision variants of the update do not reproduce the reference's steps; this stays a
+    known limit.
+- **Filters.**
+  - RBJ biquads, HiPass Q 0.8 and LoPass Q 0.95, on the line's input after the gain stage.
+  - Their frequency is warped: w0 = 2 atan(π f / fs), so LoPass 4000 sits at 3912 Hz and 15000 at 11 859 Hz.
+  - Nulls −90 … −100 dB.
+- **Phase L / R** invert the side's input to the delay.
+- **Ping Pong.**
+  - The left line feeds the right at gain 1, the right the left at Feedback²; (±L ± R) / √2 goes into the start
+    side's line.
+  - Nulls −97 … −100 dB, either start side.
+- **Modulation.**
+  - The LFO is a triangle on the target time, with the depth factor 0.5 confirmed.
+  - Its phase is 0.25 + rate × (time since the start + 0.4805 s), computed from time × the current rate.
+  - Delay curves agree within 3 … 15 samples on swings of ±1300 … 2000 samples. The fine structure is not resolved,
+    and the null on modulated material is −5 … −16 dB.
+- **Other rates.**
+  - 44.1 kHz behaves as 48 kHz (−95 dB).
+  - At 96 kHz the delay settles one sample short (an echo at T − 1 + 1/16). The interpolator has 62 taps, cut off at
+    24 kHz. The first echo nulls at −78 dB, but the passes round the loop differ (−28 dB); not identified.
+- **Analog** colours the input. Mode 4 is H-Comp's. Modes 1–3 are fitted with WComp's model on H-Delay's own data
+  (`nulltest/ident_hd_analog.py`, `fit_hc_analog2.py` with ANALOG_PREFIX=hd), exported by
+  `tools/export_wdelay_tables.py`.
+  - Fitted nulls (median over the 54-case probe set): mode 1 −50.2 dB (its low dip fitted as a band-pass at
+    0.7 Hz, Q 0.006, before H1), mode 2 −41.6, mode 3 −41.3 (band-pass 71 Hz, Q 0.41). The quietest probes are
+    limited by the modes' own noise.
+  - Noise with silence in, Mix 0: −102.7 / −85.5 / −106.0 / −108.9 dBFS; independent per channel.
+  - In the null suite: Analog 1 −48 … −51 dB, 2 −51 … −55, 3 −40 … −42 (the noise included), 4 −83 … −90.
+- **CPU:** about 1.6 % of one core for stereo at 48 kHz (`WDelayRender`, Feedback 60, Analog 2).

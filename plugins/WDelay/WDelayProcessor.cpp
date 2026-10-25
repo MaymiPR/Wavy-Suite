@@ -120,6 +120,7 @@ WDelayProcessor::WDelayProcessor()
                                        .withOutput ("Output", AudioChannelSet::stereo(), true)),
       apvts (*this, &undo, "WDelay", layout())
 {
+    analogStage.modes = wdelay::tables::analog;                   // H-Delay's Analog modes (4 is H-Comp's)
 }
 
 // mono or stereo, in and out alike, or mono in and stereo out (the reference's mono-to-stereo component)
@@ -130,8 +131,59 @@ bool WDelayProcessor::isBusesLayoutSupported (const BusesLayout& l) const
     return in == out || (in == AudioChannelSet::mono() && out == AudioChannelSet::stereo());
 }
 
-void WDelayProcessor::prepareToPlay (double, int) {}
+void WDelayProcessor::prepareToPlay (double sampleRate, int)
+{
+    sr = sampleRate;
+    prepared = false;
+    configure();
+}
 
+void WDelayProcessor::configure()
+{
+    const int in = getMainBusNumInputChannels(), out = getMainBusNumOutputChannels();
+    layoutDual = in > 1 && roundToInt (get (wdelay::mode)) == 1;
+    for (auto& d : delays) d.prepare (sr);
+    analogStage.prepare (sr, jmax (in, out));
+    prepared = true;
+}
+
+wdelay::dsp::Settings WDelayProcessor::settings (double fs) const
+{
+    wdelay::dsp::Settings s;
+    const int sync = roundToInt (get (wdelay::sync));
+    auto samples = [&] (const char* msId, const char* noteId)
+    {
+        double ms = get (msId);
+        if (sync != 2)
+        {
+            const double host = hostBpm.load (std::memory_order_relaxed);
+            const double tempo = sync == 0 ? (double) get (wdelay::bpm) : (host > 0.0 ? host : 120.0);
+            ms = wdelay::noteBeats (roundToInt (get (noteId))) * 60000.0 / tempo;
+        }
+        return jlimit (1.0, 3500.0, ms) * fs / 1000.0;
+    };
+    s.timeL = samples (wdelay::delay, wdelay::delayNote);
+    s.timeR = samples (wdelay::delayR, wdelay::delayNoteR);
+    s.feedback = get (wdelay::feedback) * 0.01f;
+    s.mix = get (wdelay::mix) * 0.01f;
+    s.outputDb = get (wdelay::output);
+    const float hp = get (wdelay::hipass), lp = get (wdelay::lopass);
+    s.hipassHz = hp < wdelay::kHiPassOff ? 0.0f : hp;
+    s.lopassHz = lp >= wdelay::kLoPassOff ? 0.0f : lp;
+    s.depth = get (wdelay::depth) * 0.01f;
+    s.rateHz = get (wdelay::rate);
+    s.lofi = get (wdelay::lofi) > 0.5f;
+    s.pingPong = get (wdelay::pingPong) > 0.5f;
+    s.startRight = get (wdelay::pingPongStart) > 0.5f;
+    s.phaseL = get (wdelay::phaseL) > 0.5f;
+    s.phaseR = get (wdelay::phaseR) > 0.5f;
+    s.dual = get (wdelay::dual) > 0.5f;
+    return s;
+}
+
+// Stereo: one delay with two lines (linked gain stage, Ping Pong, Dual). Mode Mono on a stereo bus: two independent
+// mono delays. M>S (or a mono input on a stereo output): the input on both sides of a stereo delay. The Analog stage
+// colours the input, before the dry / wet split (measured: its noise comes back in the echoes).
 void WDelayProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
 {
     ScopedNoDenormals nd;
@@ -140,7 +192,22 @@ void WDelayProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
             hostBpm.store (pos->getBpm() ? *pos->getBpm() : 0.0);
     const int n = b.getNumSamples();
     const int in = getMainBusNumInputChannels(), out = getMainBusNumOutputChannels();
+    const int mode = roundToInt (get (wdelay::mode));
+    const bool wantDual = in > 1 && mode == 1;
+    if (! prepared || wantDual != layoutDual) configure();
     if (in == 1 && out == 2) b.copyFrom (1, 0, b, 0, 0, n);           // mono in, stereo out: both sides get the input
+    else if (out == 2 && mode == 2) b.copyFrom (1, 0, b, 0, 0, n);    // M>S on a stereo bus: the left input on both
+    float* const* w = b.getArrayOfWritePointers();
+    analogStage.setMode (roundToInt (get (wdelay::analog)));
+    analogStage.process (w, n);
+    auto s = settings (sr);
+    if (out == 1) { s.mode = 1; delays[0].process (w, 1, n, s); }
+    else if (layoutDual)
+    {
+        s.mode = 1;
+        for (int c = 0; c < 2; ++c) { float* one[1] = { w[c] }; delays[c].process (one, 1, n, s); }
+    }
+    else { s.mode = 0; delays[0].process (w, 2, n, s); }
     auto toDb = [] (float v) { return v > 1.0e-5f ? Decibels::gainToDecibels (v) : -100.0f; };
     outLDb.push (toDb (b.getMagnitude (0, 0, n)));
     outRDb.push (toDb (b.getMagnitude (out > 1 ? 1 : 0, 0, n)));

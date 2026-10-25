@@ -47,7 +47,7 @@ def q0():
 
 
 def load(mode):
-    cs = list(np.load(os.path.join(BUILD, 'hc_analog%d.npz' % mode), allow_pickle=True)['cases'])
+    cs = list(np.load(os.path.join(BUILD, '%s_analog%d.npz' % (os.environ.get('ANALOG_PREFIX', 'hc'), mode)), allow_pickle=True)['cases'])
     return [c for c in cs if np.abs(c['x']).max() < 0.75]
 
 

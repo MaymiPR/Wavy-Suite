@@ -3,9 +3,12 @@
 #include <atomic>
 #include "WavyMeter.h"
 #include "WDelayPresets.h"
+#include "WDelayDsp.h"
+#include "WCompAnalog.h"
+#include "WDelayAnalogTables.h"
 
 // Parameters follow the reference's parameter list (ParamXML order, ranges, tapers and defaults; see RESEARCH.md,
-// WDelay). Phase 2: the editor and the parameters; the audio passes through unchanged until the DSP (Phase 4).
+// WDelay). The DSP (WDelayDsp.h) and the Analog stage as identified on the reference (MEASUREMENTS.md).
 namespace wdelay
 {
 inline constexpr const char* delay = "delay";          // 1 .. 3500 ms (the reference's taper), default 375
@@ -63,7 +66,7 @@ public:
     const juce::String getName() const override { return "WDelay"; }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.0; }
+    double getTailLengthSeconds() const override { return 4.0; }
     int getNumPrograms() override { return 1 + (int) wdelay::factoryPresets().size(); }
     int getCurrentProgram() override { return currentProgram; }
     void setCurrentProgram (int index) override
@@ -92,8 +95,16 @@ public:
     std::atomic<int> blocks { 0 };
     std::atomic<double> hostBpm { 0.0 };                  // 0: the host gives no tempo
 
+    // the DSP's settings from the parameters (the times in samples at the tempo the notes follow)
+    wdelay::dsp::Settings settings (double sampleRate) const;
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout layout();
+    void configure();
+    wdelay::dsp::Delay delays[2];                 // one linked delay, or two mono ones (Mode Mono on a stereo bus)
+    wcomp::Analog analogStage;
+    double sr = 48000.0;
+    bool prepared = false, layoutDual = false;
     float get (const char* id) const { return apvts.getRawParameterValue (id)->load(); }
     int currentProgram = 0;
 };

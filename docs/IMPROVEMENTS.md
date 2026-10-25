@@ -76,3 +76,17 @@ When part of a reference resists identification, keep everything that *is* ident
 - **VU print**: drawn about a centre about 0.4 px from the printed arc's (MEASUREMENTS.md "WComp needle"). The needle's
   edges are a little harder than the reference's (its strip images are resampled; within 0.1 in darkness).
 - **Analog mode 3**: nulls −29 … −64 dB (median −40); a finer table near the transition (0.02 … 1) may help.
+
+## WDelay
+- **Glide tails:** in a glide's slow tail the interpolator's 1/32 phase changes on different samples than the
+  reference's (−40 … −80 dB on broadband material while it settles). It needs the reference's exact arithmetic for
+  the glide; neither double nor float32 variants of the update reproduce it.
+- **The interpolator's window** is not quite Kaiser (up to 4e-4). LoFi shows it (−70 dB). It needs a clean
+  measurement of the window at every phase: the sweep during a glide is too smeared.
+- **Modulation:** the LFO's phase law (0.25 + rate × (t + 0.4805 s)) and the delay curve agree to a few samples, not
+  to the sample (−5 … −16 dB on modulated material). Its fine structure is still to be identified (a control rate?
+  float phase?).
+- **96 kHz:** the first echo matches (−78 dB), the passes round the feedback loop do not (−28 dB).
+- **Analog modes 1–3:** −40 … −55 dB including their noise. Mode 3 is the weakest (−40 dB); more fitting rounds or
+  more data at low frequencies.
+
