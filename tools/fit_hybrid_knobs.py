@@ -30,7 +30,7 @@ def bil(I, x, y):
 
 def wrap(a): return np.angle(np.exp(1j * a))
 
-def basis(th, tk=None):
+def basis(th, tk=None, extra=False):
     # th: the angle on screen (the light's frame); tk: the angle on the turned knob (the flutes' frame)
     if tk is None: tk = th
     d = wrap(th - LIGHT)
@@ -39,6 +39,8 @@ def basis(th, tk=None):
     cols += [np.exp(-(d / math.radians(11)) ** 2), np.exp(-(d / math.radians(28)) ** 2)]
     g = np.exp(-(d / math.radians(40)) ** 2)
     cols += [np.cos(NLOBE * tk), np.sin(NLOBE * tk), g * np.cos(NLOBE * tk), g * np.sin(NLOBE * tk)]
+    if extra:                        # sharper flutes (H-Delay's knobs): their second and third harmonics
+        cols += [np.cos(2 * NLOBE * tk), np.sin(2 * NLOBE * tk), np.cos(3 * NLOBE * tk), np.sin(3 * NLOBE * tk)]
     return np.stack(cols, axis=-1)
 NB = 13
 STILL = 8.0                          # the flute terms reach this far inside the rim (the renderer redraws that ring)
@@ -105,21 +107,23 @@ def polar_samples(I, cx, cy, rlo, rhi, step=0.125):
     X = cx + R * np.sin(T); Y = cy - R * np.cos(T)
     return T.ravel(), R.ravel(), bil(I, X, Y).reshape(-1, 3), X.ravel(), Y.ravel()
 
-def fit_bins(T, TK, coord, V, lo, hi, width, mask, still_below=-1.0):
+def fit_bins(T, TK, coord, V, lo, hi, width, mask, still_below=-1.0, extra=False):
     # one coefficient set per bin centre (bins at lo, lo + width, ...), from the samples within +-width; bins below
     # still_below get no flute terms (the cap and the inner body do not change as the knob turns)
     out = []
     centres = np.arange(lo, hi + 1e-6, width)
     for c in centres:
         m = mask & (np.abs(coord - c) < width)
-        if m.sum() < 60: out.append(np.zeros((NB, 3))); continue
-        X = basis(T[m], TK[m])
+        nb = NB + (4 if extra else 0)
+        if m.sum() < 60: out.append(np.zeros((nb, 3))); continue
+        X = basis(T[m], TK[m], extra)
         if c < still_below:
-            co = np.zeros((NB, 3)); co[:9] = lsq(X[:, :9], V[m]); out.append(co)
+            co = np.zeros((nb, 3)); co[:9] = lsq(X[:, :9], V[m]); out.append(co)
         else: out.append(lsq(X, V[m]))
     return centres, np.array(out)
 
-def fit_kind(name, frames, median, cx, cy, rs, rbody, flutes, shadow_out, rfin, panel=panel, fo=(0.0, 0.0), co=(0.0, 0.0)):
+def fit_kind(name, frames, median, cx, cy, rs, rbody, flutes, shadow_out, rfin, panel=panel, fo=(0.0, 0.0), co=(0.0, 0.0),
+             extra=False, rimbins=8, print_below=0.42):
     # frames: (image, pointer angle in radians, JUCE convention[, flute turn]); the flutes turn with the pointer from
     # angle 0. (cx, cy): the skirt's (the base's) centre; fo, co: the flute ring's and the cap's centres from it (a raised
     # knob seen a little from above: its top lies lower right of its base)
@@ -141,12 +145,12 @@ def fit_kind(name, frames, median, cx, cy, rs, rbody, flutes, shadow_out, rfin, 
     emin = ec[0] - np.abs(ec[3:]).sum()
     res['emin'] = emin
     # inner body (about the cap's centre): absolute radius, 0.5 px bins, up to emin - 0.5
-    res['inner'] = fit_bins(Tc, Tc - K, Rc, V, 0.0, emin - 0.5, 0.5, free & (Rc < emin) & (Rf < E), still_below=emin - STILL)
+    res['inner'] = fit_bins(Tc, Tc - K, Rc, V, 0.0, emin - 0.5, 0.5, free & (Rc < emin) & (Rf < E), still_below=emin - STILL, extra=extra)
     # rim band (about the flutes' centre): normalised from emin - 2 to the edge
     t = (Rf - (emin - 2.0)) / (E - (emin - 2.0))
-    res['rim'] = fit_bins(Tf, Tf - K, t, V, 0.0, 1.0, 1.0 / 8.0, free & (t >= -0.1) & (t <= 1.0) & (Rf < E))
+    res['rim'] = fit_bins(Tf, Tf - K, t, V, 0.0, 1.0, 1.0 / rimbins, free & (t >= -0.1) & (t <= 1.0) & (Rf < E), extra=extra)
     if flutes:
-        res['skirt'] = fit_bins(T, T - K, R, V, emin - 2.0, rs, 0.5, free & (Rf > E) & (R < rs + 0.25))
+        res['skirt'] = fit_bins(T, T - K, R, V, emin - 2.0, rs, 0.5, free & (Rf > E) & (R < rs + 0.25), extra=extra)
     # shadow: the panel darkened by a soft disc offset down and to the right (fitted outside the knob, print excluded)
     I = median
     x0, y0 = int(cx - rs - 26), int(cy - rs - 26)
@@ -154,7 +158,7 @@ def fit_kind(name, frames, median, cx, cy, rs, rbody, flutes, shadow_out, rfin, 
     ys, xs = np.mgrid[0:sub.shape[0], 0:sub.shape[1]]; Xs = xs + x0 + 0.5; Ys = ys + y0 + 0.5
     ratio = sub / panel(Xs, Ys); Lr = ratio.mean(axis=2)
     rr = np.hypot(Xs - cx, Ys - cy)
-    m = (rr > rs + 1.0) & ~ndimage.binary_dilation(Lr < 0.42, iterations=1) & (rr < rs + 25) & (Ys > cy - 10)
+    m = (rr > rs + 1.0) & ~ndimage.binary_dilation(Lr < print_below, iterations=1) & (rr < rs + 25) & (Ys > cy - 10)
     D = 1.0 - Lr
     def model(p):
         dx, dy, Rs, w, s = p
@@ -229,9 +233,10 @@ def hdelay_kinds():
             moved = I if name == 'Depth' else ndimage.shift(I, (dy, dx, 0), order=1, mode='nearest')
             small.append((moved, angle(frac(name, v[name]))))
     smed = np.median(np.stack(smed), axis=0)
-    return [fit_kind('Grand', grand, med, 516.03, 101.51, 63.4, 47.0, True, 22, 46.0, panel=panel_hd, fo=(1.08, 0.04), co=(1.07, 2.27)),
-            fit_kind('Knurled', small, smed, 181.42, 223.15, 32.4, 32.4, False, 24, 26.0, panel=panel_hd),
-            fit_kind('Mini', mini2, med, 698.69, 62.07, 23.65, 23.65, False, 18, 0.0, panel=panel_hd)]
+    return [fit_kind('Grand', grand, med, 516.03, 101.51, 63.4, 47.0, True, 22, 46.0, panel=panel_hd, fo=(1.08, 0.04), co=(1.07, 2.27),
+                     extra=True, rimbins=16, print_below=0.3),
+            fit_kind('Knurled', small, smed, 181.42, 223.15, 32.4, 32.4, False, 24, 26.0, panel=panel_hd, print_below=0.3),
+            fit_kind('Mini', mini2, med, 698.69, 62.07, 23.65, 23.65, False, 18, 0.0, panel=panel_hd, print_below=0.3)]
 
 def main():
     # the captures: after typing step i (of 8) into Punch, Ratio, Threshold in turn (f_{3i+1} .. f_{3i+3}).
@@ -258,7 +263,7 @@ def main():
              '// fdx, fdy / cdx, cdy: the flute ring\'s and the cap\'s centres from the skirt\'s (the inner and rim tables take them).',
              '#include <cstdint>', 'namespace wavy::hybrid::knobdata', '{',
              'constexpr int kBasis = %d, kLobes = %d;' % (NB, NLOBE), 'constexpr float kLight = %.4ff;' % LIGHT,
-             'struct Table { float lo, step; int n; const int16_t* c; };',
+             'struct Table { float lo, step; int n; const int16_t* c; int nb; };   // nb: basis terms (13, or 17 with the flutes\' harmonics)',
              'struct Shadow { float dx, dy, r, w, s; };',
              'struct Kind { float rs, emin; float edge[9]; Table inner, rim, skirt; Shadow shadow; float fdx, fdy, cdx, cdy; };']
     def arr(nm, a, scale):
@@ -274,9 +279,9 @@ def main():
     for k in kinds:
         n = k['name']
         def tab(part):
-            if part not in k: return '{ 0.0f, 1.0f, 0, nullptr }'
+            if part not in k: return '{ 0.0f, 1.0f, 0, nullptr, %d }' % NB
             c, a = k[part]
-            return '{ %.4ff, %.4ff, %d, k%s_%s }' % (c[0], c[1] - c[0], len(c), n, part)
+            return '{ %.4ff, %.4ff, %d, k%s_%s, %d }' % (c[0], c[1] - c[0], len(c), n, part, a.shape[1])
         lines.append('inline constexpr Kind k%s { %.3ff, %.3ff, { %s }, %s, %s, %s, { %s }, %.2ff, %.2ff, %.2ff, %.2ff };' % (
             n, k['rs'], k['emin'], ', '.join('%.4ff' % v for v in k['edge']), tab('inner'), tab('rim'), tab('skirt'),
             ', '.join('%.3ff' % v for v in k['shadow']), k['fo'][0], k['fo'][1], k['co'][0], k['co'][1]))

@@ -29,6 +29,8 @@ public:
         WDelayEditor& ed;
         juce::RangedAudioParameter* dragParam = nullptr;
         float lastY = 0.0f;
+        juce::Image glass;                            // the glass, rendered for the current scale
+        float glassScale = 0.0f;
     };
 
     // the rubber tap pad: the time between the last two taps sets the delay (Host: the nearest note; BPM: the tempo)
@@ -39,10 +41,13 @@ public:
         void paint (juce::Graphics&) override;
         void mouseDown (const juce::MouseEvent&) override;
         void mouseUp (const juce::MouseEvent&) override { pressed = false; repaint(); }
+        void deselect() { if (selected) { selected = false; repaint(); } }
     private:
         WDelayEditor& ed;
-        bool pressed = false;
+        bool pressed = false, selected = false;
         double lastTap = 0.0;
+        juce::Image up, down;                         // the pad rendered for the current scale
+        float imgScale = 0.0f;
     };
 
     // the knurled Link wheel between the filters: turning it moves HiPass and LoPass by the same amount
@@ -72,6 +77,8 @@ public:
     private:
         float l = -100.0f, r = -100.0f;
         bool two = true;
+        juce::Image housing;                          // the housing and its scale, rendered for the current scale
+        float housingScale = 0.0f;
     };
 
 private:
@@ -81,7 +88,7 @@ private:
     void setValue (const char* id, float realValue);
     double tempo() const;                                 // the tempo the note values follow (Host or BPM)
     void updateDelayKnobs();
-    void contentMouseDown (const juce::MouseEvent&) override { selection.clear(); }
+    void contentMouseDown (const juce::MouseEvent&) override { selectOnly (nullptr); }
     int modeIndex() const { return juce::roundToInt (value (wdelay::mode)); }
     bool mono() const { return modeIndex() == 1; }
 
@@ -104,6 +111,10 @@ private:
     Meter& meter;
     wavy::hybrid::ToggleRow* stereoRow = nullptr;
     wavy::hybrid::ToggleRow* monoRow = nullptr;
+    wavy::hybrid::ButtonGroup* syncGroup = nullptr;
+    wavy::hybrid::ButtonGroup* lofiButton = nullptr;
+    juce::Component* lastPrimary = nullptr;
+    void selectOnly (juce::Component*);
     wavy::flat::Selection selection;
     juce::Image panelCache;
     bool rightSide = false;                               // Dual: the Delay knob sets the right side

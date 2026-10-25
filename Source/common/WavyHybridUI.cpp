@@ -27,17 +27,23 @@ static float refToJuce (float deg) { return rad (deg + 180.0f); }
 // edges (0.76 at the outer columns, 1 by about 50 px in), with a 1 px dark border and a faint fixed grain.
 //
 // H-Delay's panel (fitted on the reference's screenshot, rms 2.4 levels): a base colour (183.5, 100.5, 36) with a broad
-// warm highlight (+42.5, +55.9, +15.8 at (107, 73), widths 100 x 106 px) at the upper left, darkened toward the bottom
-// (from y 229 to 0.75 at the edge) and the left and right edges (0.77 and 0.70 at the outer columns, over about
-// 21 px), a bright line along the top under the toolbar.
+// warm highlight (+42.5, +55.9, +15.8 at (107, 73), widths 100 x 106 px) at the upper left; toward the edges it falls to
+// a plateau (measured): 0.89 inside the left edge (x < 8, back to 1 by x 45), 0.82 inside the right (from x 737), 0.795
+// along the bottom (from y 282, starting at y 243); under the toolbar a brown-grey row (115, 96, 81) and a pale lip;
+// a 1 px black outline (drawn by the editor)
 static Colour hDelayPanel (float x, float y)
 {
+    auto smooth = [] (float t) { t = jlimit (0.0f, 1.0f, t); return t * t * (3.0f - 2.0f * t); };
     const float blob = std::exp (-square ((x - 107.1f) / 100.4f) - square ((y - 73.12f) / 105.7f));
-    const float k = (1.0f - 0.2535f * square (jlimit (0.0f, 1.0f, (y - 229.3f) / (292.0f - 229.3f))))
-                  * (1.0f - 0.229f * std::exp (-x / 22.65f)) * (1.0f - 0.2993f * std::exp (-(749.0f - x) / 20.33f))
-                  * (1.0f + 0.7836f * std::exp (-(y - 19.0f) / 3.0f));
-    return Colour::fromFloatRGBA ((183.5f + 42.52f * blob) * k / 255.0f, (100.5f + 55.87f * blob) * k / 255.0f,
-                                  (35.97f + 15.76f * blob) * k / 255.0f, 1.0f);
+    const float k = (1.0f - 0.205f * smooth ((y - 243.0f) / 39.0f)) * (1.0f - 0.11f * (1.0f - smooth ((x - 8.0f) / 37.0f)))
+                  * (1.0f - 0.18f * smooth ((x - 703.0f) / 34.0f));
+    auto c = Colour::fromFloatRGBA ((183.5f + 42.52f * blob) * k / 255.0f, (100.5f + 55.87f * blob) * k / 255.0f,
+                                    (35.97f + 15.76f * blob) * k / 255.0f, 1.0f);
+    if (y < 20.0f) return Colour (115, 96, 81);
+    if (y < 21.0f) return c.interpolatedWith (Colour (140, 140, 150), 0.7f);
+    if (y < 22.0f) return c.interpolatedWith (Colour (225, 225, 235), 0.6f);
+    if (y < 23.0f) return c.interpolatedWith (Colour (235, 235, 240), 0.1f);
+    return c;
 }
 
 static const Image& panelImage (Image& img, int w, int h, PanelLook look)
@@ -102,7 +108,7 @@ void drawPanel (Graphics& g, Rectangle<int> area, Image& cache, PanelLook look)
 
 void drawScale (Graphics& g, Point<float> c, float a0, float a1, const Scale& s)
 {
-    g.setColour (kPrint);
+    g.setColour (s.colour);
     for (int i = 0; i < s.ticks; ++i)
     {
         const float a = s.ticks > 1 ? a0 + (a1 - a0) * (float) i / (float) (s.ticks - 1) : a0;
@@ -194,6 +200,8 @@ static void knobBasis (float th, float lobeTh, float* b)
     const float cl = std::cos ((float) kd::kLobes * lobeTh), sl = std::sin ((float) kd::kLobes * lobeTh);
     b[0] = 1.0f; b[1] = c1; b[2] = s1; b[3] = c2; b[4] = s2; b[5] = c2 * c1 - s2 * s1; b[6] = s2 * c1 + c2 * s1;
     b[7] = g11; b[8] = g28; b[9] = cl; b[10] = sl; b[11] = g40 * cl; b[12] = g40 * sl;
+    // the flutes' second and third harmonics (the H-Delay knobs' tables use them)
+    b[13] = cl * cl - sl * sl; b[14] = 2.0f * sl * cl; b[15] = b[13] * cl - b[14] * sl; b[16] = b[14] * cl + b[13] * sl;
 }
 
 static void knobTable (const kd::Table& t, float coord, const float* b, float* rgb)
@@ -203,10 +211,10 @@ static void knobTable (const kd::Table& t, float coord, const float* b, float* r
     const float f = fi - (float) i0;
     for (int ch = 0; ch < 3; ++ch)
     {
-        const int16_t* c0 = t.c + (i0 * 3 + ch) * kd::kBasis;
-        const int16_t* c1 = c0 + 3 * kd::kBasis;
+        const int16_t* c0 = t.c + (i0 * 3 + ch) * t.nb;
+        const int16_t* c1 = c0 + 3 * t.nb;
         float v0 = 0.0f, v1 = 0.0f;
-        for (int k = 0; k < kd::kBasis; ++k) { v0 += (float) c0[k] * b[k]; v1 += (float) c1[k] * b[k]; }
+        for (int k = 0; k < t.nb; ++k) { v0 += (float) c0[k] * b[k]; v1 += (float) c1[k] * b[k]; }
         rgb[ch] = (v0 + (v1 - v0) * f) * (1.0f / 8.0f);
     }
 }
@@ -240,7 +248,7 @@ const Image& Knob::bodyImage (float scale, float delta, float& extent)
     std::vector<float> brush (512);                   // the skirt's brushed grain: a fixed value per thin ring
     for (auto& v : brush) v = (grain.nextFloat() - 0.5f) * 9.0f;
     Image::BitmapData bd (body, Image::BitmapData::readWrite);
-    float b[kd::kBasis], rgb[3];
+    float b[kd::kBasis + 4], rgb[3];
     for (int py = 0; py < n; ++py)
         for (int px = 0; px < n; ++px)
         {
@@ -402,8 +410,8 @@ void Knob::paint (Graphics& g)
 }
 
 //==============================================================================
-ButtonGroup::ButtonGroup (RangedAudioParameter& p, UndoManager* um, StringArray l, bool v, bool t)
-    : labels (std::move (l)), vertical (v), toggle (t)
+ButtonGroup::ButtonGroup (RangedAudioParameter& p, UndoManager* um, StringArray l, bool v, bool t, ButtonLook lk)
+    : labels (std::move (l)), vertical (v), toggle (t), look (lk)
 {
     attachment = std::make_unique<ParameterAttachment> (p, [this] (float x) { selected = roundToInt (x); repaint(); }, um);
     attachment->sendInitialUpdate();
@@ -414,9 +422,16 @@ static constexpr float kShadow = 4.0f;
 
 Rectangle<float> ButtonGroup::buttonRect (int i) const
 {
+    const int n = toggle ? 1 : labels.size();
+    if (look == ButtonLook::hDelay)                     // a 2 px frame, 2 px dividers; the faces (whole pixels) share the rest
+    {
+        const auto in = frameRect().reduced (2.0f);
+        const float w = (in.getWidth() - 2.0f * (float) (n - 1)) / (float) n;
+        const float x0 = std::round (in.getX() + (float) i * (w + 2.0f)), x1 = std::round (in.getX() + (float) i * (w + 2.0f) + w);
+        return { x0, in.getY(), x1 - x0, in.getHeight() };
+    }
     // measured: a 1 px black frame, the buttons 1 px apart
     const auto b = getLocalBounds().toFloat().reduced (kShadow).reduced (1.0f);
-    const int n = toggle ? 1 : labels.size();
     if (vertical)
     {
         const float h = (b.getHeight() - (float) (n - 1)) / (float) n;
@@ -472,16 +487,83 @@ void drawButtonFace (Graphics& g, Rectangle<float> r, const String& label, bool 
     }
 }
 
+// H-Delay's face (measured, 18 rows): from the top, the lit rows and the flat face; at the bottom two lighter rows and
+// a 4-row bevel into the frame; the face's columns next to a divider dark, next to the frame barely
+void drawHdButtonFace (Graphics& g, Rectangle<float> f, const String& label, bool on, bool dividerLeft, bool dividerRight)
+{
+    static const uint8 upTop[3][3] = { { 231, 226, 214 }, { 241, 236, 226 }, { 218, 211, 192 } }, upFlat[3] = { 215, 209, 186 },
+        upBot[6][3] = { { 222, 216, 195 }, { 223, 217, 199 }, { 153, 147, 125 }, { 103, 96, 73 }, { 82, 77, 56 }, { 61, 58, 43 } };
+    static const uint8 onTop[3][3] = { { 202, 198, 186 }, { 199, 194, 175 }, { 178, 172, 145 } }, onFlat[3] = { 173, 166, 139 },
+        onBot[6][3] = { { 174, 168, 145 }, { 177, 172, 148 }, { 122, 116, 93 }, { 80, 74, 55 }, { 55, 51, 37 }, { 21, 19, 15 } };
+    const int rows = (int) std::round (f.getHeight());
+    for (int r = 0; r < rows; ++r)
+    {
+        const uint8* c = r < 3 ? (on ? onTop[r] : upTop[r]) : r >= rows - 6 ? (on ? onBot[r - (rows - 6)] : upBot[r - (rows - 6)]) : (on ? onFlat : upFlat);
+        const Colour col (c[0], c[1], c[2]);
+        g.setColour (col);
+        g.fillRect (Rectangle<float> (f.getX(), f.getY() + (float) r, f.getWidth(), 1.0f));
+        g.setColour (col.withMultipliedBrightness (dividerLeft ? 0.55f : 0.96f));
+        g.fillRect (Rectangle<float> (f.getX(), f.getY() + (float) r, 1.0f, 1.0f));
+        g.setColour (col.withMultipliedBrightness (dividerRight ? 0.48f : 0.97f));
+        g.fillRect (Rectangle<float> (f.getRight() - 1.0f, f.getY() + (float) r, 1.0f, 1.0f));
+    }
+    const auto c = Point<float> (f.getCentreX(), f.getY() + 7.5f);
+    if (on)
+    {
+        // yellow (245, 228, 40), outlined in dark
+        g.setColour (Colour (22, 19, 16).withAlpha (0.7f));
+        for (auto d : { Point<float> (-0.8f, 0.0f), Point<float> (0.8f, 0.0f), Point<float> (0.0f, -0.8f), Point<float> (0.0f, 0.8f) })
+            printText (g, label, c + d, 10.2f, 1.0f, false);
+        g.setColour (Colour (245, 228, 40));
+    }
+    else g.setColour (Colour (24, 22, 18));
+    printText (g, label, c, 10.2f, 1.0f, false);
+}
+
+void drawHdButtonShadow (Graphics& g, Rectangle<float> f, float frameBottom, bool on)
+{
+    const float a = on ? 0.13f : 0.37f;
+    const Rectangle<float> s (f.getX() + 1.0f, frameBottom, f.getWidth() + 1.0f, 6.0f);     // 1 px gaps under the dividers
+    g.setColour (Colours::black.withAlpha (a));
+    g.fillRect (s);
+    g.setColour (Colours::black.withAlpha (a * 0.6f));
+    g.fillRect (s.withY (s.getBottom()).withHeight (1.0f));
+    g.setColour (Colours::black.withAlpha (a * 0.25f));
+    g.fillRect (s.withY (s.getBottom() + 1.0f).withHeight (1.0f));
+}
+
+Rectangle<float> ButtonGroup::frameRect() const
+{
+    return getLocalBounds().toFloat().withTrimmedLeft (kShadow).withTrimmedTop (kShadow).withTrimmedRight (kShadow)
+                                     .withTrimmedBottom (look == ButtonLook::hDelay ? 9.0f : kShadow);
+}
+
 void ButtonGroup::paint (Graphics& g)
 {
-    drawButtonFrame (g, getLocalBounds().toFloat().reduced (kShadow));
     const int n = toggle ? 1 : labels.size();
+    if (look == ButtonLook::hDelay)
+    {
+        const auto fr = frameRect();
+        for (int i = 0; i < n; ++i) drawHdButtonShadow (g, buttonRect (i), fr.getBottom(), toggle ? selected != 0 : selected == i);
+        g.setColour (Colours::black);
+        g.fillRect (fr);
+        for (int i = 0; i < n; ++i)
+            drawHdButtonFace (g, buttonRect (i), labels[toggle ? 0 : i], toggle ? selected != 0 : selected == i, i > 0, i < n - 1);
+        if (outlined)
+        {
+            g.setColour (Colour (237, 213, 4));
+            g.drawRect (fr, 1.0f);
+        }
+        return;
+    }
+    drawButtonFrame (g, getLocalBounds().toFloat().reduced (kShadow));
     for (int i = 0; i < n; ++i)
         drawButtonFace (g, buttonRect (i), labels[toggle ? 0 : i], toggle ? selected != 0 : selected == i);
 }
 
 //==============================================================================
-ToggleRow::ToggleRow (std::vector<Item> it, UndoManager* um) : items (std::move (it)), on (items.size(), false), shown ((int) items.size())
+ToggleRow::ToggleRow (std::vector<Item> it, UndoManager* um, ButtonLook lk)
+    : items (std::move (it)), on (items.size(), false), shown ((int) items.size()), look (lk)
 {
     for (size_t i = 0; i < items.size(); ++i)
     {
@@ -491,8 +573,23 @@ ToggleRow::ToggleRow (std::vector<Item> it, UndoManager* um) : items (std::move 
 }
 
 // the buttons 1 px apart inside the frame, as the ButtonGroup's; each takes its width from the reference's rectangles
+Rectangle<float> ToggleRow::frameRect() const
+{
+    float w = look == ButtonLook::hDelay ? 2.0f : 1.0f;
+    for (int i = 0; i < shown; ++i) w += items[(size_t) i].width + (look == ButtonLook::hDelay ? 2.0f : 0.0f);
+    return getLocalBounds().toFloat().withTrimmedLeft (kShadow).withTrimmedTop (kShadow).withWidth (w)
+                                     .withTrimmedBottom (look == ButtonLook::hDelay ? 9.0f : kShadow);
+}
+
 Rectangle<float> ToggleRow::buttonRect (int i) const
 {
+    if (look == ButtonLook::hDelay)                     // faces of the given widths between 2 px dividers in a 2 px frame
+    {
+        const auto in = frameRect().reduced (2.0f);
+        float x = in.getX();
+        for (int k = 0; k < i; ++k) x += items[(size_t) k].width + 2.0f;
+        return { x, in.getY(), items[(size_t) i].width, in.getHeight() };
+    }
     const auto b = getLocalBounds().toFloat().reduced (kShadow).reduced (1.0f);
     float x = b.getX();
     for (int k = 0; k < i; ++k) x += items[(size_t) k].width;
@@ -501,6 +598,22 @@ Rectangle<float> ToggleRow::buttonRect (int i) const
 
 void ToggleRow::paint (Graphics& g)
 {
+    if (look == ButtonLook::hDelay)
+    {
+        const auto fr = frameRect();
+        for (int i = 0; i < shown; ++i) drawHdButtonShadow (g, buttonRect (i), fr.getBottom(), on[(size_t) i]);
+        g.setColour (Colours::black);
+        g.fillRect (fr);
+        for (int i = 0; i < shown; ++i)
+            drawHdButtonFace (g, buttonRect (i), items[(size_t) i].label, on[(size_t) i], i > 0, i < shown - 1);
+        if (outlinedItem >= 0 && outlinedItem < shown)
+        {
+            // a single button of the row: the line runs just around its face, over the frame's inner pixels
+            g.setColour (Colour (237, 213, 4));
+            g.drawRect (buttonRect (outlinedItem).expanded (1.0f), 1.0f);
+        }
+        return;
+    }
     float w = 1.0f;
     for (int i = 0; i < shown; ++i) w += items[(size_t) i].width;
     const auto f = getLocalBounds().toFloat().reduced (kShadow);
@@ -511,12 +624,18 @@ void ToggleRow::paint (Graphics& g)
 void ToggleRow::mouseDown (const MouseEvent& e)
 {
     for (int i = 0; i < shown; ++i)
-        if (buttonRect (i).contains (e.position))
+        if (buttonRect (i).expanded (1.0f).contains (e.position))
+        {
+            if (onClick) onClick (this);
+            outlinedItem = i;
             attachments[(size_t) i]->setValueAsCompleteGesture (on[(size_t) i] ? 0.0f : 1.0f);
+            repaint();
+        }
 }
 
 void ButtonGroup::mouseDown (const MouseEvent& e)
 {
+    if (onClick) onClick (this);
     const int n = toggle ? 1 : labels.size();
     for (int i = 0; i < n; ++i)
         if (buttonRect (i).contains (e.position))
@@ -877,6 +996,69 @@ static void segChar (Graphics& g, Rectangle<float> r, juce_wchar ch, float t, fl
         p.lineTo (x0 + w - t * 0.5f, y0 + h - gap);
         g.strokePath (p, PathStrokeType (t), AffineTransform::shear (-slant, 0.0f).translated (slant * (y0 + h), 0.0f));
     }
+}
+
+void drawSegmentText (Graphics& g, const SegFont& f, float x, float y, const String& text)
+{
+    // the same strokes as the fit's renderer (tools/fit_hdelay_display.py)
+    const float w = f.w, h = f.h, t = f.t, hx = f.hx, vy = f.vy;
+    Path p;
+    auto rect = [&] (float cx, float x0, float y0, float x1, float y1)
+    {
+        auto at = [&] (float px, float py) { return Point<float> (cx + px + f.slant * (h - py), y + py); };
+        p.startNewSubPath (at (x0, y0)); p.lineTo (at (x1, y0)); p.lineTo (at (x1, y1)); p.lineTo (at (x0, y1)); p.closeSubPath();
+    };
+    for (int i = 0; i < text.length(); ++i)
+    {
+        const float cx = x + f.pitch * (float) i;
+        const char* segs = "";
+        switch (text[i])
+        {
+            case '0': case 'D': segs = "ABCDEF"; break;
+            case '1': segs = f.solidOne ? "S" : "BC"; break;
+            case '2': segs = "ABGED"; break;
+            case '3': segs = "ABGCD"; break;
+            case '4': segs = "FGBC"; break;
+            case '5': segs = "AFGCD"; break;
+            case '6': segs = "AFGEDC"; break;
+            case '7': segs = "ABC"; break;
+            case '8': case 'B': segs = "ABCDEFG"; break;
+            case '9': segs = "ABCDFG"; break;
+            case 'A': segs = "ABCEFG"; break;
+            case 'R': segs = "ABEFGK"; break;
+            case 'T': segs = "AIJ"; break;
+            case 'L': segs = "DEF"; break;
+            case 'P': segs = "ABEFG"; break;
+            case 'M': segs = "ABCEFI"; break;
+            case '-': segs = "G"; break;
+            default: break;
+        }
+        for (const char* c = segs; *c != 0; ++c)
+            switch (*c)
+            {
+                case 'A': rect (cx, hx, 0.0f, w - hx, t); break;
+                case 'G': rect (cx, hx, h * 0.5f - t * 0.5f, w - hx, h * 0.5f + t * 0.5f); break;
+                case 'D': rect (cx, hx, h - t, w - hx, h); break;
+                case 'F': rect (cx, 0.0f, vy, t, h * 0.5f - vy); break;
+                case 'E': rect (cx, 0.0f, h * 0.5f + vy, t, h - vy); break;
+                case 'B': rect (cx, w - t, vy, w, h * 0.5f - vy); break;
+                case 'C': rect (cx, w - t, h * 0.5f + vy, w, h - vy); break;
+                case 'S': rect (cx, w - t, vy * 0.5f, w, h - vy * 0.5f); break;        // a 1 drawn as one stroke
+                case 'I': rect (cx, w * 0.5f - t * 0.5f, vy, w * 0.5f + t * 0.5f, h * 0.5f - vy); break;
+                case 'J': rect (cx, w * 0.5f - t * 0.5f, h * 0.5f + vy, w * 0.5f + t * 0.5f, h - vy); break;
+                case 'K':                                       // R's leg, from the middle to the lower right
+                {
+                    auto at = [&] (float px, float py) { return Point<float> (cx + px + f.slant * (h - py), y + py); };
+                    const float x0 = w * 0.5f, y0 = h * 0.5f + t * 0.5f, x1 = w - t * 0.5f, y1 = h - vy;
+                    p.startNewSubPath (at (x0 - t * 0.5f, y0)); p.lineTo (at (x0 + t * 0.5f, y0));
+                    p.lineTo (at (x1 + t * 0.5f, y1)); p.lineTo (at (x1 - t * 0.5f, y1)); p.closeSubPath();
+                    break;
+                }
+                default: break;
+            }
+    }
+    p.setUsingNonZeroWinding (true);
+    g.fillPath (p);
 }
 
 void drawSegText (Graphics& g, Point<float> origin, const String& text, float cellW, float cellH, float pitch, float t, float slant)

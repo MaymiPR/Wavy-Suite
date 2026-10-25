@@ -10,6 +10,13 @@
   M>S modes; knob, wheel, Ctrl, display and Link feel as measured on the reference. The Hybrid kit gains these knob kinds
   (fitted with a centre per layer), a row of independent toggles and the panel's second look; the Hybrid toolbar follows
   a wider editor.
+- **WDelay editor, second pass, pixel by pixel against H-Delay**: the display's segment font fitted per size and the
+  note figures placed as the reference places them (T and D, the fraction's dashes, 1 BAR, Dual's and Ping Pong's
+  layouts), its sunk window and glass; the tap pad fitted released and pressed, with its selection line; the meter's
+  housing, scale law (within 0.3 px), numbers and triangles; H-Delay's own button look (frame, faces, bevels, shadows,
+  Arial Bold labels); one control selected at a time as the reference (knob ring, button and group outlines, tap pad);
+  the panel's edges, black print, brackets, the name, the lamp and the Link wheel. Mean difference to the reference
+  13.9 → 8.0 levels. A note longer than 3500 ms at the tempo is not taken (the reference stops at 1 bar at 120 BPM).
 - **MeterCapture** `away=0`: the drag script keeps the mouse over the editor between drags (leaving it lost travel on
   the next drag, on the references too); the cursor's position after each release is printed.
 - **WComp** (ready for the next release; Phase 5: in the installers' plug-in list, FocusCheck, sample-rate checks),

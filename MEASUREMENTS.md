@@ -768,3 +768,45 @@ real editor; screenshots stay in the git-ignored `reference/hdelay/`), 2026-10-2
 - **Test artefact**: the drag script moves the mouse out of the editor after each drag; the next drag then loses part
   of its travel on both the reference and ours (Rate 0.10 → 0.12 instead of 0.17 Hz). `away=0` keeps the mouse over the
   editor; even so some scripted drags on the reference do nothing at random, so laws are read from fresh sessions.
+
+### Second pass (pixel by pixel), 2026-10-24
+New captures (git-ignored): the display at all 19 note values that fit at 120 BPM (the wheel on the note knob), the tap
+pad held down and after the release, MS with Dual, BPM with Dual at 1 bar. Mean difference over the editor below the
+toolbar 13.9 → 8.0 levels; the panel's flat parts within 1.6, no colour bias left.
+- **Display font** (`tools/fit_hdelay_display.py`: a 7-segment renderer fitted to the reference's amber coverage, R − B
+  of its pixels): cells, strokes, insets and slants per size — the tempo and ms digits 12.85 × 22.65 px, strokes
+  2.45, slant 0.175, pitch 17.05, their 1 one stroke; a note's figures 9.85 × 16, strokes 2.0, slant 0.19; T and D
+  fitted on their own; the fraction's bar one dash per denominator digit (pitch 13.6); "BAR", "BPM", Ping Pong's and
+  Dual's sizes each fitted. The figures of a note are not evenly spaced (a bitmap font): their positions are fitted on
+  every note (1 at 302 or 308, T / D at 321.7 or 331.7, the denominators each their own). Coverage rms 0.04 … 0.11 of
+  full per item; every display state 4 … 5 levels off the reference.
+- **Notes too long**: a note whose time at the tempo passes 3500 ms is not taken (at 120 BPM the knob stops at 1 bar;
+  2 bars are 4 s). WDelay holds the longest that fits.
+- **Glass**: the reference's grey as a 6 px grid of medians over the captures (glyphs masked), its lip (171, 147), a
+  sunk window (1 px black rim, a dark inner ring, the panel lit along its right and bottom edges, darkened on the left).
+- **Tap pad** (`tools/fit_hdelay_tap.py`): two zones (the body by its depth in from the outline, the face by its depth
+  in from its frame) with per-side profiles, released and pressed (pressed: the top lip dark, the face sunk, its lower
+  edge lit); fit 6.0 / 6.7 levels rms, render 3.8 / 4.1 off outside the mark. Its cast shadow: 0.44 deep, (0.24,
+  1.81) px. Selected after a click: a 1 px yellow line just outside the pad.
+- **Meter housing** (`tools/fit_hdelay_meter.py`): the frame by depth per side (7.8 rms, the corners), the window as a
+  rank-3 product of column and row profiles with the print masked (2.5 rms); the scale y = 83.70 + 157.82 (1 −
+  10^(−dB/40)) fitted on the ticks within 0.3 px; ticks 7 px from both sides; numbers in a bold serif, red (136, 12, 10)
+  to 24, olive below, at their measured ink boxes; the triangles 10 × 8 px, a pink lip on top, a shadow under them,
+  their point 1 px below the scale's −∞ at rest. Mean difference 5.7.
+- **Buttons** (the H-Delay look): a 2 px black frame and 2 px dividers; faces (215, 209, 186) lit (173, 166, 139),
+  three lit rows on top, two lighter rows and a 4-row bevel at the bottom, dark columns next to the dividers; labels
+  Arial Bold 10.2 px unstretched (the best of ten system fonts on the reference's ink); a sharp shadow 0.63 of the
+  panel for 6 rows under each button, 0.87 under a lit one. Selection as the reference: one control at a time — a knob
+  (its ring), a group (Sync: the yellow line over its frame's outer edge), a button of the row (the line round its
+  face), LoFi, the tap pad.
+- **Panel edges**: plateaus, not a fall-off — 0.89 inside the left edge, 0.82 inside the right, 0.795 along the bottom;
+  a 1 px black outline; under the toolbar a brown-grey row (115, 96, 81) and a pale lip (not orange).
+- **Print**: black (H-Comp's is a dark brown); the brackets' strokes end 2 px from their words. The name: "DELAY" in
+  Arial at the reference's 81 × 18 px from x 42; our W in Arial Black narrowed to the reference's first letter.
+- **Knobs**: the Delay / Feedback tables gained the flutes' second and third harmonics and 16 rim bins (no measurable
+  change: the remaining 20 levels on the flute ring come from the edge's sub-pixel position, the chrome's fine streaks
+  and the cap's scratches, which these smooth fits do not hold); the shadows refitted with less of the print masked.
+- **Lamp and Link**: hand-fitted on their pixels (the lamp's bezel bright only on top, its red arc 4 … 7 o'clock, the
+  Link wheel's 8 square teeth about (473.2, 218.3), the ring of 19.2 about (473.8, 219.2), the arc's top at y 195).
+- **Not matched**: the text's hinting (the reference's glyphs sit on whole pixels; JUCE draws outlines), the toolbar's
+  own content (ours), the knobs' fine texture.

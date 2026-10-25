@@ -29,6 +29,7 @@ struct Scale
     struct Label { int tick; juce::String text; float radius; float dx = 0.0f, dy = 0.0f; };
     std::vector<Label> labels;
     float labelSize = 11.0f;
+    juce::Colour colour = kPrint;                     // H-Delay prints in black
 };
 void drawScale (juce::Graphics&, juce::Point<float> centre, float a0, float a1, const Scale&);
 
@@ -78,20 +79,31 @@ private:
     const juce::Image& bodyImage (float scale, float delta, float& extent);
 };
 
+// the buttons' look: H-Comp's (1 px frame, soft shadow) or H-Delay's (measured on its screenshots: a 2 px black frame,
+// 2 px dividers, ivory faces with a lit top and a 4-row dark bevel, a sharp shadow 0.57 deep under each button, 0.85
+// under a lit one; selected after a click: a 1 px yellow line)
+enum class ButtonLook { hComp, hDelay };
+
 // ivory push buttons in a black frame (a radio group of a choice parameter, or a single toggle). The component's
-// bounds are the frame expanded by 4 px (its shadow on the panel).
+// bounds are the frame expanded by 4 px (its shadow on the panel), and by 9 px at the bottom with the H-Delay look.
 class ButtonGroup : public juce::Component
 {
 public:
-    ButtonGroup (juce::RangedAudioParameter&, juce::UndoManager*, juce::StringArray labels, bool vertical, bool toggle = false);
+    ButtonGroup (juce::RangedAudioParameter&, juce::UndoManager*, juce::StringArray labels, bool vertical, bool toggle = false,
+                 ButtonLook = ButtonLook::hComp);
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override;
     std::unique_ptr<juce::ParameterAttachment> attachment;
+    std::function<void (juce::Component*)> onClick;   // the editor's selection (the outline)
+    void setOutlined (bool o) { if (o != outlined) { outlined = o; repaint(); } }
 private:
     juce::Rectangle<float> buttonRect (int i) const;
+    juce::Rectangle<float> frameRect() const;
     juce::StringArray labels;
     bool vertical, toggle;
+    ButtonLook look;
     int selected = 0;
+    bool outlined = false;
 };
 
 // several toggles side by side in one black frame, each on its own parameter (H-Delay's Phase L / Ping Pong / Dual /
@@ -100,20 +112,30 @@ class ToggleRow : public juce::Component
 {
 public:
     struct Item { juce::RangedAudioParameter* param; juce::String label; float width; };
-    ToggleRow (std::vector<Item>, juce::UndoManager*);
+    ToggleRow (std::vector<Item>, juce::UndoManager*, ButtonLook = ButtonLook::hComp);   // hDelay: widths are the faces'
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override;
     void setVisibleItems (int n) { if (n != shown) { shown = n; repaint(); } }   // the mono component shows the first only
+    std::function<void (juce::Component*)> onClick;
+    void setOutlinedItem (int i) { if (i != outlinedItem) { outlinedItem = i; repaint(); } }
 private:
     juce::Rectangle<float> buttonRect (int i) const;
+    juce::Rectangle<float> frameRect() const;
     std::vector<Item> items;
     std::vector<std::unique_ptr<juce::ParameterAttachment>> attachments;
     std::vector<bool> on;
     int shown;
+    ButtonLook look;
+    int outlinedItem = -1;
 };
 
-// one ivory button face (the ButtonGroup's), lit or not, its label centred
+// one ivory button face (the ButtonGroup's), lit or not, its label centred; with the H-Delay look `face` is the
+// face's pixels (inside the frame or the dividers), darkened on a side that meets a divider
 void drawButtonFace (juce::Graphics&, juce::Rectangle<float>, const juce::String& label, bool on);
+void drawHdButtonFace (juce::Graphics&, juce::Rectangle<float> face, const juce::String& label, bool on, bool dividerLeft,
+                       bool dividerRight);
+// H-Delay's shadow under one button (face: as above)
+void drawHdButtonShadow (juce::Graphics&, juce::Rectangle<float> face, float frameBottom, bool on);
 // a black frame with its soft shadow on the panel, around buttons (frame: the outer edge of the 1 px black line)
 void drawButtonFrame (juce::Graphics&, juce::Rectangle<float> frame);
 
@@ -141,6 +163,13 @@ void drawLedDisplay (juce::Graphics&, juce::Rectangle<float> box, const juce::St
 // strokes t px thick, leaning right by `slant` px per px of height
 void drawSegText (juce::Graphics&, juce::Point<float> origin, const juce::String& text, float cellW, float cellH, float pitch,
                   float t, float slant);
+
+// a segment font as fitted on a reference display (tools/fit_hdelay_display.py): cells w x h, strokes t wide, the
+// horizontal strokes from hx to w - hx, the vertical ones vy short of the cell's ends and middle, leaning right by
+// `slant` px per px of height, characters `pitch` apart
+struct SegFont { float w, h, t, hx, vy, slant, pitch; bool solidOne = false; };   // solidOne: "1" as one stroke
+// text from the first cell's bottom-left corner's x and its top y (as the fit measures them): 0-9, B D A R T L P M and -
+void drawSegmentText (juce::Graphics&, const SegFont&, float x, float y, const juce::String& text);
 
 // the product logo: a heavy first letter and the rest light ("WCOMP"), from its left edge, centred vertically
 void drawLogo (juce::Graphics&, juce::Point<float> leftCentre, const juce::String& first, const juce::String& rest, float size = 1.0f);
