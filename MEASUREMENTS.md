@@ -851,3 +851,98 @@ clicked, and notes, times and the tempo dragged on the display (`reference/hdela
 - **Mean difference** to the reference: the display within 3.8 … 4.7 levels in every layout; the start box 2.2 … 4.2;
   the R mark 2.5.
 - **Button labels** sit within 0.25 px of the reference's. What is left is its pixel-snapped glyphs.
+
+## WDelay: H-Delay measurements (Phase 3), 2026-10-25
+The reference rendered offline through `tools/RefRender` (`nulltest/hdelay.py`). A run of `nulltest/measure_hdelay.py`
+writes `measurements/hdelay/results.json` and the echo kernels (`kernel_*.csv`). Unless stated: 48 kHz, Analog Off,
+Feedback 0, Mix 100, Delay 375 ms, small impulses (0.001).
+- **Harness.**
+  - H-Delay shows but does not process values set before its first block, so RefRender now renders a silent pre-roll
+    (`preroll=`) and sets the values after its first block.
+  - A delay time set in the same block as Sync is not taken. Times are set as timed changes (`at=`, also inside the
+    pre-roll, sample exact).
+  - Choices are set by their normalised value; the shell does not parse its own choice texts.
+  - Rates of 1 kHz and above must be typed in its own form ("1.00k"): "1000" is not read as 1000 Hz.
+
+### The delay line
+- **Interpolation.**
+  - The echo of an impulse is a windowed sinc. Its window is Kaiser, half-length 15.89 samples, β 4.93, cut off at
+    Nyquist. Fitted within 7e-6 (`kernel_48k.csv`); the same at 44.1 kHz.
+  - The read position is quantised to 1/32 sample, one phase above the true position: the delay is
+    (⌊32 d⌋ + 1) / 32. At a whole-sample delay the kernel is the 1/32 phase.
+  - A sweep of 688 echoes during a slow glide gives fractions within 0.0005 of a phase. The delays agree with this
+    rule within 0.01 samples rms; a few are one phase off.
+  - A static time is a whole number of samples: Host and BPM notes at any tempo give the same kernel.
+  - At 96 kHz the same filter in time: cut off at 24 kHz, half-length 31.06, β 4.71, the read 1/16 sample late.
+- **The glide** (the documented tape behaviour). After a change of time the delay moves as
+  d' = max(−1, (T − d) / T) per unit time:
+  - an exponential approach with a time constant equal to the new time T;
+  - the playback runs at most twice its normal speed;
+  - no limit when the delay grows, because (T − d) / T < 1.
+  Measured with a 500 Hz tone's phase on 375 → 100, 50, 365, 1000 and 3500 ms: the model within 0.013 … 0.092 ms rms.
+- **Gain stage** in the loop, before the delay line:
+  - The wet gain is 1 / (1 + peak): an impulse of a comes back at a / (1 + a) (1.0 → 0.500, 0.5 → 0.667, 0.25 →
+    0.800, 0.1 → 0.909), with the kernel unchanged.
+  - It takes the peak at once, the sample itself included.
+  - The gain recovers toward 1 as a one-pole: per-sample coefficient 0.99776, 9.3 ms.
+  - Linked across the channels: a 1.0 impulse on L brings R's 0.01 down to 0.5 as well.
+  - A steady sine of amplitude A comes back at 1 / (1 + A), with odd harmonics: h3 −48 dB at A 0.5, −59 at 0.1.
+  - This stage is what keeps Feedback above 100 % bounded.
+- **Feedback.**
+  - Each echo is Feedback / 100 of the one before, exactly at small levels: 0.1, 0.3, 0.6, 1.0 (less the gain
+    stage's 1/(1 + 0.001)), 1.5, 2.0.
+  - The kernel is applied again on each pass (the second echo is the kernel convolved with itself).
+  - Each pass round the loop adds 1 sample of delay.
+- **Filters** in the loop (the second echo is filtered twice):
+  - HiPass and LoPass are RBJ biquads with ParamXML's Qs: HiPass Q 0.8, LoPass Q 0.95.
+  - They match within 0.05 dB at HiPass 100 / 1000 Hz and LoPass 1000 Hz.
+  - LoPass 5000 is 0.3 … 0.7 dB lower than the biquad near its cutoff; to be refined.
+- **LoFi** swaps the interpolator for one cut off at 6277 Hz (`PARAM_INTERPOLATION_LP_FREQ` 6280), with the same
+  window (half-length 15.80, β 4.87) and 1/32 phase. It is flat to 4 kHz, −1.05 dB at 5 kHz, −4.5 dB at 6 kHz, then
+  −56 … −68 dB above 10 kHz. No aliasing products: a 1 kHz tone gives only odd harmonics below −78 dB.
+- **Modulation.**
+  - The LFO moves the target time: T = Delay × (1 + 0.5 × Depth / 100 × triangle).
+  - The glide law smooths it, so the swing shrinks as the rate rises: Depth 100 at 0.25 / 1 / 4 Hz gives 93.5 / 74.1 /
+    31.5 ms peak to peak around 100 ms.
+  - Linear in Depth (25 gives exactly a quarter of the triangle's span); the same on both channels.
+  - Fitted within ±0.3 ms (`nulltest/fit_hd_lfo.py`).
+  - At audio rates it gives FM sidebands at Delay 5 ms: Rate 100 Hz, first sideband +9 dB.
+- **Sync.**
+  - Host and BPM note values land on the note's time (500.0, 444.44, 300.0 and 225.0 ms), less what the glide has
+    not yet covered.
+  - Without Dual the two times are linked: setting Delay R moves both (the last one set wins).
+
+### Routing, mix and output
+- **Mix** is equal-power: dry cos(π/2 · m), wet sin(π/2 · m) (25 %: 0.924 / 0.383). **Output** is an exact dB gain on
+  both. Nothing limits the output (+18 dB passes a 0.9 sine at 7.15).
+- **Phase L / R** invert their side's wet signal only; the dry signal stays.
+- **Ping Pong** takes (L + R) / √2 into one line.
+  - The first echo comes on the start side, the second on the other side at the same level, then every further pass
+    at Feedback² (Feedback 30: 0.707, 0.706, 0.064, 0.064, 0.0057 …).
+  - So the loop is: the start side's line → the other side's line at gain 1 → back at gain Feedback².
+  - Each line adds its sample.
+- **Mono** behaves as the stereo component. **Mono/Stereo** feeds its single input into Ping Pong at √2.
+
+### Analog
+The stage comes after the mix: it colours the dry signal too.
+- **Mode 4** is H-Comp's: WComp's fitted model applied to H-Delay's Analog-Off output nulls it at −100 dB (peaks 0.55)
+  and −79 dB (peaks 0.06).
+- **Modes 1–3 are not H-Comp's**, although ParamXML carries the same numbers: no H-Comp mode nulls them better than
+  −31 dB.
+- Small-signal responses at −30 dBFS (noise in, `results.json` `analog`):
+  - mode 1 a low cut (−3.6 dB at 30 Hz, −0.3 dB in the mids);
+  - mode 2 a high shelf (−0.67 dB below 200 Hz, −1.55 dB above 4 kHz);
+  - mode 3 a deep dip near 100 Hz (−13.9 dB) that depends on level;
+  - mode 4 within 0.9 dB.
+- Noise with silence in: −100.9 / −83.7 / −104.0 / −106.8 dBFS for modes 1–4, and −122 dBFS even with Off.
+- Phase 4 fits modes 1–3 as WComp's were fitted.
+
+### For Phase 4
+The delay path is identified to the sample: interpolation, glide, gain stage, feedback, filters, LoFi, routing, mix.
+Sample-exact nulls should be possible with Depth 0 and Analog Off or 4. Still to be pinned down:
+- the last 1/32 step of the glide;
+- the LoPass near its cutoff;
+- whether the gain stage reads the loop's sum or the input;
+- how Feedback 200 % settles;
+- the modulation at audio rates;
+- the Analog modes 1–3.

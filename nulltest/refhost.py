@@ -161,9 +161,10 @@ def render_hc(x, fs, name="H-Comp Stereo", buffer=512, **kw):
 REFRENDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "build", "RefRender_artefacts", "Release", "RefRender.exe")
 
 
-def render_ref(x, fs, name="H-Comp Stereo@-75518996", sc=None, bpm=0.0, params=None, block=512):
+def render_ref(x, fs, name="H-Comp Stereo@-75518996", sc=None, bpm=0.0, params=None, block=512, extra=()):
     """Render offline through tools/RefRender (a JUCE host): the side-chain bus fed with sc (stereo or mono), a host
-    tempo, parameters by display text. Latency removed. Returns (2, n)."""
+    tempo, parameters by display text (name:=x for a normalised value); extra: more RefRender arguments. Latency
+    removed. Returns (2, n)."""
     import subprocess, tempfile
     x = np.asarray(x, np.float32)
     if x.ndim == 1: x = np.stack([x, x])
@@ -177,6 +178,7 @@ def render_ref(x, fs, name="H-Comp Stereo@-75518996", sc=None, bpm=0.0, params=N
         sc.T.astype(np.float32).tofile(fsc); cmd.append("sc=" + fsc)
     if bpm: cmd.append("bpm=%g" % bpm)
     for k, v in (params or {}).items(): cmd.append("%s=%s" % (k, v))
+    cmd += list(extra)                          # e.g. preroll=1, at=0.5:Delay Sec=100
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     if not os.path.exists(fout): raise RuntimeError(r.stdout + r.stderr)
     y = np.fromfile(fout, np.float32).reshape(-1, 2).T

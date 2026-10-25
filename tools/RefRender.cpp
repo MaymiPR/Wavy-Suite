@@ -1,7 +1,10 @@
 // Renders audio offline through a VST3 (a shell's sub-plugin by name), with what pedalboard cannot give a plug-in:
 // an enabled side-chain bus and a host tempo.
 //   RefRender <plugin.vst3> "<sub-plugin name>[@uid]" <in.f32> <out.f32> [sc=<sc.f32>] [bpm=<tempo>] [fs=<rate>]
-//             [block=<samples>] [name=text | name:=normalised ...]
+//             [block=<samples>] [preroll=<seconds>] [name=text | name:=normalised ...] [at=<seconds>:name=text ...]
+// preroll: that much silence is rendered first (not written), the parameters set after its first block: some plug-ins
+// (H-Delay) show but do not process values set before their first block. at=: a parameter change at that time of the
+// input (sample exact; the block is split there; before 0: in the pre-roll, at a block's start).
 // in.f32 / sc.f32: interleaved stereo float32 at fs; out.f32: the main output, interleaved stereo, the plug-in's latency
 // removed. Parameters are set by their display text (name=text, converted by the plug-in) or a normalised value
 // (name:=0.25). "--list" as the name lists the shell's sub-plugins.
@@ -43,7 +46,7 @@ int main (int argc, char** argv)
     for (int i = 1; i < argc; ++i) args.add (String (argv[i]).unquoted());
     if (args.size() < 2) { std::printf ("usage: RefRender plugin.vst3 \"name[@uid]\" in.f32 out.f32 [sc=..] [bpm=..] [fs=..] [param=text ...]\n"); return 2; }
 
-    double fs = 48000.0, bpm = 0.0;
+    double fs = 48000.0, bpm = 0.0, preroll = 0.0;
     int block = 512;
     String scPath;
     for (int i = 4; i < args.size(); ++i)
@@ -52,6 +55,7 @@ int main (int argc, char** argv)
         else if (args[i].startsWith ("bpm=")) bpm = args[i].substring (4).getDoubleValue();
         else if (args[i].startsWith ("block=")) block = args[i].substring (6).getIntValue();
         else if (args[i].startsWith ("sc=")) scPath = args[i].substring (3);
+        else if (args[i].startsWith ("preroll=")) preroll = args[i].substring (8).getDoubleValue();
     }
 
     AudioPluginFormatManager fm;
@@ -103,10 +107,8 @@ int main (int argc, char** argv)
     head.bpm = bpm; head.fs = fs;
     plugin->setPlayHead (&head);
     plugin->prepareToPlay (fs, block);
-    for (int i = 4; i < args.size(); ++i)
+    auto setParam = [&plugin] (const String& a)
     {
-        const auto& a = args[i];
-        if (a.startsWith ("fs=") || a.startsWith ("bpm=") || a.startsWith ("block=") || a.startsWith ("sc=")) continue;
         const bool normalised = a.contains (":=");
         const auto name = a.upToFirstOccurrenceOf (normalised ? ":=" : "=", false, false);
         const auto val = a.fromFirstOccurrenceOf (normalised ? ":=" : "=", false, false);
@@ -120,7 +122,33 @@ int main (int argc, char** argv)
                 found = true;
             }
         if (! found) std::printf ("  no parameter '%s'\n", name.toRawUTF8());
+    };
+    StringArray settings;
+    std::vector<std::pair<int, String>> changes;                  // (sample of the input, name=value)
+    for (int i = 4; i < args.size(); ++i)
+    {
+        const auto& a = args[i];
+        if (a.startsWith ("fs=") || a.startsWith ("bpm=") || a.startsWith ("block=") || a.startsWith ("sc=") || a.startsWith ("preroll=")) continue;
+        if (a.startsWith ("at="))
+            changes.push_back ({ (int) std::llround (a.substring (3).upToFirstOccurrenceOf (":", false, false).getDoubleValue() * fs),
+                                 a.fromFirstOccurrenceOf (":", false, false) });
+        else settings.add (a);
     }
+    std::sort (changes.begin(), changes.end(), [] (auto& x, auto& y) { return x.first < y.first; });
+    AudioBuffer<float> pre (jmax (plugin->getTotalNumInputChannels(), plugin->getTotalNumOutputChannels()), block);
+    MidiBuffer preMidi;
+    const int preN = preroll > 0.0 ? jmax (2 * block, (int) std::llround (preroll * fs)) : 0;
+    size_t nextChange = 0;
+    for (int pos = 0; pos < preN; pos += block)                   // a first block of silence, the settings, the rest
+    {
+        if (pos == block) for (auto& a : settings) setParam (a);
+        while (pos >= block && nextChange < changes.size() && changes[nextChange].first <= pos - preN)   // at= < 0
+            setParam (changes[nextChange++].second);
+        pre.clear();
+        head.pos = pos - preN;
+        plugin->processBlock (pre, preMidi);
+    }
+    if (preN == 0) for (auto& a : settings) setParam (a);
 
     const auto in = readF32 (args[2]);
     const auto sc = scPath.isNotEmpty() ? readF32 (scPath) : std::vector<float>();
@@ -131,10 +159,14 @@ int main (int argc, char** argv)
     std::vector<float> out ((size_t) n * 2, 0.0f);
     AudioBuffer<float> buf (jmax (nIn, nOut), block);
     MidiBuffer midi;
-    for (int pos = 0; pos < n + latency; pos += block)
+    for (int pos = 0; pos < n + latency; )
     {
+        while (nextChange < changes.size() && changes[nextChange].first <= pos) setParam (changes[nextChange++].second);
+        // a block up to the next change
+        const int len = nextChange < changes.size() ? jmin (block, changes[nextChange].first - pos) : block;
+        buf.setSize (buf.getNumChannels(), len, false, false, true);
         buf.clear();
-        for (int i = 0; i < block; ++i)
+        for (int i = 0; i < len; ++i)
         {
             const int k = pos + i;
             if (k < n)
@@ -146,7 +178,7 @@ int main (int argc, char** argv)
         }
         head.pos = pos;
         plugin->processBlock (buf, midi);
-        for (int i = 0; i < block; ++i)
+        for (int i = 0; i < len; ++i)
         {
             const int k = pos + i - latency;
             if (k >= 0 && k < n)
@@ -155,6 +187,7 @@ int main (int argc, char** argv)
                 out[(size_t) k * 2 + 1] = buf.getSample (nOut > 1 ? 1 : 0, i);
             }
         }
+        pos += len;
     }
     plugin->releaseResources();
     File f (File::getCurrentWorkingDirectory().getChildFile (args[3]));

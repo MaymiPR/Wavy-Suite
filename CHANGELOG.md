@@ -17,6 +17,10 @@
   Arial Bold labels); one control selected at a time as the reference (knob ring, button and group outlines, tap pad);
   the panel's edges, black print, brackets, the name, the lamp and the Link wheel. Mean difference to the reference
   13.9 → 8.0 levels. A note longer than 3500 ms at the tempo is not taken (the reference stops at 1 bar at 120 BPM).
+- **WDelay Phase 3: measurements of H-Delay** (`nulltest/measure_hdelay.py`, `measurements/hdelay/`, MEASUREMENTS.md):
+  the 32-phase Kaiser-sinc interpolator, the tape glide law, the 1 / (1 + peak) gain stage in the loop, feedback,
+  filters, LoFi, modulation, routing, mix and the Analog modes. `RefRender` gains a silent pre-roll and timed
+  parameter changes.
 - **WDelay Ping Pong and Dual, as filmed on H-Delay**:
   - **Ping Pong's display:** the layout is Dual's left half plus the start box. The box and its L / R letter are fitted
     on the reference's pixels. A click flips the start side and selects the box.
