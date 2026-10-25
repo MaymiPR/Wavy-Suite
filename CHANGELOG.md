@@ -17,6 +17,13 @@
   Arial Bold labels); one control selected at a time as the reference (knob ring, button and group outlines, tap pad);
   the panel's edges, black print, brackets, the name, the lamp and the Link wheel. Mean difference to the reference
   13.9 → 8.0 levels. A note longer than 3500 ms at the tempo is not taken (the reference stops at 1 bar at 120 BPM).
+- **WDelay Ping Pong and Dual, as filmed on H-Delay**:
+  - **Ping Pong's display:** the layout is Dual's left half plus the start box. The box and its L / R letter are fitted
+    on the reference's pixels. A click flips the start side and selects the box.
+  - **Dual's sides:** clicking a side puts the Delay knob on it, with an "R" box after DELAY for the right side. The
+    choice is kept while Ping Pong is on. Switching Dual on starts the right side from the left's time.
+  - **Display drags:** notes on the display step with a drag or the wheel, in every layout. The tempo drags in Dual and
+    Ping Pong. `Snapshot --click=x,y` renders states that only a click sets; editor tests cover the clicks.
 - **MeterCapture** `away=0`: the drag script keeps the mouse over the editor between drags (leaving it lost travel on
   the next drag, on the references too); the cursor's position after each release is printed.
 - **WComp** (ready for the next release; Phase 5: in the installers' plug-in list, FocusCheck, sample-rate checks),

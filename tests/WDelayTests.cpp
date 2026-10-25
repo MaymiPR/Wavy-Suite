@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "WDelayProcessor.h"
+#include "WDelayEditor.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond) do { ++checks; if (! (cond)) { ++failures; std::printf ("FAIL %s:%d  %s\n", __FILE__, __LINE__, #cond); } } while (0)
@@ -80,6 +81,69 @@ static void testProcessor()
     CHECK_NEAR (q.apvts.getRawParameterValue (wdelay::feedback)->load(), 137.0, 1.0e-3);
 }
 
+// the editor's Ping Pong and Dual behaviour, as measured on the reference: clicks and drags on the display (editor pixels)
+static void testDisplayClicks()
+{
+    WDelayProcessor p;
+    std::unique_ptr<juce::AudioProcessorEditor> ed (p.createEditor());
+    ed->setVisible (true);                                  // (off screen; hit-testing skips hidden components)
+    auto set = [&p] (const char* id, float v) { auto* q = p.apvts.getParameter (id); q->setValueNotifyingHost (q->convertTo0to1 (v)); };
+    auto get = [&p] (const char* id) { return p.apvts.getRawParameterValue (id)->load(); };
+    auto tick = [&ed] { ((juce::Timer*) dynamic_cast<WDelayEditor*> (ed.get()))->timerCallback(); };   // its 60 Hz update (a private base)
+    auto event = [] (juce::Component* c, juce::Point<float> local, juce::ModifierKeys mods)
+    {
+        const auto now = juce::Time::getCurrentTime();
+        return juce::MouseEvent (juce::Desktop::getInstance().getMainMouseSource(), local, mods, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                 c, c, now, local, now, 1, false);
+    };
+    // a click, or a press, a drag up by `up` px in 1 px steps and the release
+    auto press = [&] (float x, float y, int up)
+    {
+        const juce::Point<float> pt (x, y);
+        auto* c = ed->getComponentAt (pt.roundToInt());
+        if (c == nullptr) return;
+        const auto local = c->getLocalPoint (ed.get(), pt);
+        c->mouseDown (event (c, local, juce::ModifierKeys::leftButtonModifier));
+        for (int k = 1; k <= up; ++k) c->mouseDrag (event (c, local - juce::Point<float> (0.0f, (float) k), juce::ModifierKeys::leftButtonModifier));
+        c->mouseUp (event (c, local - juce::Point<float> (0.0f, (float) up), {}));
+    };
+    auto knobValue = [&] { auto* s = dynamic_cast<juce::Slider*> (ed->getComponentAt (204, 101)); return s != nullptr ? s->getValue() : -1.0; };
+
+    // Ping Pong: the start box flips the start side at each click
+    set (wdelay::pingPong, 1.0f); tick();
+    press (403.0f, 108.0f, 0);
+    CHECK (get (wdelay::pingPongStart) > 0.5f);
+    press (403.0f, 108.0f, 0);
+    CHECK (get (wdelay::pingPongStart) < 0.5f);
+    // a note on the display steps with a vertical drag (40 px: one value), in Ping Pong's layout as in the plain one
+    press (315.0f, 112.0f, 40);
+    CHECK_NEAR (get (wdelay::delayNote), 12.0, 1.0e-3);
+    set (wdelay::pingPong, 0.0f); tick();
+    press (320.0f, 105.0f, 40);
+    CHECK_NEAR (get (wdelay::delayNote), 13.0, 1.0e-3);
+    // Dual: switched on, the right side starts from the left's time; a click on the right note puts the Delay knob on
+    // the right side
+    set (wdelay::dual, 1.0f); tick();
+    CHECK_NEAR (get (wdelay::delayNoteR), 13.0, 1.0e-3);
+    set (wdelay::delayNoteR, 15.0f); tick();
+    CHECK_NEAR (knobValue(), 13.0, 1.0e-3);
+    press (409.0f, 112.0f, 0);
+    CHECK_NEAR (knobValue(), 15.0, 1.0e-3);
+    // Ping Pong's layout shows the left side; the right side comes back when Ping Pong goes off
+    set (wdelay::pingPong, 1.0f); tick();
+    CHECK_NEAR (knobValue(), 13.0, 1.0e-3);
+    set (wdelay::pingPong, 0.0f); tick();
+    CHECK_NEAR (knobValue(), 15.0, 1.0e-3);
+    press (315.0f, 112.0f, 0);
+    CHECK_NEAR (knobValue(), 13.0, 1.0e-3);
+    // in MS a drag on the right time sets the right side's time
+    set (wdelay::sync, 2.0f); tick();
+    const float r0 = get (wdelay::delayR);
+    press (395.0f, 110.0f, 20);
+    CHECK (get (wdelay::delayR) > r0 + 5.0f);
+    CHECK_NEAR (knobValue(), get (wdelay::delayR), 1.0e-3);
+}
+
 int main()
 {
     juce::ScopedJuceInitialiser_GUI init;
@@ -87,6 +151,7 @@ int main()
     testNotes();
     testTexts();
     testProcessor();
+    testDisplayClicks();
     std::printf ("%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;
 }

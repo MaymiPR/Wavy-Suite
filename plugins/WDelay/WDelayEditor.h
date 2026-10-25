@@ -14,7 +14,8 @@ public:
     static constexpr int W = 749, H = 292;
 
     // the amber time display: the note value and tempo (Host / BPM), the time in ms, Ping Pong's start side, Dual's
-    // two sides. Clicks choose the side the Delay knob sets (Dual) or the Ping Pong start; drags set the value shown.
+    // two sides. Clicks choose the side the Delay knob sets (Dual) or flip the Ping Pong start; drags and the wheel set
+    // the value under the mouse (a time, a note, the tempo).
     class Display : public juce::Component
     {
     public:
@@ -24,11 +25,19 @@ public:
         void mouseDrag (const juce::MouseEvent&) override;
         void mouseUp (const juce::MouseEvent&) override;
         void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
+        void selectBox (bool s) { if (s != boxSelected) { boxSelected = s; repaint(); } }
     private:
-        juce::RangedAudioParameter* target (juce::Point<float> designPos) const;
+        struct Hit
+        {
+            juce::RangedAudioParameter* param = nullptr;
+            int side = -1;                            // Dual: 0 the left side, 1 the right
+            bool note = false, box = false;           // a note value (stepped); Ping Pong's start box
+        };
+        Hit hit (juce::Point<float> designPos) const;
         WDelayEditor& ed;
         juce::RangedAudioParameter* dragParam = nullptr;
-        float lastY = 0.0f;
+        bool noteDrag = false, boxSelected = false;
+        float lastY = 0.0f, stepAcc = 0.0f;
         juce::Image glass;                            // the glass, rendered for the current scale
         float glassScale = 0.0f;
     };
@@ -65,6 +74,16 @@ public:
         void move (float normDelta);
         WDelayEditor& ed;
         float lastY = 0.0f, turn = 0.0f;
+    };
+
+    // Dual's right side on the Delay knob: the small box after DELAY (over the knob's shadow, as the reference)
+    class RMark : public juce::Component
+    {
+    public:
+        explicit RMark (WDelayEditor& e) : ed (e) { setInterceptsMouseClicks (false, false); }
+        void paint (juce::Graphics&) override;
+    private:
+        WDelayEditor& ed;
     };
 
     // the output meter: a red triangle per channel moving along the printed scale
@@ -109,6 +128,7 @@ private:
     TapPad& tap;
     LinkWheel& link;
     Meter& meter;
+    RMark& rMark;
     wavy::hybrid::ToggleRow* stereoRow = nullptr;
     wavy::hybrid::ToggleRow* monoRow = nullptr;
     wavy::hybrid::ButtonGroup* syncGroup = nullptr;
@@ -117,12 +137,14 @@ private:
     void selectOnly (juce::Component*);
     wavy::flat::Selection selection;
     juce::Image panelCache;
-    bool rightSide = false;                               // Dual: the Delay knob sets the right side
-    int lastSync = -1, lastMode = -1, lastDual = -1, lastPing = -1;
+    // Dual: the Delay knob sets the right side (kept while Ping Pong or Dual is off, as the reference)
+    bool rightSide = false;
+    int lastSync = -1, lastMode = -1, lastDual = -1, lastPing = -1, lastDualOn = -1;
     bool lastRight = false;
     double lastTick = 0.0, clipLevel = 0.0, clipAge = 1.0e9;
     wavy::MeterBallistics meterL, meterR;
     friend class Display;
     friend class TapPad;
     friend class LinkWheel;
+    friend class RMark;
 };

@@ -32,6 +32,51 @@ float refToJuce (float deg) { return rad (deg + 180.0f); }
 
 // the meter's scale (fitted on the reference's ticks): y = 83.70 + 157.82 (1 - 10^(-dB / 40)), within 0.3 px
 float meterY (float db) { return 83.70f + 157.82f * (1.0f - std::pow (10.0f, -jmax (0.0f, -db) / 40.0f)); }
+
+// Ping Pong's start side (fitted on the reference, tools/fit_hdelay_display.py ppbox): an amber box (255, 180, 0) with
+// corners of 2.1, leaning 0.04 px right per px up; its letter in straight strokes, a 1.27 px black core in a 1.65 px
+// stroke at 0.53 (the strokes stop short of each other, as on a segment display). Unselected, the reference's dark
+// rim: a black line down its left, darker rows above and below; selected, a yellow line round it at half strength.
+void drawStartBox (Graphics& g, bool right, bool selected)
+{
+    const float lean = 0.04f;
+    const auto shear = AffineTransform (1.0f, -lean, lean * 123.0f, 0.0f, 1.0f, 0.0f);
+    if (selected)
+    {
+        Path ring;
+        ring.addRoundedRectangle (390.72f, 94.5f, 22.6f, 28.0f, 2.6f);
+        g.setColour (Colour (237, 213, 4).withAlpha (0.5f));
+        g.strokePath (ring, PathStrokeType (1.0f), shear);
+    }
+    else
+    {
+        g.setColour (Colours::black.withAlpha (0.27f));
+        g.fillRect (Rectangle<float> (393.5f, 94.0f, 19.5f, 1.0f));
+        g.fillRect (Rectangle<float> (392.0f, 122.0f, 20.5f, 1.0f));
+        g.setColour (Colours::black);
+        g.fillRect (Rectangle<float> (390.0f, 95.0f, 1.0f, 21.0f));
+        g.fillRect (Rectangle<float> (391.0f, 95.0f, 1.0f, 1.0f));
+    }
+    Path box;
+    box.addRoundedRectangle (391.22f, 95.0f, 21.6f, 27.0f, 2.1f);
+    g.setColour (Colour (255, 180, 0));
+    g.fillPath (box, shear);
+    static const float strokesL[][4] = { { 400.63f, 102.05f, 400.14f, 107.07f }, { 399.75f, 110.39f, 399.34f, 115.58f },
+                                         { 401.20f, 116.16f, 406.52f, 116.14f } };
+    static const float strokesR[][4] = { { 400.03f, 101.56f, 405.14f, 101.58f }, { 399.57f, 103.70f, 399.02f, 107.54f },
+                                         { 407.32f, 101.97f, 407.01f, 107.24f }, { 400.71f, 108.82f, 405.41f, 108.77f },
+                                         { 398.78f, 110.25f, 398.32f, 115.52f }, { 401.07f, 111.01f, 405.57f, 116.13f } };
+    Path ink;
+    auto add = [&ink] (const float (*st)[4], int n)
+    {
+        for (int i = 0; i < n; ++i) { ink.startNewSubPath (st[i][0], st[i][1]); ink.lineTo (st[i][2], st[i][3]); }
+    };
+    if (right) add (strokesR, 6); else add (strokesL, 3);
+    g.setColour (Colours::black.withAlpha (0.53f));
+    g.strokePath (ink, PathStrokeType (1.65f, PathStrokeType::mitered, PathStrokeType::square));
+    g.setColour (Colours::black);
+    g.strokePath (ink, PathStrokeType (1.27f, PathStrokeType::mitered, PathStrokeType::square));
+}
 }
 
 WDelayEditor::WDelayEditor (WDelayProcessor& p)
@@ -45,7 +90,8 @@ WDelayEditor::WDelayEditor (WDelayProcessor& p)
       hipass (make<Knob> (Knob::Knurled, 39.0f, 321.0f)), lopass (make<Knob> (Knob::Knurled, 39.0f, 321.0f)),
       mix (make<Knob> (Knob::Mini, 39.0f, 321.0f)), output (make<Knob> (Knob::Mini, 39.0f, 321.0f)),
       analog (make<Knob> (Knob::Mini, 39.0f, 321.0f)),
-      display (make<Display> (*this)), tap (make<TapPad> (*this)), link (make<LinkWheel> (*this)), meter (make<Meter>())
+      display (make<Display> (*this)), tap (make<TapPad> (*this)), link (make<LinkWheel> (*this)), meter (make<Meter>()),
+      rMark (make<RMark> (*this))
 {
     setAuxLook (std::make_unique<HybridLook>());
     for (auto* c : getChildren())
@@ -120,6 +166,7 @@ WDelayEditor::WDelayEditor (WDelayProcessor& p)
     link.centre = kLink - linkBox.getPosition().toFloat();
     addToContent (link, linkBox);
     addToContent (meter, kMeterFrame.getSmallestIntegerContainer());
+    addToContent (rMark, { 233, 168, 14, 13 });
     updateDelayKnobs();
 }
 
@@ -144,8 +191,17 @@ double WDelayEditor::tempo() const
 void WDelayEditor::updateDelayKnobs()
 {
     const int s = roundToInt (value (wdelay::sync)), m = modeIndex();
-    const bool dual = value (wdelay::dual) > 0.5f && m != 1, ping = value (wdelay::pingPong) > 0.5f && m != 1;
-    if (! dual || ping) rightSide = false;
+    const bool dualOn = value (wdelay::dual) > 0.5f;
+    const bool dual = dualOn && m != 1, ping = value (wdelay::pingPong) > 0.5f && m != 1;
+    // as the reference: the right side starts from the left's time when Dual is switched on
+    if (lastDualOn == 0 && dualOn)
+    {
+        setValue (wdelay::delayR, value (wdelay::delay));
+        setValue (wdelay::delayNoteR, value (wdelay::delayNote));
+    }
+    lastDualOn = (int) dualOn;
+    // the right side's knob while Dual's layout shows (Ping Pong's takes over the display and shows the left)
+    const bool right = rightSide && dual && ! ping;
     if (s != lastSync && lastSync >= 0)
     {
         // as the reference: switching between ms and note values keeps the time, as near as the new unit allows
@@ -161,12 +217,13 @@ void WDelayEditor::updateDelayKnobs()
             setValue (wdelay::delayNoteR, (float) wdelay::nearestNote (value (wdelay::delayR), t));
         }
     }
-    if (s == lastSync && m == lastMode && (int) dual == lastDual && (int) ping == lastPing && rightSide == lastRight) return;
-    lastSync = s; lastMode = m; lastDual = (int) dual; lastPing = (int) ping; lastRight = rightSide;
-    delay.setVisible (s == 2 && ! rightSide);
-    delayR.setVisible (s == 2 && rightSide);
-    delayNote.setVisible (s != 2 && ! rightSide);
-    delayNoteR.setVisible (s != 2 && rightSide);
+    if (s == lastSync && m == lastMode && (int) dual == lastDual && (int) ping == lastPing && right == lastRight) return;
+    lastSync = s; lastMode = m; lastDual = (int) dual; lastPing = (int) ping; lastRight = right;
+    delay.setVisible (s == 2 && ! right);
+    delayR.setVisible (s == 2 && right);
+    delayNote.setVisible (s != 2 && ! right);
+    delayNoteR.setVisible (s != 2 && right);
+    rMark.setVisible (right);
     stereoRow->setVisible (m != 1);
     monoRow->setVisible (m == 1);
     selection.clear();
@@ -178,6 +235,7 @@ void WDelayEditor::selectOnly (Component* c)
 {
     selection.clear();
     tap.deselect();
+    display.selectBox (false);
     syncGroup->setOutlined (c == syncGroup);
     lofiButton->setOutlined (c == lofiButton);
     if (c != stereoRow) stereoRow->setOutlinedItem (-1);
@@ -200,6 +258,7 @@ void WDelayEditor::tick()
     {
         lastPrimary = selection.primary;
         tap.deselect();
+        display.selectBox (false);
         syncGroup->setOutlined (false); lofiButton->setOutlined (false);
         stereoRow->setOutlinedItem (-1); monoRow->setOutlinedItem (-1);
     }
@@ -218,6 +277,33 @@ void WDelayEditor::tick()
         clipLevel = lit;
         content().repaint (Rectangle<float> (24.0f, 24.0f).withCentre (kClipLamp).toNearestInt());
     }
+}
+
+//==============================================================================
+// measured on the reference: a black box 11 x 10 px after DELAY, a half-dark shadow along its left and under it; the R
+// cut out of the box in the panel's colour (its stem 2.7 px, a counter of 0.85 px in the bowl, another under it, the
+// leg leaning right)
+void WDelayEditor::RMark::paint (Graphics& g)
+{
+    g.addTransform (AffineTransform::translation ((float) -getX(), (float) -getY()));
+    g.setColour (Colours::black.withAlpha (0.5f));
+    g.fillRect (Rectangle<float> (234.0f, 169.0f, 1.0f, 10.0f));
+    g.fillRect (Rectangle<float> (235.0f, 179.0f, 11.0f, 1.0f));
+    g.setColour (Colours::black.withAlpha (0.25f));
+    g.fillRect (Rectangle<float> (234.0f, 179.0f, 1.0f, 1.0f));
+    g.setColour (Colours::black);
+    g.fillRect (Rectangle<float> (235.0f, 169.0f, 11.0f, 10.0f));
+    Path r;
+    r.addRectangle (237.0f, 171.0f, 2.7f, 4.0f);                  // the stem, narrower under the bowl
+    r.addRectangle (237.0f, 175.0f, 2.4f, 2.5f);
+    r.addRectangle (237.0f, 171.0f, 5.5f, 1.0f);                  // the top
+    r.addRoundedRectangle (240.55f, 171.0f, 3.3f, 4.0f, 1.5f);    // the bowl's right side
+    r.addRectangle (237.0f, 174.0f, 5.0f, 1.0f);                  // the middle
+    r.startNewSubPath (240.4f, 175.0f);                           // the leg
+    r.lineTo (243.2f, 175.0f); r.lineTo (244.35f, 177.5f); r.lineTo (241.9f, 177.5f);
+    r.closeSubPath();
+    g.reduceClipRegion (r);
+    drawPanel (g, { 0, 19, W, H - 19 }, ed.panelCache, PanelLook::hDelay);
 }
 
 //==============================================================================
@@ -374,21 +460,16 @@ void WDelayEditor::Display::paint (Graphics& g)
     auto msText = [] (float v) { return String (roundToInt (v)).paddedLeft ('0', 4); };
     if (ping)
     {
-        // the time (ms or note) and the start side: a slanted amber block with a thin dark letter
-        if (s == 2) drawSegmentText (g, mid, 298.57f, 101.88f, msText (ed.value (wdelay::delay)));
-        else note (roundToInt (ed.value (wdelay::delayNote)), 0.0f);
-        Path blk;
-        blk.startNewSubPath (393.5f, 95.0f); blk.lineTo (414.5f, 95.0f); blk.lineTo (412.5f, 122.0f); blk.lineTo (391.0f, 122.0f);
-        blk.closeSubPath();
-        g.fillPath (blk);
-        g.setColour (Colour (10, 7, 0));
-        const bool right = ed.value (wdelay::pingPongStart) > 0.5f;
-        if (right) drawSegmentText (g, SegFont { 7.0f, 15.0f, 1.0f, 0.4f, 0.5f, 0.12f, 8.0f }, 399.5f, 101.0f, "R");
+        // the left half of Dual's layout (the reference draws the same pixels: the time, or the note and the tempo) and
+        // the start side's box
+        if (s == 2) drawSegmentText (g, dualMs, 299.31f, 101.89f, msText (ed.value (wdelay::delay)));
         else
         {
-            g.fillRect (Rectangle<float> (400.0f, 101.0f, 1.0f, 15.5f));
-            g.fillRect (Rectangle<float> (399.5f, 115.5f, 6.5f, 1.0f));
+            smallNote (roundToInt (ed.value (wdelay::delayNote)), 0.0f);
+            field (dualTempo, 338.85f, 95.95f, tempoText, 3);
+            drawSegmentText (g, dualLabel, 359.93f, 118.25f, "BPM");
         }
+        drawStartBox (g, ed.value (wdelay::pingPongStart) > 0.5f, boxSelected);
         return;
     }
     if (dual)
@@ -423,32 +504,57 @@ void WDelayEditor::Display::paint (Graphics& g)
 
 void WDelayEditor::Display::mouseDown (const MouseEvent& e)
 {
-    const int m = ed.modeIndex();
-    const bool ping = ed.value (wdelay::pingPong) > 0.5f && m != 1, dual = ed.value (wdelay::dual) > 0.5f && m != 1 && ! ping;
-    const auto p = e.position + kDisplay.getPosition().toFloat();         // design coordinates
-    if (ping && Rectangle<float> (392.0f, 95.0f, 22.0f, 27.0f).contains (p))
+    ed.selectOnly (nullptr);
+    const auto h = hit (e.position + kDisplay.getPosition().toFloat());          // design coordinates
+    if (h.box)
     {
+        // the start side flips at each click, and the box is the selected control
         ed.setValue (wdelay::pingPongStart, ed.value (wdelay::pingPongStart) > 0.5f ? 0.0f : 1.0f);
+        selectBox (true);
         return;
     }
-    if (dual) ed.rightSide = p.x > 380.0f;
-    ed.updateDelayKnobs();
-    dragParam = target (p);
+    if (h.side >= 0)
+    {
+        ed.rightSide = h.side == 1;
+        ed.updateDelayKnobs();
+    }
+    dragParam = h.param;
+    noteDrag = h.note;
+    stepAcc = 0.0f;
     if (dragParam == nullptr) return;
     lastY = e.position.y;
     e.source.enableUnboundedMouseMovement (true, false);
     dragParam->beginChangeGesture();
 }
 
-// what a vertical drag or the wheel sets at a point of the display (design coordinates), as measured on the reference:
-// the time in MS (the side's in Dual), the tempo over its digits in BPM; nothing over a note value
-RangedAudioParameter* WDelayEditor::Display::target (Point<float> p) const
+// what a click, a vertical drag or the wheel sets at a point of the display (design coordinates): the reference's
+// control rectangles (its GUIXML; the first listed takes a point two share), checked with clicks and drags on it
+WDelayEditor::Display::Hit WDelayEditor::Display::hit (Point<float> p) const
 {
     const int s = roundToInt (ed.value (wdelay::sync)), m = ed.modeIndex();
     const bool ping = ed.value (wdelay::pingPong) > 0.5f && m != 1, dual = ed.value (wdelay::dual) > 0.5f && m != 1 && ! ping;
-    if (s == 2) return ed.proc.apvts.getParameter (dual && p.x > 380.0f ? wdelay::delayR : wdelay::delay);
-    if (s == 0 && (dual ? (p.x > 340.0f && p.x < 385.0f) : p.x > 360.0f)) return ed.proc.apvts.getParameter (wdelay::bpm);
-    return nullptr;
+    auto par = [this] (const char* id) { return ed.proc.apvts.getParameter (id); };
+    auto in = [p] (float x, float y, float w, float h) { return Rectangle<float> (x, y, w, h).contains (p); };
+    Hit h;
+    if (ping && in (390.0f, 94.0f, 26.0f, 29.0f)) { h.box = true; return h; }
+    if (ping || dual)
+    {
+        // the left time or note, the right one (Dual), the tempo between them (BPM)
+        if (s == 2)
+        {
+            if (in (293.0f, 100.0f, 66.0f, 22.0f)) { h.param = par (wdelay::delay); h.side = 0; }
+            else if (dual && in (321.0f, 78.0f, 104.0f, 55.0f)) { h.param = par (wdelay::delayR); h.side = 1; }
+        }
+        else if (in (298.0f, 95.0f, 34.0f, 34.0f)) { h.param = par (wdelay::delayNote); h.side = 0; h.note = true; }
+        else if (dual && in (392.0f, 95.0f, 34.0f, 34.0f)) { h.param = par (wdelay::delayNoteR); h.side = 1; h.note = true; }
+        else if (s == 0 && in (338.0f, 94.0f, 42.0f, 21.0f)) h.param = par (wdelay::bpm);
+        if (! dual) h.side = -1;
+        return h;
+    }
+    if (s == 2) { if (in (294.0f, 62.0f, 137.0f, 74.0f)) h.param = par (wdelay::delay); }
+    else if (in (300.0f, 80.0f, 45.0f, 49.0f)) { h.param = par (wdelay::delayNote); h.note = true; }
+    else if (s == 0 && in (292.0f, 57.0f, 137.0f, 74.0f)) h.param = par (wdelay::bpm);
+    return h;
 }
 
 void WDelayEditor::Display::mouseDrag (const MouseEvent& e)
@@ -456,6 +562,19 @@ void WDelayEditor::Display::mouseDrag (const MouseEvent& e)
     if (dragParam == nullptr) return;
     const float dy = e.position.y - lastY;
     lastY = e.position.y;
+    if (noteDrag)
+    {
+        // a note value steps as on the Delay knob: 30 px per value on slow mouse steps (up to 2 px), 20 on quicker ones;
+        // with Ctrl 120 and 66.7 (measured: 40 px moved the note one value, on the display as on the knob)
+        const bool slow = std::abs (dy) <= 2.0f, fine = wavy::ctrlHeldNow();
+        stepAcc -= dy / (fine ? (slow ? 120.0f : 200.0f / 3.0f) : (slow ? 30.0f : 20.0f));
+        const int steps = (int) stepAcc;
+        if (steps == 0) return;
+        stepAcc -= (float) steps;
+        const float v = jlimit (0.0f, 19.0f, (float) roundToInt (dragParam->convertFrom0to1 (dragParam->getValue())) + (float) steps);
+        dragParam->setValueNotifyingHost (dragParam->convertTo0to1 (v));
+        return;
+    }
     dragParam->setValueNotifyingHost (jlimit (0.0f, 1.0f, dragParam->getValue() - dy * dragRate (dy)));
 }
 
@@ -469,10 +588,17 @@ void WDelayEditor::Display::mouseUp (const MouseEvent& e)
 
 void WDelayEditor::Display::mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& w)
 {
-    auto* p = target (e.position + kDisplay.getPosition().toFloat());
+    const auto h = hit (e.position + kDisplay.getPosition().toFloat());
+    auto* p = h.param;
     if (p == nullptr || e.mods.isAnyMouseButtonDown()) return;
     p->beginChangeGesture();
-    p->setValueNotifyingHost (jlimit (0.0f, 1.0f, p->getValue() + wheelNotches (w) / 72.0f));
+    if (h.note)                                                     // a note value: one per notch
+    {
+        const int n = roundToInt (wheelNotches (w));
+        const float v = jlimit (0.0f, 19.0f, (float) roundToInt (p->convertFrom0to1 (p->getValue())) + (float) n);
+        p->setValueNotifyingHost (p->convertTo0to1 (v));
+    }
+    else p->setValueNotifyingHost (jlimit (0.0f, 1.0f, p->getValue() + wheelNotches (w) / 72.0f));
     p->endChangeGesture();
 }
 

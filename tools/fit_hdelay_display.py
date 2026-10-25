@@ -7,7 +7,7 @@ from hx to w - hx, vertical ones from vy to h/2 - vy and from h/2 + vy to h - vy
 px of height. The amber coverage of the reference (R - B of the pixels: the glass is grey) is matched by a supersampled
 rendering of the same polygons.
 
-    python -I tools/fit_hdelay_display.py
+    python -I tools/fit_hdelay_display.py [big note bar small pp dual | ppbox]
 """
 import sys
 import numpy as np
@@ -124,5 +124,76 @@ def main():
             ['Lx', 'Ly', 'w', 'h', 't', 'vy', 'slant', 'Rx', '120x', '120y', 'w', 'h', 't', 'vy', 'pitch'])
 
 
+
+def letter_strokes(letter, q):
+    """the start side's letter as straight strokes (design px, centre lines): q holds x0, y0, x1, y1 of each, in the
+    order of STROKES"""
+    return [((q[4 * k], q[4 * k + 1]), (q[4 * k + 2], q[4 * k + 3])) for k in range(len(STROKES[letter]))]
+
+
+# the strokes as first read off the reference's pixels (pixel centres); the fit moves every end
+STROKES = {'L': [(400.5, 101.6, 399.6, 107.4), (399.4, 109.6, 398.6, 116.4), (400.4, 116.5, 405.6, 116.5)],
+           'R': [(400.4, 101.5, 405.6, 101.5), (399.5, 102.6, 398.6, 107.4), (407.5, 102.6, 406.6, 107.4),
+                 (400.4, 108.5, 405.6, 108.5), (398.5, 110.6, 397.6, 116.4), (400.0, 110.5, 405.5, 116.5)]}
+
+
+def stroke_cover(lines, width, box):
+    X0, Y0, X1, Y1 = box
+    img = Image.new('L', ((X1 - X0) * SS, (Y1 - Y0) * SS), 0)
+    d = ImageDraw.Draw(img)
+    w = max(1, int(round(width * SS)))
+    for (ax, ay), (bx, by) in lines:
+        pa, pb = ((ax - X0) * SS, (ay - Y0) * SS), ((bx - X0) * SS, (by - Y0) * SS)
+        d.line([pa, pb], fill=255, width=w)
+        for c in (pa, pb):                                 # square caps
+            d.rectangle((c[0] - w / 2, c[1] - w / 2, c[0] + w / 2, c[1] + w / 2), fill=255)
+    return np.asarray(img, dtype=float).reshape(Y1 - Y0, SS, X1 - X0, SS).mean(axis=(1, 3)) / 255.0
+
+
+def render_box(p, box, letter=None, lq=None, ink=None):
+    """Ping Pong's start box: an amber parallelogram (top y0 .. bottom y1, left x at the top xl, right xr, leaning
+    `lean` px right per px up) with corners rounded to rc; the start side's letter dark in it, a core stroke in a
+    fainter wider stroke (ink = core width, the wide stroke's width, its darkness)"""
+    xl, xr, y0, y1, lean, rc = p
+    X0, Y0, X1, Y1 = box
+    img = Image.new('L', ((X1 - X0) * SS, (Y1 - Y0) * SS), 0)
+    h = y1 - y0
+    tmp = Image.new('L', (int((xr - xl + 4) * SS), int((h + 2) * SS)), 0)
+    ImageDraw.Draw(tmp).rounded_rectangle((SS, SS, (xr - xl + 1) * SS, (h + 1) * SS), radius=rc * SS, fill=255)
+    sh = tmp.transform((tmp.width + int(4 * SS), tmp.height), Image.AFFINE, (1, lean, -lean * (h + 2) * SS, 0, 1, 0),
+                       resample=Image.BILINEAR)
+    img.paste(sh, (int(round((xl - 1 - X0) * SS)), int(round((y0 - 1 - Y0) * SS))))
+    a = np.asarray(img, dtype=float).reshape(Y1 - Y0, SS, X1 - X0, SS).mean(axis=(1, 3)) / 255.0
+    if letter:
+        lines = letter_strokes(letter, lq)
+        core, wide = stroke_cover(lines, ink[0], box), stroke_cover(lines, ink[1], box)
+        dark = 1.0 - (1.0 - np.clip(ink[2], 0.0, 1.0) * wide) * (1.0 - core)
+        a = a * (1.0 - dark)
+    return a
+
+
+def fit_box():
+    box = (386, 90, 420, 126)
+    bp = [391.22, 412.82, 95.0, 122.0, 0.04, 2.10]
+    print('ping pong start box: xl %.2f xr %.2f top %.2f bottom %.2f lean %.3f corner %.2f' % tuple(bp))
+    ink = [1.23, 1.8, 0.4]
+    for it in range(2):
+        out = {}
+        for letter, shot in (('L', 'p_4_hover.png'), ('R', 'p_16_hover.png')):
+            t = coverage(R + 'ppdual/' + shot, box)
+            q0 = [v for st in STROKES[letter] for v in st]
+            f = lambda q: ((render_box(bp, box, letter, q, ink) - t) ** 2).mean()
+            r = optimize.minimize(f, q0, method='Powell', options={'maxiter': 40000, 'xtol': 1e-3, 'ftol': 1e-9})
+            out[letter] = (r.x, t)
+            print('  %s rms %.4f strokes' % (letter, np.sqrt(r.fun)), '; '.join('%.2f %.2f %.2f %.2f' % tuple(r.x[4 * k:4 * k + 4])
+                                                                             for k in range(len(STROKES[letter]))))
+        g = lambda k: sum(((render_box(bp, box, l, out[l][0], k) - out[l][1]) ** 2).mean() for l in 'LR')
+        r = optimize.minimize(g, ink, method='Nelder-Mead', options={'xatol': 1e-3, 'fatol': 1e-9})
+        ink = list(r.x)
+        print('  ink: core %.2f, wide %.2f at %.2f (rms %.4f)' % (ink[0], ink[1], ink[2], np.sqrt(r.fun / 2)))
+        for l in 'LR': STROKES[l] = [tuple(out[l][0][4 * k:4 * k + 4]) for k in range(len(STROKES[l]))]
+
+
 if __name__ == '__main__':
-    main()
+    if sys.argv[1:] == ['ppbox']: fit_box()
+    else: main()

@@ -761,7 +761,8 @@ real editor; screenshots stay in the git-ignored `reference/hdelay/`), 2026-10-2
   the display's last digit (Feedback 60 → 70 / 70 → 50, Output −1.8 → −1.6 with Ctrl, Delay in MS 375 → 425 ms slow,
   −100 ms fast, Rate 0.10 → 0.17 Hz).
 - **Display**: dragged or wheeled with the same law, it sets the time in MS and the tempo over its digits in BPM
-  (+27 BPM for 50 px fast, +12 for three notches); over a note value it does nothing.
+  (+27 BPM for 50 px fast, +12 for three notches). (Over a note value it seemed to do nothing; filmed again it steps
+  the note, see "Ping Pong and Dual" below.)
 - **Link** wheel: both filters by the same share of their range, with the knobs' law, as far as the one nearer its end
   allows (HiPass 154 → 77 Hz and LoPass Off → 10.0 kHz for 50 px fast down; three notches 77 → 103 Hz,
   10.0 → 13.3 kHz; WDelay 13.4).
@@ -810,3 +811,43 @@ toolbar 13.9 → 8.0 levels; the panel's flat parts within 1.6, no colour bias l
   Link wheel's 8 square teeth about (473.2, 218.3), the ring of 19.2 about (473.8, 219.2), the arc's top at y 195).
 - **Not matched**: the text's hinting (the reference's glyphs sit on whole pixels; JUCE draws outlines), the toolbar's
   own content (ours), the knobs' fine texture.
+
+### Ping Pong and Dual (filmed), 2026-10-25
+Captures of the reference with Ping Pong and Dual switched on and off in each Sync mode, the start box and Dual's sides
+clicked, and notes, times and the tempo dragged on the display (`reference/hdelay/ppdual`, git-ignored).
+- **Two independent switches.** Ping Pong and Dual can both be on. Ping Pong's layout then shows, and the Delay knob sets
+  the left side.
+- **Ping Pong's layout** is Dual's left half, the same pixels: the small note and the tempo (Host / BPM) or the left time
+  (MS), with no L / R labels and no divider. On the right is the start box.
+- **The start box** (`tools/fit_hdelay_display.py ppbox`, rms 0.038 of full coverage):
+  - An amber (255, 180, 0) box 391.2 … 412.8 × 95 … 122, leaning 0.04 px right per px up, with corners of 2.1.
+  - The letter is straight strokes that stop short of each other, as on a segment display: a 1.27 px black core in a
+    1.65 px stroke at 0.53.
+  - Unselected, its rim is a black line down the left and rows 0.27 darker above and below.
+  - A click flips the start side and selects the box, drawn as a yellow line round it at half strength.
+- **Dual's sides.**
+  - Clicking the left or right time or note chooses the side the Delay knob sets, and dragging it sets that side's value.
+  - On the right side, a small box follows DELAY under the knob: black, 11 × 10 px at (235, 169), with a half-dark
+    shadow along its left and bottom and the R cut out of it in the panel's colour. It is drawn over the knob's shadow.
+  - The chosen side is kept while Ping Pong is on, then shown again when it goes off.
+  - Switching Dual on starts the right side from the left's time.
+- **Display drags.**
+  - A note steps 1 value per 40 px of drag, as on the knob, in every layout. The second pass had this wrong: the note
+    was not draggable.
+  - In MS, a drag on the right time moves it 1 ms per px.
+  - In BPM, the tempo drags in Dual's and Ping Pong's layouts too: 20 px → 5 to 6 BPM.
+- **Hit areas** are the reference's control rectangles (GUIXML); where two overlap, the first listed takes the point:
+  | Layout | Mode | Area (x, y, w, h) | Sets |
+  |---|---|---|---|
+  | Ping Pong | | (390, 94, 26, 29) | the start box |
+  | Dual, Ping Pong | MS | (293, 100, 66, 22) | the left time |
+  | Dual | MS | (321, 78, 104, 55), the rest of it | the right time |
+  | Dual, Ping Pong | notes | (298, 95, 34, 34) | the left note |
+  | Dual | notes | (392, 95, 34, 34) | the right note |
+  | Dual, Ping Pong | BPM | (338, 94, 42, 21) | the tempo |
+  | Plain | MS | the whole display | the time |
+  | Plain | notes | (300, 80, 45, 49) | the note |
+  | Plain | BPM | the rest of the display | the tempo |
+- **Mean difference** to the reference: the display within 3.8 … 4.7 levels in every layout; the start box 2.2 … 4.2;
+  the R mark 2.5.
+- **Button labels** sit within 0.25 px of the reference's. What is left is its pixel-snapped glyphs.

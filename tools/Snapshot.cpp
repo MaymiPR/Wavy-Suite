@@ -1,4 +1,4 @@
-// Renders any Wavy plugin's editor to a PNG:  <Plugin>Snapshot out.png [paramID=value ...] [--scale=2]  (values in real units)
+// Renders any Wavy plugin's editor to a PNG:  <Plugin>Snapshot out.png [paramID=value ...] [--click=x,y ...] [--scale=2]  (values in real units)
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <iostream>
 
@@ -42,6 +42,27 @@ int main (int argc, char** argv)
             }
         };
         visit (*ed);
+    }
+    // --click=x,y (editor pixels, in order): a mouse click on whatever component is there, for states only a click sets
+    for (int i = 2; i < argc; ++i)
+    {
+        const juce::String a (argv[i]);
+        if (! a.startsWith ("--click=")) continue;
+        const auto xy = juce::StringArray::fromTokens (a.fromFirstOccurrenceOf ("=", false, false), ",", "");
+        const juce::Point<float> pt (xy[0].getFloatValue(), xy[1].getFloatValue());
+        ed->setVisible (true);                        // (off screen; hit-testing skips hidden components)
+        auto* target = ed->getComponentAt (pt.roundToInt());
+        if (target == nullptr) continue;
+        std::cerr << "click " << pt.toString() << " -> " << typeid (*target).name() << " at " << target->getScreenBounds().toString() << "\n";
+        const auto local = target->getLocalPoint (ed, pt);
+        const auto now = juce::Time::getCurrentTime();
+        auto ev = [&] (juce::ModifierKeys mods)
+        {
+            return juce::MouseEvent (juce::Desktop::getInstance().getMainMouseSource(), local, mods, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                     target, target, now, local, now, 1, false);
+        };
+        target->mouseDown (ev (juce::ModifierKeys::leftButtonModifier));
+        target->mouseUp (ev ({}));
     }
     auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, scale);
     juce::File f (juce::File::getCurrentWorkingDirectory().getChildFile (argv[1]));
