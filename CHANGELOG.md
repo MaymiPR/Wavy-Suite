@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **WBass Ride** (Phase 2: the editor; the audio is delayed by the component's latency and passes at the Rider's idle
+- **WBass Rider** (Phase 2: the editor; the audio is delayed by the component's latency and passes at the Rider's idle
   gain plus Output until the riding DSP), a note-by-note bass level rider modelled on Bass Rider: its 320 x 560 editor
   drawn by Wavy (resizable) — the Target slider's glass thumb over the Energy meter, the Detect / Ignore groups with
   the dashed-ring Sensitivity knob, the Response switch, Spill and Artifacts with their tick rings, the Range column
@@ -13,19 +13,19 @@
   the mouse is on it. The parameters, ranges and defaults of the reference's VST3; Mode Stereo / Mono / Live Stereo /
   Live Mono (the reference's four components; 42 / 5 ms latency). The narrow Renaissance toolbar (320 px, no Skins
   box) is new in the shared kit. MeterCapture's script screenshots read OpenGL editors back with `gl=1`.
-- **WBass Ride editor, second pass, against Bass Rider's frames and filmed behaviour**: the caps fitted on the
+- **WBass Rider editor, second pass, against Bass Rider's frames and filmed behaviour**: the caps fitted on the
   reference's 1x frame (outline and lip), the exact scales, the clef and name plate, the leather's scratches, the
   value boxes; text entry by double-click where the reference has it (not on the Rider), Spill's typed positives read
   as negative, out-of-range values ignored; the Idle arrow as its own control (its value box at the left edge, the
   host's text over +-12 dB); the Rider's blue grab and its return to riding on release; hidden cursor during drags;
   the lasso with its yellow / blue group (member drags move nothing, as the reference). Mean difference to the
   reference frame 14.1 -> 8.6 levels.
-- **WBass Ride editor, third pass, and its behaviour with audio**: the knobs' domes and pointers fitted on the
+- **WBass Rider editor, third pass, and its behaviour with audio**: the knobs' domes and pointers fitted on the
   reference's frame and their scales measured tick by tick round the domes' true centres; the Response switch and
   the clip LED as drawn by the reference (the LED latching until clicked); the lit band's warm tone; screws and value
   boxes. Mean difference 8.6 -> 7.6 levels (knobs 17 -> 8, switch 17 -> 3, LED 25 -> 10). The knob cursor over the
   knobs and Output; no hover effects, as the reference. A provisional riding model fitted on films of the reference
-  (`WBassRideProvisional.h`) moves the Rider and the Energy meter as the reference's do (steady tones within 0.1 dB,
+  (`WBassRiderProvisional.h`) moves the Rider and the Energy meter as the reference's do (steady tones within 0.1 dB,
   a bass line within about 1-2 dB), until the DSP of Phase 4. MeterCapture's script mode streams the OpenGL frames
   with an action log and saves the cursor.
 - **WDelay** (Phase 2: the editor; the audio passes through until the DSP), a hybrid delay modelled on H-Delay: the

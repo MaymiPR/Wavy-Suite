@@ -1,19 +1,19 @@
-#include "WBassRideEditor.h"
-#include "WBassRideSkinData.h"
+#include "WBassRiderEditor.h"
+#include "WBassRiderSkinData.h"
 
 using namespace juce;
-using namespace wbassride::ui;
+using namespace wbassrider::ui;
 using wavy::ren::arial;
 
 namespace
 {
-// colours measured on the reference's editor (reference/wbassride, git-ignored)
+// colours measured on the reference's editor (reference/wbassrider, git-ignored)
 const Colour kLabelLight (177, 177, 177), kLabelDim (153, 153, 153), kFrame (104, 104, 104), kLabelDark (38, 36, 30),
     kTick (34, 33, 28), kValueBox (0, 0, 0), kValueText (236, 236, 236), kAmberTop (255, 205, 60), kAmberBottom (231, 150, 0),
     kIdleLine (205, 120, 105), kIdleArrow (36, 52, 84), kMarkSelected (241, 227, 7), kMarkMember (7, 150, 229);
 
-// a fitted cap (WBassRideSkinData.h): grey per row x factor per column, alpha per row x per column
-void drawCap (Graphics& g, const wbassride::skin::Cap& c, float x, float y, int columns = 1 << 20)
+// a fitted cap (WBassRiderSkinData.h): grey per row x factor per column, alpha per row x per column
+void drawCap (Graphics& g, const wbassrider::skin::Cap& c, float x, float y, int columns = 1 << 20)
 {
     for (int r = 0; r < c.h; ++r)
         for (int k = 0; k < jmin (c.w, columns); ++k)
@@ -24,6 +24,20 @@ void drawCap (Graphics& g, const wbassride::skin::Cap& c, float x, float y, int 
             g.setColour (Colour::fromFloatRGBA (v * c.tint[0] / 255.0f, v * c.tint[1] / 255.0f, v * c.tint[2] / 255.0f, jmin (1.0f, a)));
             g.fillRect (x + (float) k, y + (float) r, 1.0f, 1.0f);
         }
+}
+
+// a pixel model rendered once into a 1x image (drawn then as one image: drawn pixel by pixel at a window scale that is
+// not whole, neighbouring pixels would let what is under them show through)
+template <typename Paint>
+const Image& pixelImage (Image& slot, int w, int h, Paint paint)
+{
+    if (! slot.isValid())
+    {
+        slot = Image (Image::ARGB, w, h, true, SoftwareImageType());   // (a native image does not reach every renderer)
+        Graphics gi (slot);
+        paint (gi);
+    }
+    return slot;
 }
 
 // a deterministic grain value in -1 .. 1 for a pixel
@@ -69,7 +83,7 @@ void setMarks (Marks* m, Component* c, bool hover)
 }
 
 //==============================================================================
-void wbassride::ui::drawMark (Graphics& g, Rectangle<float> r, Mark m, bool round)
+void wbassrider::ui::drawMark (Graphics& g, Rectangle<float> r, Mark m, bool round)
 {
     if (m == Mark::None) return;
     g.setColour (m == Mark::Member ? kMarkMember : kMarkSelected);
@@ -140,12 +154,12 @@ void Knob::mouseUp (const MouseEvent& e)
     if (! feel.up (*this, e, getLocalBounds().getCentre().toFloat(), nullptr)) Slider::mouseUp (e);
 }
 
-// the dome as the reference draws it (WBassRideSkinData.h: a grey per radius and two harmonics in angle, fitted on its
+// the dome as the reference draws it (WBassRiderSkinData.h: a grey per radius and two harmonics in angle, fitted on its
 // frame), centred 0.5 px above the control's centre, rendered once per scale; the pointer (measured): a 2 px dark core
 // with soft edges from 2.5 to 17.5 px out, 87 near the centre to 104 at its tip; the selection a yellow ring at the rim
 const Image& Knob::dome (float scale)
 {
-    namespace sk = wbassride::skin;
+    namespace sk = wbassrider::skin;
     if (domeImage.isValid() && std::abs (scale - domeScale) < 1.0e-3f) return domeImage;
     domeScale = scale;
     const int n = roundToInt (44.0f * scale);
@@ -200,17 +214,18 @@ Fader::Fader (Kind k) : kind (k)
 // starts there (measured: the band between them is the range)
 float Fader::yOf (double v) const { return scaleY ((float) v) - (float) getY(); }
 
-// the cap as the reference draws it (WBassRideSkinData.h, fitted on its 1x frame): outline and lip included
-static const wbassride::skin::FrameCap& frameCap (Fader::Kind k)
+// the cap as the reference draws it (WBassRiderSkinData.h, fitted on its 1x frame): outline and lip included
+static const wbassrider::skin::FrameCap& frameCap (Fader::Kind k)
 {
-    namespace sk = wbassride::skin;
+    namespace sk = wbassrider::skin;
     return k == Fader::Rider ? sk::riderFrame : k == Fader::Output ? sk::outputFrame : k == Fader::RangeMax ? sk::rangeMaxFrame : sk::rangeMinFrame;
 }
 
 Rectangle<float> Fader::capBounds() const
 {
     const auto& c = frameCap (kind);
-    return { (float) (c.x0 - getX()), yOf (getValue()) + (float) c.dy, (float) c.w, (float) c.h };
+    // on whole pixels, as the reference draws its caps (a cap between pixels would let the scale show through it)
+    return { (float) (c.x0 - getX()), std::round (yOf (getValue())) + (float) c.dy, (float) c.w, (float) c.h };
 }
 
 bool Fader::hitTest (int x, int y) { return capBounds().expanded (2.0f).contains ((float) x, (float) y); }
@@ -234,7 +249,7 @@ void Fader::mouseUp (const MouseEvent& e)
 
 void Fader::paint (Graphics& g)
 {
-    namespace sk = wbassride::skin;
+    namespace sk = wbassrider::skin;
     const auto cap = capBounds();
     const auto& fc = frameCap (kind);
     // the cast shadow below the cap's lip (the skin's profile, after the rows the frame's cap already holds)
@@ -247,18 +262,23 @@ void Fader::paint (Graphics& g)
         g.fillRect (cap.getX() + 1.0f, cap.getBottom() + (float) (r - skip), cap.getWidth() - 2.0f, 1.0f);
     }
     {
-        Graphics::ScopedSaveState clip (g);
+        Graphics::ScopedSaveState clip (g);                        // the caps' corners are round
         Path round;
         round.addRoundedRectangle (cap, kind == Rider ? 3.5f : 2.5f);
         g.reduceClipRegion (round);
-        for (int r = 0; r < fc.h; ++r)
-            for (int k = 0; k < fc.w; ++k)
-            {
-                const float f = fc.cols[k];
-                g.setColour (Colour ((uint8) jlimit (0.0f, 255.0f, fc.rows[r * 3] * f), (uint8) jlimit (0.0f, 255.0f, fc.rows[r * 3 + 1] * f),
-                                     (uint8) jlimit (0.0f, 255.0f, fc.rows[r * 3 + 2] * f)));
-                g.fillRect (cap.getX() + (float) k, cap.getY() + (float) r, 1.0f, 1.0f);
-            }
+        static Image images[4];
+        g.setOpacity (1.0f);                                           // (drawImageAt takes the colour's alpha)
+    g.drawImageAt (pixelImage (images[(int) kind], fc.w, fc.h, [&fc] (Graphics& gi)
+        {
+            for (int r = 0; r < fc.h; ++r)
+                for (int k = 0; k < fc.w; ++k)
+                {
+                    const float f = fc.cols[k];
+                    gi.setColour (Colour ((uint8) jlimit (0.0f, 255.0f, fc.rows[r * 3] * f), (uint8) jlimit (0.0f, 255.0f, fc.rows[r * 3 + 1] * f),
+                                          (uint8) jlimit (0.0f, 255.0f, fc.rows[r * 3 + 2] * f)));
+                    gi.fillRect (k, r, 1, 1);
+                }
+        }), (int) cap.getX(), (int) cap.getY());
     }
     drawMark (g, cap, marks != nullptr ? marks->of (this) : Mark::None);
 }
@@ -290,32 +310,46 @@ void TargetSlider::paint (Graphics& g)
     // the Energy meter under the thumb: 184 x 15 at 12, 3 (local); -42 .. 0 dBFS from left to right, its track and lit
     // bar fitted on the reference's
     const float lit = jlimit (0.0f, 1.0f, (energyDb + 42.0f) / 42.0f);
-    drawCap (g, wbassride::skin::meterTrack, 12.0f, 3.0f);
-    if (lit > 0.0f) drawCap (g, wbassride::skin::meterLit, 12.0f, 3.0f, roundToInt (184.0f * lit));
-    // the thumb (fitted on the reference's, WBassRideSkinData.h): a 1 px dark frame around a white glass, a red line
-    namespace sk = wbassride::skin;
-    const Rectangle<float> t (thumbX (getValue()), 0.0f, 29.0f, 22.0f);
-    for (int r = 0; r < 2; ++r)
+    static Image track, litBar;
+    g.setOpacity (1.0f);                                           // (drawImageAt takes the colour's alpha)
+    g.drawImageAt (pixelImage (track, 184, 15, [] (Graphics& gi) { drawCap (gi, wbassrider::skin::meterTrack, 0.0f, 0.0f); }), 12, 3);
+    if (lit > 0.0f)
     {
-        g.setColour (Colours::black.withAlpha (sk::thumbShadow[r]));
-        g.fillRect (t.getX() + 3.0f, t.getY() + 19.0f + (float) r, 23.0f, 1.0f);
+        Graphics::ScopedSaveState ss (g);
+        g.reduceClipRegion (12, 3, roundToInt (184.0f * lit), 15);
+        g.setOpacity (1.0f);                                           // (drawImageAt takes the colour's alpha)
+    g.drawImageAt (pixelImage (litBar, 184, 15, [] (Graphics& gi) { drawCap (gi, wbassrider::skin::meterLit, 0.0f, 0.0f); }), 12, 3);
     }
-    g.setColour (Colour::greyLevel (sk::thumbFrame / 255.0f));
-    g.drawRect (t.getX() + 2.0f, t.getY() + 1.0f, 25.0f, 18.0f, 1.0f);
-    for (int r = 0; r < 16; ++r)
-        for (int c = 0; c < 23; ++c)
+    // the thumb (fitted on the reference's, WBassRiderSkinData.h): a 1 px dark frame around a white glass, a red line;
+    // on whole pixels
+    namespace sk = wbassrider::skin;
+    const Rectangle<float> t (std::round (thumbX (getValue())), 0.0f, 29.0f, 22.0f);
+    static Image thumb;
+    g.setOpacity (1.0f);                                           // (drawImageAt takes the colour's alpha)
+    g.drawImageAt (pixelImage (thumb, 29, 22, [] (Graphics& gi)
+    {
+        for (int r = 0; r < 2; ++r)
         {
-            if (c == 11) continue;                                       // the line's column
-            const float al = jlimit (0.0f, 1.0f, sk::thumbGlassAlpha[r] * sk::thumbGlassCol[c]);
-            g.setColour (Colour::greyLevel (sk::thumbGlassGrey[r] / 255.0f).withAlpha (al));
-            g.fillRect (t.getX() + 3.0f + (float) c, t.getY() + 2.0f + (float) r, 1.0f, 1.0f);
+            gi.setColour (Colours::black.withAlpha (sk::thumbShadow[r]));
+            gi.fillRect (3, 19 + r, 23, 1);
         }
-    for (int r = 0; r < 16; ++r)
-    {
-        const float v = sk::thumbLine[r] / 183.0f;
-        g.setColour (Colour::fromFloatRGBA (jmin (1.0f, 0.95f * v + 0.1f), 0.12f * v, 0.12f * v, 1.0f));
-        g.fillRect (t.getX() + 14.0f, t.getY() + 2.0f + (float) r, 1.0f, 1.0f);
-    }
+        gi.setColour (Colour::greyLevel (sk::thumbFrame / 255.0f));
+        gi.drawRect (2, 1, 25, 18, 1);
+        for (int r = 0; r < 16; ++r)
+            for (int c = 0; c < 23; ++c)
+            {
+                if (c == 11) continue;                                   // the line's column
+                const float al = jlimit (0.0f, 1.0f, sk::thumbGlassAlpha[r] * sk::thumbGlassCol[c]);
+                gi.setColour (Colour::greyLevel (sk::thumbGlassGrey[r] / 255.0f).withAlpha (al));
+                gi.fillRect (3 + c, 2 + r, 1, 1);
+            }
+        for (int r = 0; r < 16; ++r)
+        {
+            const float v = sk::thumbLine[r] / 183.0f;
+            gi.setColour (Colour::fromFloatRGBA (jmin (1.0f, 0.95f * v + 0.1f), 0.12f * v, 0.12f * v, 1.0f));
+            gi.fillRect (14, 2 + r, 1, 1);
+        }
+    }), (int) t.getX(), 0);
     drawMark (g, t, marks != nullptr ? marks->of (this) : Mark::None);
 }
 
@@ -323,27 +357,32 @@ void TargetSlider::paint (Graphics& g)
 // the switch (37 x 17): a dark slot, the ridged chrome block on the left (Slow) or the right (Fast)
 void Switch::paintButton (Graphics& g, bool, bool)
 {
-    // as the reference draws it (WBassRideSkinData.h, fitted on its frame): a dark 1 px frame, the slot graded by the
+    // as the reference draws it (WBassRiderSkinData.h, fitted on its frame): a dark 1 px frame, the slot graded by the
     // distance from the block, the ridged block (a rank-2 model) on the left (Slow) or 15 px right (Fast); selected,
     // the frame turns yellow
-    namespace sk = wbassride::skin;
+    namespace sk = wbassrider::skin;
     const bool fast = getToggleState();
-    g.setColour (Colour::greyLevel (sk::switchFrame / 255.0f));
-    g.fillRect (getLocalBounds());
-    for (int k = 0; k < 15; ++k)
+    static Image states[2];
+    g.setOpacity (1.0f);                                           // (drawImageAt takes the colour's alpha)
+    g.drawImageAt (pixelImage (states[fast ? 1 : 0], 37, 17, [fast] (Graphics& gi)
     {
-        const int x = fast ? 15 - k : 21 + k;                              // the slot: k from the block outwards
-        g.setColour (Colour::greyLevel (sk::switchSlot[k] / 255.0f));
-        g.fillRect (x, 1, 1, 15);
-    }
-    const int bx = fast ? 16 : 1;
-    for (int r = 0; r < 15; ++r)
-        for (int c = 0; c < 20; ++c)
+        gi.setColour (Colour::greyLevel (sk::switchFrame / 255.0f));
+        gi.fillRect (0, 0, 37, 17);
+        for (int k = 0; k < 15; ++k)
         {
-            const float v = sk::switchBlockU[r * 2] * sk::switchBlockV[c * 2] + sk::switchBlockU[r * 2 + 1] * sk::switchBlockV[c * 2 + 1];
-            g.setColour (Colour::greyLevel (jlimit (0.0f, 255.0f, v) / 255.0f));
-            g.fillRect (bx + c, 1 + r, 1, 1);
+            const int x = fast ? 15 - k : 21 + k;                          // the slot: k from the block outwards
+            gi.setColour (Colour::greyLevel (sk::switchSlot[k] / 255.0f));
+            gi.fillRect (x, 1, 1, 15);
         }
+        const int bx = fast ? 16 : 1;
+        for (int r = 0; r < 15; ++r)
+            for (int c = 0; c < 20; ++c)
+            {
+                const float v = sk::switchBlockU[r * 2] * sk::switchBlockV[c * 2] + sk::switchBlockU[r * 2 + 1] * sk::switchBlockV[c * 2 + 1];
+                gi.setColour (Colour::greyLevel (jlimit (0.0f, 255.0f, v) / 255.0f));
+                gi.fillRect (bx + c, 1 + r, 1, 1);
+            }
+    }), 0, 0);
     if (marks != nullptr && marks->of (this) != Mark::None)
     {
         g.setColour (kMarkSelected);
@@ -423,9 +462,9 @@ static MouseCursor dragCursor()
 }
 
 //==============================================================================
-WBassRideEditor::WBassRideEditor (WBassRideProcessor& p)
-    : Editor (p, p.apvts, p.undo, p.apvts.getParameter (wbassride::mode), "WBass Ride", JucePlugin_VersionString, W, H,
-              wavy::Toolbar::Style::Renaissance, wbassride::modeNames()),
+WBassRiderEditor::WBassRiderEditor (WBassRiderProcessor& p)
+    : Editor (p, p.apvts, p.undo, p.apvts.getParameter (wbassrider::mode), "WBass Rider", JucePlugin_VersionString, W, H,
+              wavy::Toolbar::Style::Renaissance, wbassrider::modeNames()),
       proc (p),
       sensitivity (make<Knob>()), spill (make<Knob>()), artifacts (make<Knob>()), responseSwitch (make<Switch>()),
       target (make<TargetSlider>()), rangeMax (make<Fader> (Fader::RangeMax)), rangeMin (make<Fader> (Fader::RangeMin)),
@@ -444,14 +483,14 @@ WBassRideEditor::WBassRideEditor (WBassRideProcessor& p)
     responseSwitch.marks = &marks;
 
     // control rectangles from the reference's GUIXML
-    attachSlider (sensitivity, wbassride::sensitivity, { 24, 90, 44, 44 }, 50.0);
-    attachSlider (spill, wbassride::spill, { 178, 90, 44, 44 }, -40.0);
-    attachSlider (artifacts, wbassride::artifacts, { 253, 90, 44, 44 }, 50.0);
-    attach (responseSwitch, wbassride::response, { 104, 106, 37, 17 });
-    attachSlider (target, wbassride::target, { 59, 45, 210, 22 }, -14.0);
-    attachSlider (rangeMax, wbassride::rangeMax, { 36, 190, 48, 270 }, 12.0);
-    attachSlider (rangeMin, wbassride::rangeMin, { 36, 190, 48, 270 }, -12.0);
-    attachSlider (output, wbassride::output, { 235, 190, 48, 270 }, 0.0);
+    attachSlider (sensitivity, wbassrider::sensitivity, { 24, 90, 44, 44 }, 50.0);
+    attachSlider (spill, wbassrider::spill, { 178, 90, 44, 44 }, -40.0);
+    attachSlider (artifacts, wbassrider::artifacts, { 253, 90, 44, 44 }, 50.0);
+    attach (responseSwitch, wbassrider::response, { 104, 106, 37, 17 });
+    attachSlider (target, wbassrider::target, { 59, 45, 210, 22 }, -14.0);
+    attachSlider (rangeMax, wbassrider::rangeMax, { 36, 190, 48, 270 }, 12.0);
+    attachSlider (rangeMin, wbassrider::rangeMin, { 36, 190, 48, 270 }, -12.0);
+    attachSlider (output, wbassrider::output, { 235, 190, 48, 270 }, 0.0);
     // the Rider: not a parameter; it shows the processor's gain and can be held by hand
     rider.setRange (-12.0, 12.0, 0.01);
     addToContent (rider, { 128, 190, 64, 270 });
@@ -472,12 +511,12 @@ WBassRideEditor::WBassRideEditor (WBassRideProcessor& p)
     rangeMin.onValueChange = [this] { if (rangeMax.getValue() < rangeMin.getValue() + 1.0) rangeMax.setValue (rangeMin.getValue() + 1.0, sendNotificationSync); content().repaint(); };
     output.onValueChange = [this] { content().repaint (230, 460, 60, 30); };
     // the Idle arrow
-    auto* idleParam = p.apvts.getParameter (wbassride::idle);
+    auto* idleParam = p.apvts.getParameter (wbassrider::idle);
     idleColumn.marks = &marks;
     idleColumn.idleDb = [this] { return proc.idleDb(); };
     idleColumn.setIdleDb = [this, idleParam] (float db)
     {
-        const float lo = proc.get (wbassride::rangeMin), hi = proc.get (wbassride::rangeMax);
+        const float lo = proc.get (wbassrider::rangeMin), hi = proc.get (wbassrider::rangeMax);
         idleParam->setValueNotifyingHost (idleParam->convertTo0to1 (jlimit (0.02f, 0.98f, (jlimit (lo, hi, db) - lo) / jmax (1.0f, hi - lo))));
         content().repaint();
     };
@@ -488,13 +527,13 @@ WBassRideEditor::WBassRideEditor (WBassRideProcessor& p)
     lasso.setVisible (false);
 }
 
-WBassRideEditor::~WBassRideEditor()
+WBassRiderEditor::~WBassRiderEditor()
 {
     entry.reset();
     for (auto* k : { &sensitivity, &spill, &artifacts }) k->marks = nullptr;
 }
 
-Rectangle<int> WBassRideEditor::entryArea (Slider* sl) const
+Rectangle<int> WBassRiderEditor::entryArea (Slider* sl) const
 {
     if (sl == &sensitivity) return { 27, 157, 37, 13 };
     if (sl == &spill) return { 181, 157, 37, 13 };
@@ -510,7 +549,7 @@ Rectangle<int> WBassRideEditor::entryArea (Slider* sl) const
     return {};
 }
 
-void WBassRideEditor::openEntry (Slider* sl)
+void WBassRiderEditor::openEntry (Slider* sl)
 {
     const auto area = entryArea (sl);
     if (area.isEmpty()) return;
@@ -534,7 +573,7 @@ void WBassRideEditor::openEntry (Slider* sl)
     entry->grabKeyboardFocus();                                    // only while typing: the host keeps it otherwise
 }
 
-void WBassRideEditor::closeEntry (bool apply)
+void WBassRiderEditor::closeEntry (bool apply)
 {
     if (entry == nullptr) return;
     auto e = std::move (entry);                                    // (losing the focus calls back here)
@@ -562,7 +601,7 @@ void WBassRideEditor::closeEntry (bool apply)
 // the lasso (measured on the reference: a 1 px white rectangle while dragging on the background; the controls it
 // touches, in the reference's control order: Spill, Rider, Range Max, Range Min, Output, Sensitivity, Target, Idle,
 // Response, Artifacts)
-void WBassRideEditor::contentMouseDown (const MouseEvent& e)
+void WBassRiderEditor::contentMouseDown (const MouseEvent& e)
 {
     if (Rectangle<float> (279.0f, 183.0f, 17.0f, 15.0f).contains (e.position))   // the clip LED: a click clears it
     {
@@ -577,7 +616,7 @@ void WBassRideEditor::contentMouseDown (const MouseEvent& e)
     if (marks.changed) marks.changed();
 }
 
-void WBassRideEditor::contentMouseDrag (const MouseEvent& e)
+void WBassRiderEditor::contentMouseDrag (const MouseEvent& e)
 {
     if (! lassoing) return;
     const auto r = Rectangle<float> (lassoStart, e.position);
@@ -599,7 +638,7 @@ void WBassRideEditor::contentMouseDrag (const MouseEvent& e)
     if (marks.changed) marks.changed();
 }
 
-void WBassRideEditor::contentMouseUp (const MouseEvent&)
+void WBassRiderEditor::contentMouseUp (const MouseEvent&)
 {
     lassoing = false;
     lasso.setVisible (false);
@@ -607,7 +646,7 @@ void WBassRideEditor::contentMouseUp (const MouseEvent&)
     if (marks.changed) marks.changed();
 }
 
-void WBassRideEditor::tick()
+void WBassRiderEditor::tick()
 {
     const double now = Time::getMillisecondCounterHiRes() * 0.001, dt = lastTick > 0.0 ? now - lastTick : 0.0;
     lastTick = now;
@@ -632,7 +671,7 @@ void WBassRideEditor::tick()
 
 //==============================================================================
 // the static art, in design coordinates
-void WBassRideEditor::paintStatic (Graphics& g) const
+void WBassRiderEditor::paintStatic (Graphics& g) const
 {
     // the plug-in's name plate (measured): fine light scratches on the leather, a bass clef (a ball at 20, 529, the
     // stroke thick on its right, a thin tail down to 19, 545, two dots at x 34.5), the name in a bold serif, 12 px
@@ -666,7 +705,7 @@ void WBassRideEditor::paintStatic (Graphics& g) const
         g.fillPath (clef);
 
         GlyphArrangement ga;
-        ga.addLineOfText (Font (FontOptions ("Georgia", 20.0f, Font::bold)), "WBass Ride", 0.0f, 0.0f);
+        ga.addLineOfText (Font (FontOptions ("Georgia", 20.0f, Font::bold)), "WBass Rider", 0.0f, 0.0f);
         Path text;
         ga.createPath (text);
         const auto tb = text.getBounds();
@@ -829,9 +868,9 @@ void WBassRideEditor::paintStatic (Graphics& g) const
     }
 }
 
-void WBassRideEditor::paintContent (Graphics& g)
+void WBassRiderEditor::paintContent (Graphics& g)
 {
-    namespace sk = wbassride::skin;
+    namespace sk = wbassrider::skin;
     // the static art, rendered once per window scale (the panels from their fitted models, pixel by pixel, then the art)
     const float s = (float) getWidth() / (float) W;
     if (background.isNull() || std::abs (s - backgroundScale) > 1.0e-3f)
@@ -884,7 +923,7 @@ void WBassRideEditor::paintContent (Graphics& g)
     }
 
     // the Range band: the space between Min and Max, lit, up to the Rider's scale; the Idle line across it
-    const float lo = proc.get (wbassride::rangeMin), hi = proc.get (wbassride::rangeMax);
+    const float lo = proc.get (wbassrider::rangeMin), hi = proc.get (wbassrider::rangeMax);
     g.setColour (Colour (255, 253, 209).withAlpha (0.21f));      // a warm light (measured on the band against plain cream)
     g.fillRect (Rectangle<float>::leftTopRightBottom (72.0f, scaleY (hi), 149.0f, scaleY (lo)));
     g.setColour (kIdleLine.withAlpha (0.8f));
@@ -894,29 +933,35 @@ void WBassRideEditor::paintContent (Graphics& g)
     // the clip LED (measured on the frames): a dark frame x 280 .. 294, y 186 .. 195, the inside by row, off or lit; lit,
     // a red glow beside and below it. It stays lit until it is clicked (as the reference's)
     {
-        namespace sk = wbassride::skin;
-        g.setColour (Colour::greyLevel (sk::ledFrame / 255.0f));
-        g.fillRect (280, 186, 15, 10);
-        const float* rows = clip ? sk::ledOnRows : sk::ledOffRows;
-        for (int r = 0; r < 8; ++r)
+        namespace sk = wbassrider::skin;
+        static Image states[2];
+        const bool on = clip;
+        g.setOpacity (1.0f);                                           // (drawImageAt takes the colour's alpha)
+    g.drawImageAt (pixelImage (states[on ? 1 : 0], 17, 11, [on] (Graphics& gi)
         {
-            const Colour c ((uint8) rows[r * 3], (uint8) rows[r * 3 + 1], (uint8) rows[r * 3 + 2]);
-            g.setColour (c.darker (0.06f));
-            g.fillRect (281, 187 + r, 13, 1);
-            g.setColour (c);
-            g.fillRect (282, 187 + r, 11, 1);
-        }
-        if (clip)
-        {
-            for (int r = 0; r < 6; ++r)
+            gi.setColour (Colour::greyLevel (sk::ledFrame / 255.0f));
+            gi.fillRect (1, 0, 15, 10);
+            const float* rows = on ? sk::ledOnRows : sk::ledOffRows;
+            for (int r = 0; r < 8; ++r)
             {
-                g.setColour (Colour ((uint8) sk::ledGlowSide[r * 3], (uint8) sk::ledGlowSide[r * 3 + 1], (uint8) sk::ledGlowSide[r * 3 + 2]));
-                g.fillRect (279, 190 + r, 1, 1);
-                g.fillRect (295, 190 + r, 1, 1);
+                const Colour c ((uint8) rows[r * 3], (uint8) rows[r * 3 + 1], (uint8) rows[r * 3 + 2]);
+                gi.setColour (c.darker (0.06f));
+                gi.fillRect (2, 1 + r, 13, 1);
+                gi.setColour (c);
+                gi.fillRect (3, 1 + r, 11, 1);
             }
-            g.setColour (Colour ((uint8) sk::ledGlowBelow[0], (uint8) sk::ledGlowBelow[1], (uint8) sk::ledGlowBelow[2]));
-            g.fillRect (281, 196, 13, 1);
-        }
+            if (on)
+            {
+                for (int r = 0; r < 6; ++r)
+                {
+                    gi.setColour (Colour ((uint8) sk::ledGlowSide[r * 3], (uint8) sk::ledGlowSide[r * 3 + 1], (uint8) sk::ledGlowSide[r * 3 + 2]));
+                    gi.fillRect (0, 4 + r, 1, 1);
+                    gi.fillRect (16, 4 + r, 1, 1);
+                }
+                gi.setColour (Colour ((uint8) sk::ledGlowBelow[0], (uint8) sk::ledGlowBelow[1], (uint8) sk::ledGlowBelow[2]));
+                gi.fillRect (2, 10, 13, 1);
+            }
+        }), 279, 186);
     }
 
     // value boxes
@@ -938,7 +983,7 @@ void WBassRideEditor::paintContent (Graphics& g)
         if (k->showing()) hoverBox (g, { x, 157.0f, 37.0f, 13.0f }, String (k->getValue(), 1));
 
     // the Live components' badge
-    if (wbassride::isLive (proc.modeIndex()))
+    if (wbassrider::isLive (proc.modeIndex()))
     {
         const Rectangle<float> b (246.0f, 520.0f, 65.0f, 30.0f);
         g.setColour (Colour (24, 24, 24));

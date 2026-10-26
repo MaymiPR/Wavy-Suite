@@ -1,4 +1,4 @@
-"""Reads a MeterCapture gl=1 film of Bass Rider (or WBass Ride's screen grab) into per-frame readings: the audio
+"""Reads a MeterCapture gl=1 film of Bass Rider (or WBass Rider's screen grab) into per-frame readings: the audio
 time, the Energy meter's lit length (px of the 184 px bar, and the dB it shows on its -42 .. 0 scale), the Rider
 cap's position (dB on the fader's scale, by matching its default frame), the clip LED, and the plug-in's own gain
 over the same moment (output / input rms of the recorded audio, the 42 ms latency removed).
@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REF = os.path.join(HERE, '..', 'reference', 'wbassride', 'shot_default_start.png')
+REF = os.path.join(HERE, '..', 'reference', 'wbassrider', 'shot_default_start.png')
 
 
 def frames(path, grab):

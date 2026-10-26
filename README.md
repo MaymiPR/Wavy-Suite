@@ -34,7 +34,7 @@ The installers are not code-signed or notarized; see [packaging/](packaging) for
 | **WBassX** | psychoacoustic bass enhancer with harmonics compressor, filters and monitor modes | ready for the next release: close, not a null (median −48.5 dB, see below) |
 | **WComp** | hybrid compressor with punch, tempo-synced release, analog modes and limiter | ready for the next release: close, not a null on every material (median −47.0 dB, see below) |
 | **WDelay** | hybrid delay with tape-style time changes, ping-pong, modulation, filters, LoFi and analog modes | ready for the next release: nulls on the delay path (−84 … −104 dB), close with modulation and Analog (see below) |
-| **WBass Ride** | note-by-note bass level rider with target, note detection, range and idle controls | in development: the editor (Phase 2) |
+| **WBass Rider** | note-by-note bass level rider with target, note detection, range and idle controls | in development: the editor (Phase 2) |
 | WVox Ride, WVox Chain, WVox Bend | | planned, one at a time |
 
 ### WDelay null test (honest numbers)

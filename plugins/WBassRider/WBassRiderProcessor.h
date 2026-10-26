@@ -4,12 +4,12 @@
 #include <vector>
 #include "WavyMeter.h"
 #include "WavyPresets.h"
-#include "WBassRideProvisional.h"
+#include "WBassRiderProvisional.h"
 
 // Parameters follow the reference's (Bass Rider's VST3 parameters and ParamXML ranges, defaults and resolutions; see
-// RESEARCH.md, WBass Ride). Phase 2: the audio is delayed by the component's latency and ridden by a provisional model
-// fitted on films of the reference's editor (WBassRideProvisional.h), until the riding DSP (Phase 4).
-namespace wbassride
+// RESEARCH.md, WBass Rider). Phase 2: the audio is delayed by the component's latency and ridden by a provisional model
+// fitted on films of the reference's editor (WBassRiderProvisional.h), until the riding DSP (Phase 4).
+namespace wbassrider
 {
 inline constexpr const char* target = "target";            // -42 .. 0 dB, default -14 (the Target slider)
 inline constexpr const char* sensitivity = "sensitivity";  // 0 .. 100, default 50 (note detection)
@@ -29,10 +29,10 @@ inline double latencyMs (int modeIndex) { return isLive (modeIndex) ? 5.0 : 42.0
 inline float idleDb (float fraction, float lo, float hi) { return lo + fraction * (hi - lo); }
 }
 
-class WBassRideProcessor : public juce::AudioProcessor
+class WBassRiderProcessor : public juce::AudioProcessor
 {
 public:
-    WBassRideProcessor();
+    WBassRiderProcessor();
 
     void prepareToPlay (double, int) override;
     void releaseResources() override {}
@@ -41,7 +41,7 @@ public:
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
-    const juce::String getName() const override { return "WBass Ride"; }
+    const juce::String getName() const override { return "WBass Rider"; }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
@@ -65,8 +65,8 @@ public:
     std::atomic<float> userRideDb { 0.0f };
 
     float get (const char* id) const { return apvts.getRawParameterValue (id)->load(); }
-    int modeIndex() const { return juce::roundToInt (get (wbassride::mode)); }
-    float idleDb() const { return wbassride::idleDb (get (wbassride::idle), get (wbassride::rangeMin), get (wbassride::rangeMax)); }
+    int modeIndex() const { return juce::roundToInt (get (wbassrider::mode)); }
+    float idleDb() const { return wbassrider::idleDb (get (wbassrider::idle), get (wbassrider::rangeMin), get (wbassrider::rangeMax)); }
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout layout();
@@ -74,6 +74,6 @@ private:
     double sr = 48000.0;
     int delaySamples = 0, writePos = 0, configuredMode = -1;
     std::vector<std::vector<float>> line;
-    wbassride::ProvisionalRide ride;
+    wbassrider::ProvisionalRide ride;
     float gainNow = 1.0f, gainTo = 1.0f, gainStep = 0.0f;
 };

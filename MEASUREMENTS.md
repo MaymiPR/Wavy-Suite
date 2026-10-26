@@ -1034,9 +1034,9 @@ host (`nulltest/nulltest_wdelay.py`).
   - In the null suite: Analog 1 −53 … −56 dB, 2 −51 … −55, 3 −40 … −42 (the noise included), 4 −83 … −90.
 - **CPU:** about 1.6 % of one core for stereo at 48 kHz (`WDelayRender`, Feedback 60, Analog 2).
 
-## WBass Ride: the reference editor (Phase 2), 2026-10-25
+## WBass Rider: the reference editor (Phase 2), 2026-10-25
 Bass Rider's editor read back from its OpenGL frames (`tools/MeterCapture gl=1`; with `drag=...,hover|click` scripts the
-screenshots now come from the same read-back), its skin in the git-ignored `reference/wbassride/`.
+screenshots now come from the same read-back), its skin in the git-ignored `reference/wbassrider/`.
 - **Layout**: 320 x 560 including the two-row toolbar (36 px). The top panel (y 36 .. 162, x 6 .. 313) and the cream
   panel (y 162 .. 510, a trapezoid: x 5 .. 314 at its top, 0 .. 318 at its foot) carry a gentle shading and grain
   (rms about 3 and 2 levels), fitted as a colour per row times a factor per column after removing the lines and wells.
@@ -1094,8 +1094,8 @@ screenshots now come from the same read-back), its skin in the git-ignored `refe
   - the Energy meter reads a steady 80 Hz sine 1.9 dB under its rms (-20 -> -21.9), low notes lower (45 Hz about
     -6 dB, a high-pass weighting), rises at once and falls 37 dB per second at most;
   - the clip LED latches at the first clip and stays lit until clicked;
-  - a provisional model of all this (`plugins/WBassRide/WBassRideProvisional.h`, fitted by
-    `nulltest/ride_provisional.py`) drives WBass Ride's editor until the DSP is identified: filmed in a host the same
+  - a provisional model of all this (`plugins/WBassRider/WBassRiderProvisional.h`, fitted by
+    `nulltest/ride_provisional.py`) drives WBass Rider's editor until the DSP is identified: filmed in a host the same
     way, its meter is within 0.0 dB (median) of the reference's on steady tones and 1.1 dB on the bass line, its Rider
     within 0.1 / 1.8 dB.
 

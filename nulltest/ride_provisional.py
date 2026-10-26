@@ -1,7 +1,7 @@
-"""A provisional riding model for WBass Ride's editor (Phase 2), fitted on films of the reference (MeterCapture gl=1
+"""A provisional riding model for WBass Rider's editor (Phase 2), fitted on films of the reference (MeterCapture gl=1
 with steady tones and a bass line; nulltest/read_br_film.py): what the Energy meter shows and where the Rider sits,
 frame by frame. Not the reference's DSP (Phase 3 / 4 identify that); only what the editor shows, close enough that
-WBass Ride responds to audio as Bass Rider does.
+WBass Rider responds to audio as Bass Rider does.
 
 Model (per sample, 48 kHz):
   w      = first-order high-pass (fc) of the input (the energy weighting)
@@ -20,7 +20,7 @@ import numpy as np
 from scipy import signal, optimize
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REF = os.path.join(HERE, '..', 'reference', 'wbassride')
+REF = os.path.join(HERE, '..', 'reference', 'wbassrider')
 FS = 48000.0
 P0 = dict(fc=115.0, relF=0.060, attS=0.030, relS=1.0, off=3.0, onDb=6.0, settle=0.10, offDb=24.0, holdMs=60.0, tau=0.040,
           fallDb=43.0, gate=-40.0)

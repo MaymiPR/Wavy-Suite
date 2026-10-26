@@ -1,9 +1,9 @@
-#include "WBassRideProcessor.h"
-#include "WBassRideEditor.h"
+#include "WBassRiderProcessor.h"
+#include "WBassRiderEditor.h"
 
 using namespace juce;
 
-AudioProcessorValueTreeState::ParameterLayout WBassRideProcessor::layout()
+AudioProcessorValueTreeState::ParameterLayout WBassRiderProcessor::layout()
 {
     AudioProcessorValueTreeState::ParameterLayout l;
     auto addF = [&] (const char* id, const char* name, NormalisableRange<float> r, float def, std::function<String (float)> text)
@@ -13,62 +13,62 @@ AudioProcessorValueTreeState::ParameterLayout WBassRideProcessor::layout()
     };
     auto db1 = [] (float v) { return String (v, 1) + " dB"; };
     auto plain1 = [] (float v) { return String (v, 1); };
-    addF (wbassride::target, "Target", { -42.0f, 0.0f, 0.1f }, -14.0f, db1);
-    addF (wbassride::sensitivity, "Sensitivity", { 0.0f, 100.0f, 0.1f }, 50.0f, plain1);
-    l.add (std::make_unique<AudioParameterChoice> (ParameterID { wbassride::response, 1 }, "Response", StringArray { "Slow", "Fast" }, 0));
-    addF (wbassride::spill, "Spill", { -50.0f, -3.0f, 0.1f }, -40.0f, db1);
-    addF (wbassride::artifacts, "Artifacts", { 0.0f, 100.0f, 0.1f }, 50.0f, plain1);
-    addF (wbassride::rangeMax, "Range Max", { -11.0f, 12.0f, 0.1f }, 12.0f, db1);
-    addF (wbassride::rangeMin, "Range Min", { -12.0f, 11.0f, 0.1f }, -12.0f, db1);
+    addF (wbassrider::target, "Target", { -42.0f, 0.0f, 0.1f }, -14.0f, db1);
+    addF (wbassrider::sensitivity, "Sensitivity", { 0.0f, 100.0f, 0.1f }, 50.0f, plain1);
+    l.add (std::make_unique<AudioParameterChoice> (ParameterID { wbassrider::response, 1 }, "Response", StringArray { "Slow", "Fast" }, 0));
+    addF (wbassrider::spill, "Spill", { -50.0f, -3.0f, 0.1f }, -40.0f, db1);
+    addF (wbassrider::artifacts, "Artifacts", { 0.0f, 100.0f, 0.1f }, 50.0f, plain1);
+    addF (wbassrider::rangeMax, "Range Max", { -11.0f, 12.0f, 0.1f }, 12.0f, db1);
+    addF (wbassrider::rangeMin, "Range Min", { -12.0f, 11.0f, 0.1f }, -12.0f, db1);
     // the Idle arrow is stored as its place in the range (as the reference's preset arrays); the host sees it in dB
     // over a fixed +-12 dB (as the reference's: its text stays 0.0 at 0.5 whatever the range)
-    addF (wbassride::idle, "Idle", { 0.02f, 0.98f, 0.01f }, 0.5f, [] (float v) { return String (wbassride::idleDb (v, -12.0f, 12.0f), 1); });
-    addF (wbassride::output, "Output", { -12.0f, 12.0f, 0.1f }, 0.0f, db1);
-    l.add (std::make_unique<AudioParameterChoice> (ParameterID { wbassride::mode, 1 }, "Mode", wbassride::modeNames(), 0));
+    addF (wbassrider::idle, "Idle", { 0.02f, 0.98f, 0.01f }, 0.5f, [] (float v) { return String (wbassrider::idleDb (v, -12.0f, 12.0f), 1); });
+    addF (wbassrider::output, "Output", { -12.0f, 12.0f, 0.1f }, 0.0f, db1);
+    l.add (std::make_unique<AudioParameterChoice> (ParameterID { wbassrider::mode, 1 }, "Mode", wbassrider::modeNames(), 0));
     return l;
 }
 
-WBassRideProcessor::WBassRideProcessor()
+WBassRiderProcessor::WBassRiderProcessor()
     : AudioProcessor (BusesProperties().withInput ("Input", AudioChannelSet::stereo(), true)
                                        .withOutput ("Output", AudioChannelSet::stereo(), true)),
-      apvts (*this, &undo, "WBassRide", layout())
+      apvts (*this, &undo, "WBassRider", layout())
 {
-    setLatencySamples (roundToInt (wbassride::latencyMs (0) * 0.001 * sr));
+    setLatencySamples (roundToInt (wbassrider::latencyMs (0) * 0.001 * sr));
 }
 
-bool WBassRideProcessor::isBusesLayoutSupported (const BusesLayout& l) const
+bool WBassRiderProcessor::isBusesLayoutSupported (const BusesLayout& l) const
 {
     const auto in = l.getMainInputChannelSet(), out = l.getMainOutputChannelSet();
     return in == out && (in == AudioChannelSet::mono() || in == AudioChannelSet::stereo());
 }
 
-void WBassRideProcessor::prepareToPlay (double sampleRate, int)
+void WBassRiderProcessor::prepareToPlay (double sampleRate, int)
 {
     sr = sampleRate;
     configuredMode = -1;
     configure();
 }
 
-void WBassRideProcessor::configure()
+void WBassRiderProcessor::configure()
 {
     configuredMode = modeIndex();
-    delaySamples = roundToInt (wbassride::latencyMs (configuredMode) * 0.001 * sr);
+    delaySamples = roundToInt (wbassrider::latencyMs (configuredMode) * 0.001 * sr);
     line.assign ((size_t) jmax (1, getMainBusNumInputChannels()), std::vector<float> ((size_t) delaySamples + 1, 0.0f));
     writePos = 0;
     ride.prepare (sr);
     setLatencySamples (delaySamples);
 }
 
-void WBassRideProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
+void WBassRiderProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
 {
     ScopedNoDenormals nd;
     if (modeIndex() != configuredMode || (int) line.size() < b.getNumChannels()) configure();
     const int n = b.getNumSamples(), ch = jmin (b.getNumChannels(), (int) line.size());
-    const double target = get (wbassride::target), lo = get (wbassride::rangeMin), hi = get (wbassride::rangeMax);
-    const double idle = idleDb(), gate = get (wbassride::spill), outDb = get (wbassride::output);
+    const double target = get (wbassrider::target), lo = get (wbassrider::rangeMin), hi = get (wbassrider::rangeMax);
+    const double idle = idleDb(), gate = get (wbassrider::spill), outDb = get (wbassrider::output);
     const bool held = userRide.load();
 
-    // the provisional riding model (WBassRideProvisional.h) listens to the input as it comes in; its gain is applied
+    // the provisional riding model (WBassRiderProvisional.h) listens to the input as it comes in; its gain is applied
     // to the audio the component's latency later, so a note's gain is in place when the note is heard (as the
     // reference's look-ahead)
     const int len = delaySamples + 1;
@@ -104,17 +104,17 @@ void WBassRideProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
     this->outDb.push (pk > 1.0e-5f ? Decibels::gainToDecibels (pk) : -100.0f);
 }
 
-AudioProcessorEditor* WBassRideProcessor::createEditor() { return new WBassRideEditor (*this); }
+AudioProcessorEditor* WBassRiderProcessor::createEditor() { return new WBassRiderEditor (*this); }
 
-void WBassRideProcessor::getStateInformation (MemoryBlock& d)
+void WBassRiderProcessor::getStateInformation (MemoryBlock& d)
 {
     if (auto xml = apvts.copyState().createXml()) copyXmlToBinary (*xml, d);
 }
 
-void WBassRideProcessor::setStateInformation (const void* data, int size)
+void WBassRiderProcessor::setStateInformation (const void* data, int size)
 {
     if (auto xml = getXmlFromBinary (data, size))
         if (xml->hasTagName (apvts.state.getType())) apvts.replaceState (ValueTree::fromXml (*xml));
 }
 
-AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new WBassRideProcessor(); }
+AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new WBassRiderProcessor(); }

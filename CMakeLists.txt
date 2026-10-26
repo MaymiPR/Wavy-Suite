@@ -84,7 +84,7 @@ add_subdirectory(plugins/WBass)
 add_subdirectory(plugins/WBassX)
 add_subdirectory(plugins/WComp)
 add_subdirectory(plugins/WDelay)
-add_subdirectory(plugins/WBassRide)
+add_subdirectory(plugins/WBassRider)
 
 # Offline renderer of the WVox DSP (null test, tuning). No JUCE needed.
 add_executable(WVoxRender tools/WVoxRender.cpp)

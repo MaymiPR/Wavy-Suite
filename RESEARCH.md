@@ -26,7 +26,7 @@ Sources
 | MaxxBass | **WBassX** (renamed 2026-10-18: the first name held the whole product mark) | WBassX |
 | H-Comp | **WComp** | WComp |
 | H-Delay | **WDelay** | WDelay |
-| Bass Rider | **WBass Ride** | WBassRide |
+| Bass Rider | **WBass Rider** | WBassRider |
 | Vocal Rider | **WVox Ride** | WVoxRide |
 | CLA Vocals | **WVox Chain** | WVoxChain |
 | Vocal Bender | **WVox Bend** | WVoxBend |
@@ -485,7 +485,7 @@ name).
   vertical bar meter with its scale, the Link wheel, the delay display's layouts (note / BPM, ms, Ping Pong, Dual)
   and the stepped note scale on the Delay knob.
 
-## 6. WBass Ride (Bass Rider)
+## 6. WBass Rider (Bass Rider)
 
 ### Sources
 - **B1** Local manual `Bass Rider.bundle\Contents\Resources\Bass Rider.pdf` (10 pages, Bass Rider User Guide; the copy
@@ -493,12 +493,12 @@ name).
 - **B2** Local `ParamXML\1000.xml` (47 parameters; `nulltest/paramxml_table.py`), `GUIXML\1000.xml`,
   `ToolbarXML\1001.xml`, `AlgXML\1001.xml` (algorithm `BLVR`: components `BSLS` / `BSLM` Bass Rider Stereo / Mono,
   `BSVS` / `BSVM` Bass Rider Live Stereo / Mono), `ProcessXML\1000.xml` / `1001.xml` (no side-chain inputs, up to
-  192 kHz), presets in `Presets\1000.xml` (17), skins in `Webp.zip` (2x images, git-ignored `reference/wbassride/`).
+  192 kHz), presets in `Presets\1000.xml` (17), skins in `Webp.zip` (2x images, git-ignored `reference/wbassrider/`).
 - **B3** The installed VST3 (`WaveShell1-VST3 17.1`) as seen by a host (`nulltest/probe_bassrider.py`): components
   *Bass Rider Mono* (uid −1142096219), *Bass Rider Stereo* (−1140620123), *Bass Rider Live Mono* (−512295259),
   *Bass Rider Live Stereo* (−510819163); no side-chain bus.
 - **B4** Frames of the real editor read back from its OpenGL drawing (`tools/MeterCapture gl=1`, 320 × 560,
-  git-ignored `reference/wbassride/`).
+  git-ignored `reference/wbassrider/`).
 
 ### Documented behaviour (B1)
 - Rides bass levels automatically, **note by note**: it detects each note's attack, sustain and release and sets a
@@ -573,7 +573,7 @@ hidden value.
 
 ### GUI geometry (B2, B4)
 View **320 × 560 px** including the two-row Renaissance toolbar (RVox's ToolbarXML, its preset row 316 px wide
-instead of 367). The panel (B4, `reference/wbassride/shot_default_running.png`):
+instead of 367). The panel (B4, `reference/wbassrider/shot_default_running.png`):
 - Dark top panel: **Target** slider 59, 45, 210 × 22 over the **Energy** meter 71, 48, 184 × 15; "Detect" group:
   **Sensitivity** knob 24, 90, 44 × 44 (a dashed ring scale), **Response** Slow / Fast toggle 104, 106, 37 × 17;
   "Ignore" group: **Spill** 178, 90 and **Artifacts** 253, 90 (44 × 44, 71-frame knob strips).

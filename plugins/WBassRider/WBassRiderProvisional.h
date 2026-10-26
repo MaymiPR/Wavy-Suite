@@ -14,7 +14,7 @@
 //   a note begins above the gate when fast rises onDb over slow (or from rest); for its first `settle` the gain
 //   follows target - max (slow energy, energy - 12 dB), then it holds; it ends when fast falls offDb under the note's
 //   peak or under the gate, and after holdMs the gain glides back to the Idle value (tau)
-namespace wbassride
+namespace wbassrider
 {
 struct ProvisionalRide
 {

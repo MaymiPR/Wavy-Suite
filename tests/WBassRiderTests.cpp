@@ -1,45 +1,45 @@
-// Unit tests for WBass Ride (Phase 2): the parameters as the reference's, the components' latency, the audio path
+// Unit tests for WBass Rider (Phase 2): the parameters as the reference's, the components' latency, the audio path
 // until the riding DSP, the state, the editor.
-// Run: WBassRideTests (exit code 0 = all passed).
+// Run: WBassRiderTests (exit code 0 = all passed).
 #include <cmath>
 #include <cstdio>
 #include <juce_audio_processors/juce_audio_processors.h>
-#include "WBassRideProcessor.h"
-#include "WBassRideEditor.h"
+#include "WBassRiderProcessor.h"
+#include "WBassRiderEditor.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond) do { ++checks; if (! (cond)) { ++failures; std::printf ("FAIL %s:%d  %s\n", __FILE__, __LINE__, #cond); } } while (0)
 #define CHECK_NEAR(a, b, tol) do { ++checks; const double va = (a), vb = (b); if (! (std::fabs (va - vb) <= (tol))) { ++failures; std::printf ("FAIL %s:%d  %s = %g, expected %g +- %g\n", __FILE__, __LINE__, #a, va, vb, (double) (tol)); } } while (0)
 
-// the defaults, ranges and texts of the reference's VST3 parameters (RESEARCH.md, WBass Ride)
+// the defaults, ranges and texts of the reference's VST3 parameters (RESEARCH.md, WBass Rider)
 static void testParameters()
 {
-    WBassRideProcessor p;
+    WBassRiderProcessor p;
     auto v = [&p] (const char* id) { return p.apvts.getRawParameterValue (id)->load(); };
     auto range = [&p] (const char* id) { return p.apvts.getParameter (id)->getNormalisableRange(); };
-    CHECK_NEAR (v (wbassride::target), -14.0, 1e-6);
-    CHECK_NEAR (v (wbassride::sensitivity), 50.0, 1e-6);
-    CHECK_NEAR (v (wbassride::response), 0.0, 1e-6);
-    CHECK_NEAR (v (wbassride::spill), -40.0, 1e-6);
-    CHECK_NEAR (v (wbassride::artifacts), 50.0, 1e-6);
-    CHECK_NEAR (v (wbassride::rangeMax), 12.0, 1e-6);
-    CHECK_NEAR (v (wbassride::rangeMin), -12.0, 1e-6);
-    CHECK_NEAR (v (wbassride::idle), 0.5, 1e-6);
-    CHECK_NEAR (v (wbassride::output), 0.0, 1e-6);
-    CHECK_NEAR (range (wbassride::target).start, -42.0, 1e-6);
-    CHECK_NEAR (range (wbassride::target).end, 0.0, 1e-6);
-    CHECK_NEAR (range (wbassride::spill).start, -50.0, 1e-6);
-    CHECK_NEAR (range (wbassride::spill).end, -3.0, 1e-6);
-    CHECK_NEAR (range (wbassride::rangeMax).start, -11.0, 1e-6);
-    CHECK_NEAR (range (wbassride::rangeMin).end, 11.0, 1e-6);
-    CHECK_NEAR (range (wbassride::idle).start, 0.02, 1e-6);
-    CHECK_NEAR (range (wbassride::idle).end, 0.98, 1e-6);
+    CHECK_NEAR (v (wbassrider::target), -14.0, 1e-6);
+    CHECK_NEAR (v (wbassrider::sensitivity), 50.0, 1e-6);
+    CHECK_NEAR (v (wbassrider::response), 0.0, 1e-6);
+    CHECK_NEAR (v (wbassrider::spill), -40.0, 1e-6);
+    CHECK_NEAR (v (wbassrider::artifacts), 50.0, 1e-6);
+    CHECK_NEAR (v (wbassrider::rangeMax), 12.0, 1e-6);
+    CHECK_NEAR (v (wbassrider::rangeMin), -12.0, 1e-6);
+    CHECK_NEAR (v (wbassrider::idle), 0.5, 1e-6);
+    CHECK_NEAR (v (wbassrider::output), 0.0, 1e-6);
+    CHECK_NEAR (range (wbassrider::target).start, -42.0, 1e-6);
+    CHECK_NEAR (range (wbassrider::target).end, 0.0, 1e-6);
+    CHECK_NEAR (range (wbassrider::spill).start, -50.0, 1e-6);
+    CHECK_NEAR (range (wbassrider::spill).end, -3.0, 1e-6);
+    CHECK_NEAR (range (wbassrider::rangeMax).start, -11.0, 1e-6);
+    CHECK_NEAR (range (wbassrider::rangeMin).end, 11.0, 1e-6);
+    CHECK_NEAR (range (wbassrider::idle).start, 0.02, 1e-6);
+    CHECK_NEAR (range (wbassrider::idle).end, 0.98, 1e-6);
     // the Idle arrow in dB: its place in the range (a preset with Idle 0.98 and Max 0 sits at -0.24 dB)
-    CHECK_NEAR (wbassride::idleDb (0.5f, -12.0f, 12.0f), 0.0, 1e-6);
-    CHECK_NEAR (wbassride::idleDb (0.98f, -12.0f, 0.0f), -0.24, 1e-5);
-    CHECK (p.apvts.getParameter (wbassride::idle)->getText (0.5f, 16) == "0.0");
-    CHECK (p.apvts.getParameter (wbassride::response)->getText (1.0f, 16) == "Fast");
-    CHECK (wbassride::modeNames().size() == 4);
+    CHECK_NEAR (wbassrider::idleDb (0.5f, -12.0f, 12.0f), 0.0, 1e-6);
+    CHECK_NEAR (wbassrider::idleDb (0.98f, -12.0f, 0.0f), -0.24, 1e-5);
+    CHECK (p.apvts.getParameter (wbassrider::idle)->getText (0.5f, 16) == "0.0");
+    CHECK (p.apvts.getParameter (wbassrider::response)->getText (1.0f, 16) == "Fast");
+    CHECK (wbassrider::modeNames().size() == 4);
 }
 
 // the components' latency (measured: 42.00 ms, Live 5.00 ms at any rate) and the audio path: the input delayed by it,
@@ -49,14 +49,14 @@ static void testLatencyAndPath()
     for (double fs : { 44100.0, 48000.0, 96000.0 })
         for (int mode : { 0, 2 })
         {
-            WBassRideProcessor p;
-            auto* m = p.apvts.getParameter (wbassride::mode);
+            WBassRiderProcessor p;
+            auto* m = p.apvts.getParameter (wbassrider::mode);
             m->setValueNotifyingHost (m->convertTo0to1 ((float) mode));
             p.setPlayConfigDetails (2, 2, fs, 256);
             p.prepareToPlay (fs, 256);
             const int expect = juce::roundToInt ((mode == 2 ? 5.0 : 42.0) * 0.001 * fs);
             CHECK (p.getLatencySamples() == expect);
-            auto* o = p.apvts.getParameter (wbassride::output);
+            auto* o = p.apvts.getParameter (wbassrider::output);
             o->setValueNotifyingHost (o->convertTo0to1 (-6.0f));
             juce::AudioBuffer<float> b (2, 256);
             juce::MidiBuffer midi;
@@ -80,7 +80,7 @@ static void testLatencyAndPath()
 // Energy meter at -21.9 dBFS; when it stops the Rider is back at its idle value within 0.4 s (the reference: 0.3 s)
 static void testProvisionalRide()
 {
-    WBassRideProcessor p;
+    WBassRiderProcessor p;
     const double fs = 48000.0;
     p.setPlayConfigDetails (2, 2, fs, 480);
     p.prepareToPlay (fs, 480);
@@ -103,25 +103,25 @@ static void testProvisionalRide()
 
 static void testStateAndEditor()
 {
-    WBassRideProcessor p;
-    auto* t = p.apvts.getParameter (wbassride::target);
+    WBassRiderProcessor p;
+    auto* t = p.apvts.getParameter (wbassrider::target);
     t->setValueNotifyingHost (t->convertTo0to1 (-20.0f));
     juce::MemoryBlock mb;
     p.getStateInformation (mb);
-    WBassRideProcessor q;
+    WBassRiderProcessor q;
     q.setStateInformation (mb.getData(), (int) mb.getSize());
-    CHECK_NEAR (q.apvts.getRawParameterValue (wbassride::target)->load(), -20.0, 1e-4);
+    CHECK_NEAR (q.apvts.getRawParameterValue (wbassrider::target)->load(), -20.0, 1e-4);
     std::unique_ptr<juce::AudioProcessorEditor> ed (p.createEditor());
     CHECK (ed != nullptr);
     CHECK (ed->getWidth() > 0);
-    CHECK (wbassride::ui::scaleY (12.0f) == 222.0f);
-    CHECK (wbassride::ui::scaleY (-12.0f) == 432.0f);
+    CHECK (wbassrider::ui::scaleY (12.0f) == 222.0f);
+    CHECK (wbassrider::ui::scaleY (-12.0f) == 432.0f);
 }
 
 // the selection rules measured on the reference (click, lasso group, Rider / Idle in blue, member drags blocked)
 static void testSelection()
 {
-    using namespace wbassride::ui;
+    using namespace wbassrider::ui;
     juce::Component a, b, rider;
     Marks m;
     m.blueAlone = { &rider };
@@ -142,10 +142,10 @@ static void testSelection()
     CHECK (m.click (&other));                                        // outside the group: the group goes
     CHECK (m.group.empty() && m.of (&a) == Mark::None);
     // the host sees Idle over a fixed +-12 dB, whatever the range (as the reference's text)
-    WBassRideProcessor p;
-    auto* mx = p.apvts.getParameter (wbassride::rangeMax);
+    WBassRiderProcessor p;
+    auto* mx = p.apvts.getParameter (wbassrider::rangeMax);
     mx->setValueNotifyingHost (mx->convertTo0to1 (6.0f));
-    CHECK (p.apvts.getParameter (wbassride::idle)->getText (0.5f, 16) == "0.0");
+    CHECK (p.apvts.getParameter (wbassrider::idle)->getText (0.5f, 16) == "0.0");
     CHECK_NEAR (p.idleDb(), -3.0, 1e-4);                             // the arrow itself: the middle of -12 .. 6
 }
 

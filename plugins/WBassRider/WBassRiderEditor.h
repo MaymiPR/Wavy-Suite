@@ -1,12 +1,12 @@
 #pragma once
-#include "WBassRideProcessor.h"
+#include "WBassRiderProcessor.h"
 #include "WavyRenUI.h"
 #include "WavyFlatUI.h"
 
-// WBass Ride editor: Bass Rider's layout on a 320 x 560 px design grid (the narrow Renaissance toolbar included),
-// drawn from measurements of the reference (RESEARCH.md, WBass Ride; shading models in WBassRideSkinData.h fitted by
+// WBass Rider editor: Bass Rider's layout on a 320 x 560 px design grid (the narrow Renaissance toolbar included),
+// drawn from measurements of the reference (RESEARCH.md, WBass Rider; shading models in WBassRiderSkinData.h fitted by
 // tools/fit_bassride_parts.py). The static art is rendered once per window scale; the controls draw themselves.
-namespace wbassride::ui
+namespace wbassrider::ui
 {
 // the reference's scale on the lower panel: +12 dB at y 222, 0 dB at 327, -12 dB at 432 (8.75 px per dB, measured)
 inline float scaleY (float db) { return 327.0f - 8.75f * db; }
@@ -173,11 +173,11 @@ public:
 };
 }
 
-class WBassRideEditor : public wavy::ren::Editor
+class WBassRiderEditor : public wavy::ren::Editor
 {
 public:
-    explicit WBassRideEditor (WBassRideProcessor&);
-    ~WBassRideEditor() override;
+    explicit WBassRiderEditor (WBassRiderProcessor&);
+    ~WBassRiderEditor() override;
 
     static constexpr int W = 320, H = 560;
 
@@ -201,18 +201,18 @@ private:
     juce::Point<float> lassoStart;
     bool lassoing = false;
 
-    WBassRideProcessor& proc;
-    wbassride::ui::Marks marks;
-    wbassride::ui::Knob& sensitivity;
-    wbassride::ui::Knob& spill;
-    wbassride::ui::Knob& artifacts;
-    wbassride::ui::Switch& responseSwitch;
-    wbassride::ui::TargetSlider& target;
-    wbassride::ui::Fader& rangeMax;
-    wbassride::ui::Fader& rangeMin;
-    wbassride::ui::Fader& output;
-    wbassride::ui::Fader& rider;
-    wbassride::ui::IdleColumn& idleColumn;
+    WBassRiderProcessor& proc;
+    wbassrider::ui::Marks marks;
+    wbassrider::ui::Knob& sensitivity;
+    wbassrider::ui::Knob& spill;
+    wbassrider::ui::Knob& artifacts;
+    wbassrider::ui::Switch& responseSwitch;
+    wbassrider::ui::TargetSlider& target;
+    wbassrider::ui::Fader& rangeMax;
+    wbassrider::ui::Fader& rangeMin;
+    wbassrider::ui::Fader& output;
+    wbassrider::ui::Fader& rider;
+    wbassrider::ui::IdleColumn& idleColumn;
 
     juce::Image background;
     float backgroundScale = 0.0f;
