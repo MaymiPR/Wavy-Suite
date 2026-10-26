@@ -156,6 +156,31 @@ static void testDisplayClicks()
     CHECK_NEAR (knobValue(), get (wdelay::delayR), 1.0e-3);
 }
 
+// the factory presets: the reference's 88, each name once, every value inside its parameter's range
+static void testPresets()
+{
+    const auto& list = wdelay::factoryPresets();
+    CHECK (list.size() == 88);
+    WDelayProcessor p;
+    juce::StringArray names;
+    bool inRange = true, known = true;
+    for (const auto& pr : list)
+    {
+        names.addIfNotAlreadyThere (pr.name);
+        for (const auto& v : pr.values)
+        {
+            auto* q = p.apvts.getParameter (v.id);
+            if (q == nullptr) { known = false; continue; }
+            const auto r = q->getNormalisableRange();
+            inRange = inRange && v.value >= r.start - 1.0e-3f && v.value <= r.end + 1.0e-3f;
+        }
+    }
+    CHECK (names.size() == (int) list.size());
+    CHECK (known);
+    CHECK (inRange);
+    CHECK (juce::String (list.front().name) == "Full Reset");
+}
+
 // the DSP alone (WDelayDsp.h) against the identified laws
 static void testDsp()
 {
@@ -251,6 +276,7 @@ int main()
     testProcessor();
     testDisplayClicks();
     testDsp();
+    testPresets();
     std::printf ("%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;
 }

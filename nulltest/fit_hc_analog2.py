@@ -119,7 +119,7 @@ def export():
     modes = {}
     for m in (1, 2, 3, 4):
         p = os.path.join(BUILD, '%s_analog%d_fit2.json' % (PREFIX, m))
-        if PREFIX == 'hd' and m == 4: p = os.path.join(BUILD, 'hc_analog4_fit2.json')     # H-Delay's mode 4 is H-Comp's
+        if PREFIX == 'hd' and m == 4 and not os.path.exists(p): p = os.path.join(BUILD, 'hc_analog4_fit2.json')   # (H-Comp's)
         modes[str(m)] = json.load(open(p))['q'] if os.path.exists(p) else list(map(float, q_init(m)))
         print('mode', m, 'fitted' if os.path.exists(p) else 'NOT fitted (start values)')
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'measurements', 'hdelay' if PREFIX == 'hd' else 'hcomp', 'analog_model.json')

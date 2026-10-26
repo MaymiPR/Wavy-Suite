@@ -18,13 +18,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 EXE = os.environ.get("WDELAY_RENDER", os.path.join(HERE, "..", "build", "plugins", "WDelay", "Release", "WDelayRender.exe"))
 TMP = os.path.join(HERE, "renders"); os.makedirs(TMP, exist_ok=True)
 EXTRA = []                                               # more WDelayRender arguments (fitting)
-BEATS = [1 / 24, 1 / 16, 3 / 32, 1 / 12, 1 / 8, 3 / 16, 1 / 6, 1 / 4, 3 / 8, 1 / 3, 1 / 2, 3 / 4, 2 / 3, 1, 1.5, 4 / 3, 2, 3, 4, 8]
+_T = 1.0 - 3.0e-9                                        # the reference's triplets, a hair short (as WDelayProcessor.cpp)
+BEATS = [_T / 24, 1 / 16, 3 / 32, _T / 12, 1 / 8, 3 / 16, _T / 6, 1 / 4, 3 / 8, _T / 3, 1 / 2, 3 / 4, 2 * _T / 3, 1, 1.5, 4 * _T / 3, 2, 3, 4, 8]
 
 
 class State:
     """the reference's time from Sync, the note, the tempo and Delay (as the plug-in computes it)"""
     def __init__(self, host_bpm):
-        self.v = dict(sync="Host", note="1/8D", note_r="1/8D", bpm=120.0, delay=375.0, delay_r=375.0)
+        self.v = dict(sync="Host", note="1/8D", note_r="1/8D", bpm=120.0, delay=375.0, delay_r=375.0, rate=0.1)
         self.host = host_bpm
 
     def set(self, k, v):
@@ -35,14 +36,19 @@ class State:
     def times(self):
         def t(note, ms):
             s = self.v["sync"]
-            if s == "ms": return ms
+            if s == "ms": return float(round(ms))                   # the reference's resolution: 1 ms (and 1 BPM)
             beats = BEATS[H.NOTES.index(note)]
-            return beats * 60000.0 / (float(self.v["bpm"]) if s == "BPM" else self.host)
+            return beats * 60000.0 / (float(round(float(self.v["bpm"]))) if s == "BPM" else self.host)
         return t(self.v["note"], float(self.v["delay"])), t(self.v["note_r"], float(self.v["delay_r"]))
+
+    def rate(self):
+        """the LFO's rate: in Host / BPM sync Rate counts cycles per beat at 60 BPM (measured)"""
+        s = self.v["sync"]
+        return round(float(self.v["rate"]), 2) * (1.0 if s == "ms" else (float(round(float(self.v["bpm"]))) if s == "BPM" else self.host) / 60.0)
 
 
 def our_args(k, v):
-    if k in ("sync", "note", "note_r", "bpm", "delay", "delay_r"): return []
+    if k in ("sync", "note", "note_r", "bpm", "delay", "delay_r", "rate"): return []
     if k == "hipass": return ["hipass=%g" % (0 if v == "Off" else float(v))]
     if k == "lopass": return ["lopass=%g" % (0 if v == "Off" else float(v))]
     if k == "lofi": return ["lofi=%d" % (v == "LoFi")]
@@ -57,17 +63,17 @@ def ours(x, fs=48000, comp="Stereo", preroll=3.0, host_bpm=120.0, changes=(), bl
     x = np.atleast_2d(np.asarray(x, np.float32))
     if x.shape[0] == 1: x = np.concatenate([x, x])
     st = State(host_bpm)
-    args = ["analog=2"]                                  # the reference's default Analog (its first block at 375 ms)
+    args = ["analog=2", "rate0=%.9f" % State(host_bpm).rate()]   # the reference's defaults (its first block at 375 ms)
     for k, v in settings.items():
         st.set(k, v); args += our_args(k, v)
     tl, tr = st.times()
-    args += ["time=%.9f" % tl, "time_r=%.9f" % tr, "mode=%d" % {"Stereo": 0, "Mono": 1, "Mono/Stereo": 2}[comp]]
+    args += ["time=%.17g" % tl, "time_r=%.17g" % tr, "rate=%.9f" % st.rate(), "mode=%d" % {"Stereo": 0, "Mono": 1, "Mono/Stereo": 2}[comp]]
     if settings.get("dual"): args.append("dual=1")
     for t, k, v in sorted(changes, key=lambda c: c[0]):
         st.set(k, v)
         a = our_args(k, v)
-        if k in ("sync", "note", "note_r", "bpm", "delay", "delay_r"):
-            tl, tr = st.times(); a = ["time=%.9f" % tl, "time_r=%.9f" % tr]
+        if k in ("sync", "note", "note_r", "bpm", "delay", "delay_r", "rate"):
+            tl, tr = st.times(); a = ["time=%.17g" % tl, "time_r=%.17g" % tr, "rate=%.9f" % st.rate()]
         args += ["at=%.9f:%s" % (t, s) for s in a]
     fi, fo = os.path.join(TMP, "din%d.f32" % os.getpid()), os.path.join(TMP, "dout%d.f32" % os.getpid())
     x.T.astype(np.float32).tofile(fi)

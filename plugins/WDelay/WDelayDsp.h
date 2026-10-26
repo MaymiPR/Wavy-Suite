@@ -4,13 +4,13 @@
 //   w = in + fb y[n-1]                 the loop (each pass adds one sample)
 //   v = g w,  g = min (1 / (1 + peak), 1 - r (1 - g[n-1]))     the gain stage: the peak of |w| over the lines (linked),
 //                                      taken at once, recovering as a one-pole of 10 ms
-//   the line's input through HiPass and LoPass (RBJ biquads, Q 0.8 and 0.95, their frequency warped)
+//   the line's output through HiPass and LoPass (RBJ biquads, Q 0.8 and 0.95, their frequency warped)
 //   y = sum_j h(j - o) v[n - b - j]     a Kaiser-windowed sinc (half-length 511/32, beta 4.968), its 31 taps
 //                                      round b = ceil (d), read at (floor (32 d) + 1) / 32 = b + o: one phase past the
 //                                      delay d (32 phases per sample at 44.1 / 48 kHz; a whole d is read 1/32 late)
-//   d' = max (-1, (T - d) / (T + 16))   the glide toward the target T (the tape law: at most twice the speed), each
-//                                      sample's step taken before its read
-//   T = time (1 + 0.5 depth tri (LFO))  the modulation moves the target (the LFO's phase: see lfoStart)
+//   D' = max (-1, (Tm - D) / Tm)       the glide (the tape law: at most twice the speed) on D = d + 16, each sample's
+//   Tm = (T + 16) (1 + 0.5 depth tri)  step taken before its read; the LFO moves the target: a float triangle in +-1
+//                                      from 0 rising, held at its ends (Host / BPM sync: rate x tempo / 60)
 //
 // Ping Pong: the left line feeds the right at gain 1, the right the left at fb^2; (L + R) / sqrt 2 goes into the start
 // side's line. Phase L / R invert their side's input to the delay (the dry signal stays).
@@ -30,7 +30,7 @@ struct Settings
     float mix = 1.0f;                               // 0 (dry) .. 1 (wet)
     float outputDb = 0.0f;
     float hipassHz = 0.0f, lopassHz = 0.0f;         // 0: Off
-    float depth = 0.0f, rateHz = 0.1f;              // depth 0 .. 1
+    float depth = 0.0f, rateHz = 0.1f;              // depth 0 .. 1; the LFO's rate (Host / BPM sync: Rate x tempo / 60)
     bool lofi = false, pingPong = false, startRight = false, phaseL = false, phaseR = false, dual = false;
     int mode = 0;                                   // 0 stereo, 1 mono (one line), 2 mono in, stereo out
 };
@@ -112,9 +112,8 @@ private:
 class Delay
 {
 public:
-    // fitted on the reference (WDelayRender takes them as glide= lfo0= lfolead= modscale= to fit them again)
+    // fitted on the reference (WDelayRender takes them as glide= modscale= to fit them again)
     double glideOffset = 16.0;                       // the glide's pace: (T - d) / (T + 16) per sample
-    double lfoStart = 0.25, lfoLead = 0.4805;        // the LFO's phase: 0.25 + rate (time since the start + 0.4805 s)
     double modScale = 0.5;                           // the target's swing at Depth 100: +-50 %
     static constexpr double kReleaseMs = 10.0;      // the gain stage's recovery (per-sample 0.997919 at 48 kHz)
 
@@ -129,7 +128,8 @@ public:
         mask = size - 1;
         pos = 0;
         gain = 1.0;
-        elapsed = 0;
+        lfoValue = 0.0f;
+        lfoUp = true;
         rel = std::exp (-1.0 / (kReleaseMs * 0.001 * fs));
     }
 
@@ -172,18 +172,24 @@ public:
             float peak = std::abs (w[0]);
             if (lineCount > 1) peak = std::max (peak, std::abs (w[1]));
             gain = std::min (1.0 / (1.0 + (double) peak), 1.0 - rel * (1.0 - gain));
-            // the LFO (a triangle) on the target times; its phase from the time since the start and the rate now
-            double lfo = lfoStart + (double) s.rateHz * ((double) elapsed++ / fs + lfoLead);
-            lfo -= std::floor (lfo);
-            const double tri = 1.0 - 4.0 * std::abs (lfo - 0.5);
+            // the LFO, as the reference makes it: a float triangle between -1 and +1, from 0 rising, a step of 4 rate / fs,
+            // held at each end (the overshoot is lost: up to a sample per turn, and the float steps drift at low rates)
+            const double tri = (double) lfoValue;
+            const float step = (float) (4.0 * (double) s.rateHz / fs);
+            lfoValue = lfoUp ? lfoValue + step : lfoValue - step;
+            if (lfoValue >= 1.0f) { lfoValue = 1.0f; lfoUp = false; }
+            else if (lfoValue <= -1.0f) { lfoValue = -1.0f; lfoUp = true; }
             const double modT = 1.0 + modScale * (double) s.depth * tri;
             float y[2] = { 0.0f, 0.0f };
             for (int i = 0; i < lineCount; ++i)
             {
                 auto& l = lines[(size_t) i];
-                l.buf[(size_t) pos] = l.lp.process (l.hp.process ((float) (gain * (double) w[i])));
-                const double T = (i == 0 || pp ? tL : tR) * modT;
-                l.d += std::max (-1.0, (T - l.d) / (T + glideOffset));     // the glide's step
+                l.buf[(size_t) pos] = (float) (gain * (double) w[i]);
+                // the reference keeps the delay 16 samples longer than the one heard (glideOffset): the glide and the LFO
+                // act on that one, D' = max (-1, (Tm - D) / Tm), Tm = (T + 16) (1 + 0.5 depth tri), d = D - 16
+                const double Tm = ((i == 0 || pp ? tL : tR) + glideOffset) * modT;
+                const double D = l.d + glideOffset;
+                l.d = D + std::max (-1.0, (Tm - D) / Tm) - glideOffset;
                 // the read: the taps round ceil (d), one phase past the delay
                 const double fl = std::floor (l.d);
                 int centre, u;
@@ -194,7 +200,8 @@ public:
                 const int base = pos - centre;
                 // 31 taps at 48 kHz; above, 32 per doubling less one, the first one dropped (96 kHz: -30 .. +31 about a whole d)
                 for (int t = -k.taps + k.factor - 1; t <= k.taps; ++t) acc += h[t + k.taps] * l.buf[(size_t) ((base - t) & mask)];
-                y[i] = acc;
+                y[i] = l.lp.process (l.hp.process (acc));            // the filters on the line's output (measured
+                                                                     // with a moving delay: before the line they differ)
             }
             for (int i = 0; i < lineCount; ++i) lines[(size_t) i].y1 = y[i];
             pos = (pos + 1) & mask;
@@ -213,7 +220,8 @@ private:
         Biquad hp, lp;
     };
     double fs = 48000.0, gain = 1.0, rel = 0.99776;
-    long long elapsed = 0;
+    float lfoValue = 0.0f;
+    bool lfoUp = true;
     Kernels hifi, lofiK;
     std::array<Line, 2> lines;
     int mask = 0, pos = 0;

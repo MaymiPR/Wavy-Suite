@@ -4,7 +4,8 @@
 // 0 Off) depth (0 .. 100) rate (Hz) lofi pingpong start (1: right) phase_l phase_r dual mode (0 stereo, 1 mono, 2 mono
 // in stereo out) analog (0 Off, 1 .. 4) block. at=: a change at that time of the input (the block split there; before 0:
 // in the pre-roll). preroll=<seconds>: silence first, not written, as tools/RefRender gives the reference: its first
-// block at the reference's defaults (375 ms, or time0= in ms: the default note at the host's tempo), then the settings.
+// block at the reference's defaults (375 ms, or time0= in ms; the LFO at rate0=: Rate 0.1 at the host's tempo), then
+// the settings.
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -20,7 +21,11 @@ static void apply (wdelay::dsp::Settings& s, int& analog, int& block, const std:
     const auto eq = a.find ('=');
     if (eq == std::string::npos) return;
     const std::string k = a.substr (0, eq);
-    const double v = std::atof (a.c_str() + eq + 1);
+    double v = std::atof (a.c_str() + eq + 1);
+    // the reference's resolutions (as the plug-in, WDelayProcessor.cpp: atResolution; the times and the LFO's rate come
+    // computed, their parameters rounded by the caller)
+    if (k == "feedback" || k == "mix" || k == "depth" || k == "hipass" || k == "lopass") v = std::round (v);
+    else if (k == "output") v = std::round (v * 10.0) / 10.0;
     if (k == "time") s.timeL = v * fs / 1000.0;                   // (whole samples or not: Settings::wholeTimes)
     else if (k == "time_r") s.timeR = v * fs / 1000.0;
     else if (k == "feedback") s.feedback = (float) (v / 100.0);
@@ -76,8 +81,6 @@ int main (int argc, char** argv)
     wdelay::dsp::Delay d;
     for (auto& x : settings)                                      // the fitted constants, to fit them again
     {
-        if (x.rfind ("lfo0=", 0) == 0) d.lfoStart = std::atof (x.c_str() + 5);
-        if (x.rfind ("lfolead=", 0) == 0) d.lfoLead = std::atof (x.c_str() + 8);
         if (x.rfind ("modscale=", 0) == 0) d.modScale = std::atof (x.c_str() + 9);
     }
     d.prepare (fs);
@@ -85,6 +88,7 @@ int main (int argc, char** argv)
     {
         if (x.rfind ("glide=", 0) == 0) d.glideOffset = std::atof (x.c_str() + 6);
         if (x.rfind ("time0=", 0) == 0) s.timeL = s.timeR = std::floor (std::atof (x.c_str() + 6) * fs / 1000.0);   // the first block's time
+        if (x.rfind ("rate0=", 0) == 0) s.rateHz = (float) std::atof (x.c_str() + 6);   // the first block's LFO rate
     }
     wcomp::Analog analog;
     analog.modes = wdelay::tables::analog;                        // H-Delay's modes (4 is H-Comp's)

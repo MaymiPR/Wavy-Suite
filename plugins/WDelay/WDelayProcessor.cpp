@@ -16,8 +16,10 @@ constexpr float kDelayUpper[101] = {
 
 double wdelay::noteBeats (int note)
 {
-    static constexpr double beats[] = { 1.0 / 24, 1.0 / 16, 3.0 / 32, 1.0 / 12, 1.0 / 8, 3.0 / 16, 1.0 / 6, 1.0 / 4, 3.0 / 8,
-                                        1.0 / 3, 1.0 / 2, 3.0 / 4, 2.0 / 3, 1.0, 1.5, 4.0 / 3, 2.0, 3.0, 4.0, 8.0 };
+    // the triplets a hair short of their thirds (measured: 1/8T at 120 BPM is 7999 samples at 48 kHz, not 8000)
+    constexpr double t = 1.0 - 3.0e-9;
+    static constexpr double beats[] = { t / 24, 1.0 / 16, 3.0 / 32, t / 12, 1.0 / 8, 3.0 / 16, t / 6, 1.0 / 4, 3.0 / 8,
+                                        t / 3, 1.0 / 2, 3.0 / 4, 2.0 * t / 3, 1.0, 1.5, 4.0 * t / 3, 2.0, 3.0, 4.0, 8.0 };
     return beats[jlimit (0, 19, note)];
 }
 
@@ -147,9 +149,21 @@ void WDelayProcessor::configure()
     prepared = true;
 }
 
+// the reference uses its parameters at their resolution (ParamXML; measured: Delay 100.4 ms works as 100): Delay,
+// Feedback, Mix, BPM, Depth and the filters in whole units, Output in 0.1 dB, Rate in 0.01 Hz
+float wdelay::atResolution (const char* id, float v)
+{
+    const String p (id);
+    if (p == delay || p == delayR || p == feedback || p == mix || p == bpm || p == depth || p == hipass || p == lopass) return std::round (v);
+    if (p == output) return std::round (v * 10.0f) / 10.0f;
+    if (p == rate) return std::round (v * 100.0f) / 100.0f;
+    return v;
+}
+
 wdelay::dsp::Settings WDelayProcessor::settings (double fs) const
 {
     wdelay::dsp::Settings s;
+    auto get = [this] (const char* id) { return wdelay::atResolution (id, this->get (id)); };
     const int sync = roundToInt (get (wdelay::sync));
     auto samples = [&] (const char* msId, const char* noteId)
     {
@@ -172,6 +186,11 @@ wdelay::dsp::Settings WDelayProcessor::settings (double fs) const
     s.lopassHz = lp >= wdelay::kLoPassOff ? 0.0f : lp;
     s.depth = get (wdelay::depth) * 0.01f;
     s.rateHz = get (wdelay::rate);
+    if (sync != 2)                                                 // synced: Rate is in cycles per beat at 60 BPM (measured)
+    {
+        const double host = hostBpm.load (std::memory_order_relaxed);
+        s.rateHz *= (float) ((sync == 0 ? (double) get (wdelay::bpm) : (host > 0.0 ? host : 120.0)) / 60.0);
+    }
     s.lofi = get (wdelay::lofi) > 0.5f;
     s.pingPong = get (wdelay::pingPong) > 0.5f;
     s.startRight = get (wdelay::pingPongStart) > 0.5f;

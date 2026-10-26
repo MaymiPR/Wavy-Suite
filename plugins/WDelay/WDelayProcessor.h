@@ -48,6 +48,8 @@ int nearestNote (double ms, double tempo);
 float delayFromNorm (float n);
 float delayToNorm (float ms);
 juce::String freqText (float hz, bool hiPass);
+// a parameter's value as the reference uses it (rounded to its resolution)
+float atResolution (const char* id, float value);
 juce::String rateText (float hz);
 }
 

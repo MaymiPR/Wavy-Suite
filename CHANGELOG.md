@@ -17,6 +17,16 @@
   Arial Bold labels); one control selected at a time as the reference (knob ring, button and group outlines, tap pad);
   the panel's edges, black print, brackets, the name, the lamp and the Link wheel. Mean difference to the reference
   13.9 → 8.0 levels. A note longer than 3500 ms at the tempo is not taken (the reference stops at 1 bar at 120 BPM).
+- **WDelay: modulation, filters, resolutions and presets, from more probing of H-Delay**:
+  - **Modulation:** the LFO is the reference's float triangle (±1, from 0 rising, a step of 4 × rate / fs, held at
+    its ends). In Host / BPM sync, Rate counts cycles per beat. The glide and the LFO act on a delay 16 samples longer.
+    Modulation nulls went from −5 … −16 dB to −56 … −84 dB.
+  - **Filters:** HiPass / LoPass act on the line's output, which matters once the delay moves.
+  - **Resolutions:** parameters are used at the reference's resolution (Delay, Feedback, Mix, BPM, Depth and the
+    filters in whole units, Output in 0.1 dB, Rate in 0.01 Hz). Triplet notes are a hair short, as the reference has
+    them.
+  - **Presets:** the reference's 88 presets, with Wavy names (`tools/make_presets.py`), and their null test
+    (`nulltest/nulltest_wdelay_presets.py`).
 - **WDelay DSP** (Phase 4, `plugins/WDelay/WDelayDsp.h`):
   - **What it models:** H-Delay's delay path as identified. A 32-phase Kaiser-sinc interpolator with 31 taps round
     the delay, the tape glide (T + 16 samples), the linked 1 / (1 + peak) gain stage in the loop (10 ms recovery),
