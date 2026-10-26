@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <vector>
 
 // WBass Rider's riding (Phase 4): the reference's measured stages (MEASUREMENTS.md "WBass Rider: Phase 3 / 4"), fitted
 // on its audio; nulltest/brmodel.c is the same model, line for line, and nulltest/br_fit.py fits its note detector. Per
@@ -9,8 +10,10 @@
 // latency later (the look-ahead).
 //   the level read: E = 10 log10 of the analytic envelope's power of the input through a low shelf (31.35 Hz, -28.9 dB,
 //                   Q 0.51), followed 2 ms up / 100 ms down; the law: Target - E + 0.68 dB, clamped to the range
-//   the detector:   the same envelope of the input low-passed near 1 kHz (N, 1 / 1 ms), of the band over 2 kHz (an
-//                   illegal note), and two peak followers of it: a long reference R and a slow envelope S
+//   the detector:   the note level N, the peak of the input low-passed near 1 kHz over the last 1024 / 2048 / 4096
+//                   samples (at 48 kHz; the window picked by the pitch: the shortest spanning ~3.5 periods, as the
+//                   reference's timings step with pitch), the envelope of the band over 2 kHz (an illegal note), and
+//                   two peak followers of N: a long reference R and a slow envelope S
 //   a note:         starts over the floor, legal and within the Artifacts gate under R (for a moment
 //                   after a note has ended: legal and within 38 dB of its peak); while it rises over S (and for a
 //                   moment after) the gain follows the law, then it only goes down; it is released when it stays under S
@@ -44,7 +47,8 @@ public:
         if (fs < 46000.0)       { a = a44; b = b44; }
         else if (fs > 130000.0) { a = a192; b = b192; k = 8; }
         else if (fs > 70000.0)  { a = a96; b = b96; k = 7; }
-        for (auto* q : { &qe, &qd, &qh }) q->set (a, b, k);
+        for (auto* q : { &qe, &qh }) q->set (a, b, k);
+        for (int w = 0; w < 3; ++w) win[w].prepare ((int) std::lround ((1024 << w) * fs / 48000.0));
         shelf.lowShelf (fs, 31.35, -28.90, 0.5075);
         lp.lowPass (fs, 1020.0, 0.60);
         hp.highPass (fs, 2000.0, 0.7071);
@@ -55,12 +59,15 @@ public:
         holdN = (int) std::lround (holdMs * 1.0e-3 * fs);
         offN = (int) std::lround (offMs * 1.0e-3 * fs);
         winN = (int) std::lround (winMs * 1.0e-3 * fs);
+        offRelN = (int) std::lround (offRelMs * 1.0e-3 * fs);
         reset();
     }
 
     void reset()
     {
-        shelf.clear(); lp.clear(); hp.clear(); qe.clear(); qd.clear(); qh.clear();
+        shelf.clear(); lp.clear(); hp.clear(); qe.clear(); qh.clear();
+        for (auto& w : win) w.clear();
+        prevXl = 0.0; period = 0.01 * fs; lastCross = -1; now = 0;
         P = Np = Hp = Rf = Sl = 0.0;
         inNote = released = below = false; relCount = under = offCount = 0; sinceOff = 1 << 30;
         peakN = -300.0; minN = 300.0; g = 0.0; raw = out = idleNow; energy = -300.0;
@@ -72,11 +79,22 @@ public:
         idleNow = s.idleDb;
         energy = db (follow (P, qe.power (shelf.process (x)), cpa, cpr));
         const double gt = s.target - energy + 0.68;
-        const double dp = qd.power (lp.process (x));
-        const double N = db (follow (Np, dp, cna, cnr));
+        const double xl = lp.process (x);
+        if (prevXl <= 0.0 && xl > 0.0)                    // a rising zero crossing: the period since the last one
+        {
+            if (lastCross >= 0 && (double) (now - lastCross) > 0.0004 * fs) period = (double) (now - lastCross);
+            lastCross = now;
+        }
+        prevXl = xl;
+        const double want = pitchPeriods * period;
+        double m[3];
+        for (int w = 0; w < 3; ++w) m[w] = win[w].push (now, xl * xl);
+        ++now;
+        const double np = want <= win[0].length ? m[0] : (want <= win[1].length ? m[1] : m[2]);
+        const double N = db (np);
         const double H = db (follow (Hp, qh.power (hp.process (x)), cna, cnr));
-        const double R = db (peak (Rf, dp, cra, krr));
-        const double S = db (peak (Sl, dp, csa, ksr));
+        const double R = db (peak (Rf, np, cra, krr));
+        const double S = db (peak (Sl, np, csa, ksr));
         const bool open = N > floorDb && H < N && N > R - (20.0 - 0.17 * s.artifacts);
         bool start = false;
         // for a moment after a note ends, any legal note within 38 dB of its peak is a new note (no floor, no Artifacts
@@ -86,7 +104,7 @@ public:
         {
             peakN = std::max (peakN, N);
             offCount = (N < peakN - 38.0 || N < floorDb - 3.0) ? offCount + 1 : 0;
-            if (offCount > offN) { inNote = false; sinceOff = 0; }
+            if (offCount > (released ? offRelN : offN)) { inNote = false; sinceOff = 0; }   // (a released note: its own delay)
             else if (! released)
             {
                 relCount = N < S - releaseDepth (s) ? relCount + 1 : 0;
@@ -119,11 +137,11 @@ public:
     double energy = -300.0;          // the level read (dB), what the Energy meter shows
 
     // the note detector's constants (nulltest/br_fit.py, measurements/wbassrider/detector_fit.json; br_export.py)
-    double slowAtt = 12.3008, slowRel = 1341.6011, refRel = 6050.5616, hyst = 0.0198, relMs = 23.7419, holdMs = 67.4495, onRise = 2.3544,
-           offMs = 63.7575, winMs = 27.4470, floorDb = -48.75;
+    double slowAtt = 16.4990, slowRel = 1496.4321, refRel = 4329.0963, hyst = 0.0179, relMs = 2.7946, holdMs = 74.6346, onRise = 1.5812,
+           pitchPeriods = 1.6159, offMs = 7.6961, offRelMs = 60.0000, winMs = 12.8900, floorDb = -48.75;
     // at Sensitivity 0 .. 100 by 25: the rise over S that is a new note, and the margin over S that keeps the attack
-    double onThr[5] { 0.4577, 0.6796, 1.8935, 1.3784, -1.3400 }, margin[5] { 2.2725, 0.6141, 0.6949, 0.4656, -0.9711 };
-    double depthSlow[5] { 10.6055, 11.1011, 13.1417, 14.7760, 0.3610 }, depthFast[5] { 2.0235, 3.4625, 2.6906, 1.9658, 0.3130 };
+    double onThr[5] { 1.4425, 1.2177, 2.6283, 1.8922, -1.9758 }, margin[5] { 2.6498, 1.0207, 0.9742, 0.8004, -1.0377 };
+    double depthSlow[5] { 12.0776, 11.0650, 12.8238, 10.6686, 0.2291 }, depthFast[5] { 4.7054, 3.7952, 4.6347, 3.0160, 0.2342 };
 
 private:
     struct Biquad
@@ -147,6 +165,21 @@ private:
         {
             const double w0 = 2.0 * 3.141592653589793 * fc / fs, c = std::cos (w0), al = std::sin (w0) / (2.0 * q);
             set ((1 + c) / 2, -(1 + c), (1 + c) / 2, 1 + al, -2 * c, 1 - al);
+        }
+    };
+
+    // the maximum over the last `length` samples (a monotonic queue)
+    struct SlidingMax
+    {
+        std::vector<double> v; std::vector<long long> t; int cap = 0, head = 0, tail = 0, length = 1;
+        void prepare (int len) { length = std::max (1, len); cap = length + 2; v.assign ((size_t) cap, 0.0); t.assign ((size_t) cap, 0); clear(); }
+        void clear() { head = tail = 0; }
+        double push (long long at, double x)
+        {
+            while (tail != head && v[(size_t) ((tail - 1 + cap) % cap)] <= x) tail = (tail - 1 + cap) % cap;
+            v[(size_t) tail] = x; t[(size_t) tail] = at; tail = (tail + 1) % cap;
+            while (t[(size_t) head] <= at - length) head = (head + 1) % cap;
+            return v[(size_t) head];
         }
     };
 
@@ -197,9 +230,12 @@ private:
 
     double fs = 48000.0;
     Biquad shelf, lp, hp;
-    Quad qe, qd, qh;
+    Quad qe, qh;
+    SlidingMax win[3];
+    double prevXl = 0.0, period = 480.0;
+    long long lastCross = -1, now = 0;
     double cpa = 0, cpr = 0, cna = 0, cnr = 0, cra = 0, krr = 0, csa = 0, ksr = 0, csm = 0, glide = 0;
-    int relN = 0, holdN = 0, offN = 0, winN = 0, sinceOff = 1 << 30;
+    int relN = 0, holdN = 0, offN = 0, offRelN = 0, winN = 0, sinceOff = 1 << 30;
     double P = 0, Np = 0, Hp = 0, Rf = 0, Sl = 0;
     bool inNote = false, released = false, below = false;
     int relCount = 0, under = 0, offCount = 0;

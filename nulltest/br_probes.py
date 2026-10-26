@@ -56,6 +56,12 @@ def probes():
         for G in (0.07, 0.1, 0.13, 0.2, 0.4):
             for d in (8, 14, 22, 30, 37, 40):
                 add([("hold", PK, 0, 0.5, 100.0), ("gap", 0, 0, G), ("hold", PK - d, 0, 0.5, 100.0)], [0.5 + G + 0.3])
+    # the pitch-dependent timing (the note level is a maximum over a window of 1024 / 2048 / 4096 samples picked by
+    # the pitch): dips of T at several pitches, and legato drops under the note-off level read over time
+    for f in (40.0, 60.0, 80.0, 100.0, 140.0, 200.0):
+        for T in (0.02, 0.03, 0.045, 0.06, 0.09, 0.12):
+            add([('hold', -6, 0, 0.6, f), ('hold', -26, 0, T, f), ('hold', -6.5, 0, 0.8, f)], [0.5, 0.6 + T + 0.5], target=-24.0)
+        add([('hold', -6, 0, 0.6, f), ('hold', -48, 0, 0.6, f)], [0.5, 0.6, 0.62, 0.64, 0.66, 0.7, 0.75, 0.8, 0.9], target=-24.0)
     for F in (-20, -30, -40):
         for L in (-10, -14, -16, -18, -20):
             if L > F + 1: add([('hold', -6, 0, 0.6), ('hold', F, 0, 0.3), ('hold', L, 0, 0.6)], [1.3])
@@ -77,7 +83,8 @@ def render_all():
             st = dict(p['settings'])
             if 'response' in st: st['response'] = st['response'] + ' '
             g = M.gtrace(x, M.render(x, **st))
-            have[key] = np.array([np.median(g[int(t * FS):int(t * FS) + 2400]) for t in p['read']])
+            w = 480 if len(p['read']) > 3 else 2400
+            have[key] = np.array([np.median(g[int(t * FS):int(t * FS) + w]) for t in p['read']])
             if i % 20 == 0: print('%d / %d' % (i, len(P)), flush=True)
         keys.append(key); gains.append(have[key])
     os.makedirs(os.path.dirname(OUT), exist_ok=True)

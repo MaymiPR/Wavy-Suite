@@ -15,12 +15,12 @@ sens = ['0', '25', '50', '75', '100']
 arr = lambda vals: '{ %s }' % ', '.join('%.4f' % v for v in vals)
 block = """    // the note detector's constants (nulltest/br_fit.py, measurements/wbassrider/detector_fit.json; br_export.py)
     double slowAtt = %.4f, slowRel = %.4f, refRel = %.4f, hyst = %.4f, relMs = %.4f, holdMs = %.4f, onRise = %.4f,
-           offMs = %.4f, winMs = %.4f, floorDb = -48.75;
+           pitchPeriods = %.4f, offMs = %.4f, offRelMs = %.4f, winMs = %.4f, floorDb = -48.75;
     // at Sensitivity 0 .. 100 by 25: the rise over S that is a new note, and the margin over S that keeps the attack
     double onThr[5] %s, margin[5] %s;
     double depthSlow[5] %s, depthFast[5] %s;
 
-""" % (g['slow_att'], g['slow_rel'], g['ref_rel'], g['hyst'], g['rel_ms'], g['settle'], g['on_rise'], g['off_ms'], g['win_ms'],
+""" % (g['slow_att'], g['slow_rel'], g['ref_rel'], g['hyst'], g['rel_ms'], g['settle'], g['on_rise'], g['pitch_c'], g['off_ms'], g.get('off_rel_ms', 60.0), g['win_ms'],
        arr([d['thr_u'][k] for k in sens]), arr([d['margin'][k] for k in sens]),
        arr([d['rel_depth']['Slow ' + k] for k in sens]), arr([d['rel_depth']['Fast ' + k] for k in sens]))
 s = open(HDR, encoding='utf-8').read()

@@ -8,6 +8,7 @@
    the unsmoothed gain. Trace (n x 6): E, N, state (1 in a note, 2 released, 4 below, 8 a start), raw gain, S, R. */
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
 
 enum {
     BR_TARGET, BR_RMIN, BR_RMAX, BR_IDLE, BR_C0,
@@ -16,7 +17,7 @@ enum {
     BR_OFF, BR_ART, BR_REL_DEPTH, BR_REL_MS, BR_GLIDE,
     BR_SMOOTH, BR_REF_ATT, BR_REF_REL, BR_HP_FC, BR_ILLEGAL,
     BR_ON_RISE, BR_SLOW_ATT, BR_SLOW_REL, BR_MODE, BR_SLOW_REL_FAST,
-    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_NPARAMS
+    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_NPARAMS
 };
 
 typedef struct { double b0, b1, b2, a1, a2, z1, z2; } Biquad;
@@ -83,6 +84,18 @@ static double peak (double* s, double v, double ca, double kd)
 static double decay (double ms, double fs) { return exp (-2.0 / (ms * 1e-3 * fs)); }   /* an amplitude time constant, on power */
 static double db_pow (double p) { return 10.0 * log10 (p + 1e-30); }
 
+/* a sliding maximum over the last w samples (a monotonic queue in a ring of size cap) */
+typedef struct { double* v; int* t; int cap, head, tail; } SMax;
+static void smax_init (SMax* q, double* vbuf, int* tbuf, int cap) { q->v = vbuf; q->t = tbuf; q->cap = cap; q->head = q->tail = 0; }
+static double smax_push (SMax* q, int now, double x, int w)
+{
+    while (q->tail != q->head && q->v[(q->tail - 1 + q->cap) % q->cap] <= x) q->tail = (q->tail - 1 + q->cap) % q->cap;
+    q->v[q->tail] = x; q->t[q->tail] = now; q->tail = (q->tail + 1) % q->cap;
+    while (q->t[q->head] <= now - w) q->head = (q->head + 1) % q->cap;
+    return q->v[q->head];
+}
+#define SMAX_CAP 16384
+
 __declspec(dllexport) int br_nparams (void) { return BR_NPARAMS; }
 
 __declspec(dllexport) void br_run (const float* x, int n, double fs, const double* p, float* gain, float* trace)
@@ -101,8 +114,14 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
     const int relN = (int) (p[BR_REL_MS] * 1e-3 * fs + 0.5);
     const int settleN = (int) (p[BR_SETTLE] * 1e-3 * fs + 0.5), offN = (int) (p[BR_OFF_MS] * 1e-3 * fs + 0.5);
     int offCount = 0, sinceOff = 1 << 30;
-    const int winN = (int) (p[BR_WIN_MS] * 1e-3 * fs + 0.5);
+    const int winN = (int) (p[BR_WIN_MS] * 1e-3 * fs + 0.5), offRelN = (int) (p[BR_OFF_REL_MS] * 1e-3 * fs + 0.5);
     double P = 0.0, Np = 0.0, Hp = 0.0, Rf = 0.0, Sl = 0.0;
+    /* the windowed note level (N mode 1): sliding maxima of the low-passed waveform's square over 1024 / 2048 / 4096
+       samples (at 48 kHz), the window picked by the pitch (the smallest spanning pitch_c periods) */
+    double* qv = (double*) malloc (sizeof (double) * 3 * SMAX_CAP); int* qt = (int*) malloc (sizeof (int) * 3 * SMAX_CAP);
+    SMax qs[3]; for (int k = 0; k < 3; ++k) smax_init (&qs[k], qv + k * SMAX_CAP, qt + k * SMAX_CAP, SMAX_CAP);
+    const int wlen[3] = { (int) (1024 * fs / 48000.0 + 0.5), (int) (2048 * fs / 48000.0 + 0.5), (int) (4096 * fs / 48000.0 + 0.5) };
+    double prevXl = 0.0, period = 0.01 * fs; int lastCross = -1, wsel = 0;
     int inNote = 0, released = 0, relCount = 0, below = 0, settle = 0, under = 0;
     double peakN = -300.0, g = 0.0, minN = 300.0;
     double raw = p[BR_IDLE], out = p[BR_IDLE], gts = p[BR_RMAX];
@@ -115,11 +134,30 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
         if (p[BR_MODE] > 0.0) { gts = gt + chs * (gts - gt); gt = gts; }   /* mode > 0: the hold acts on the law smoothed over mode ms */
         /* the detector: the low-passed note envelope, the illegal band, the long reference and the slow envelope (peak
            followers, falling at most 1.74 / 8.69 dB/s at 5000 / 1000 ms) */
-        const double dp = quad_pow (&qd, bq (&lp, xi));
-        const double N = db_pow (follow (&Np, dp, cna, cnr));
+        const double xl = bq (&lp, xi);
+        const double dp = quad_pow (&qd, xl);
+        double N;
+        if (p[BR_NMODE] >= 1.0)
+        {
+            if (prevXl <= 0.0 && xl > 0.0)                     /* a rising zero crossing: the period since the last one */
+            {
+                if (lastCross >= 0) { const double pd = (double) (i - lastCross); if (pd > 0.0004 * fs) period = pd; }
+                lastCross = i;
+            }
+            prevXl = xl;
+            const double want = p[BR_PITCH_C] * period;
+            wsel = want <= wlen[0] ? 0 : (want <= wlen[1] ? 1 : 2);
+            double m[3];
+            for (int k = 0; k < 3; ++k) m[k] = smax_push (&qs[k], i, xl * xl, wlen[k]);
+            N = db_pow (m[wsel]);
+        }
+        else N = db_pow (follow (&Np, dp, cna, cnr));
         const double H = db_pow (follow (&Hp, quad_pow (&qh, bq (&hp, xi)), cna, cnr));
-        const double R = db_pow (peak (&Rf, dp, cra, krr));
-        const double S = db_pow (peak (&Sl, dp, csa, ksr));
+        /* the long reference and the slow envelope: peak followers of the quadrature power (env mode 0) or of the
+           waveform's own peaks (env mode 1: no onset overshoot; BR_SLOW_REL_FAST) */
+        const double pk = p[BR_NMODE] >= 1.0 ? pow (10.0, N / 10.0) : (p[BR_SLOW_REL_FAST] >= 1.0 ? xl * xl : dp);
+        const double R = db_pow (peak (&Rf, pk, cra, krr));
+        const double S = db_pow (peak (&Sl, pk, csa, ksr));
         const int legal = H < N + p[BR_ILLEGAL];
         const int open = N > p[BR_FLOOR] && legal && N > R - p[BR_ART];
         int start = 0;
@@ -129,9 +167,10 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
         else
         {
             if (N > peakN) peakN = N;
-            /* the note ends when it has stayed 38 dB under its peak (or under the floor) for long enough */
+            /* the note ends when it has stayed 38 dB under its peak (or under the floor) for long enough: a while if it
+               was still sounding, at once if it had been released */
             offCount = (N < peakN - p[BR_OFF] || N < p[BR_FLOOR] - 3.0) ? offCount + 1 : 0;
-            if (offCount > offN) { inNote = 0; sinceOff = 0; }
+            if (offCount > (released ? offRelN : offN)) { inNote = 0; sinceOff = 0; }
             else if (! released)
             {
                 /* released: under the slow envelope by the depth for long enough */
@@ -166,4 +205,5 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
         gain[i] = (float) out;
         if (trace) { float* t = trace + 6 * i; t[0] = (float) E; t[1] = (float) N; t[2] = (float) (inNote + 2 * released + 4 * below + 8 * start); t[3] = (float) raw; t[4] = (float) S; t[5] = (float) R; }
     }
+    free (qv); free (qt);
 }

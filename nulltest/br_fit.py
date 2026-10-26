@@ -18,7 +18,7 @@ OUT = os.path.join(HERE, '..', 'measurements', 'wbassrider', 'detector_fit.json'
 SETTINGS = [(r, s) for r in ('Slow', 'Fast') for s in (0.0, 25.0, 50.0, 75.0, 100.0)]
 # the free parameters: (name, start, transform) with 'log' kept positive
 GLOBAL = [('slow_att', 30.0, 'log'), ('slow_rel', 1000.0, 'log'), ('ref_rel', 5000.0, 'log'), ('hyst', 0.3, 'log'),
-          ('rel_ms', 21.0, 'log'), ('settle', 20.0, 'log'), ('on_rise', 1.0, 'log'), ('off_ms', 60.0, 'log'), ('win_ms', 75.0, 'log')]
+          ('rel_ms', 21.0, 'log'), ('settle', 20.0, 'log'), ('on_rise', 1.0, 'log'), ('off_ms', 60.0, 'log'), ('win_ms', 75.0, 'log'), ('pitch_c', 3.5, 'log')]
 SENS = (0.0, 25.0, 50.0, 75.0, 100.0)
 THR0 = {0.0: 1.25, 25.0: 1.25, 50.0: 1.25, 75.0: 1.0, 100.0: 0.5}
 MARGIN0 = {0.0: 0.3, 25.0: 0.3, 50.0: 0.3, 75.0: 0.0, 100.0: -1.0}     # the attack phase: N over S + margin
@@ -56,9 +56,10 @@ def pack(g, td):
 def model_gains(i, g, depth):
     p = PROBES[i]; st = p['settings']
     resp = st.get('response', 'Slow'); sens = float(st.get('sensitivity', 50.0))
-    gm = B.ride(SIGS[i], artifacts=float(st.get('artifacts', 50.0)), sensitivity=sens, response=resp,
+    gm = B.ride(SIGS[i], artifacts=float(st.get('artifacts', 50.0)), sensitivity=sens, response=resp, target=float(st.get('target', -14.0)),
                 **dict(g, **setting_params(depth, resp, sens)))
-    return np.array([np.median(gm[int(t * B.FS):int(t * B.FS) + 2400]) for t in p['read']])
+    w = 480 if len(p['read']) > 3 else 2400
+    return np.array([np.median(gm[int(t * B.FS):int(t * B.FS) + w]) for t in p['read']])
 
 
 def trace_gains(j, g, depth):

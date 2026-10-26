@@ -1215,3 +1215,29 @@ differently: borderline gate decisions (a new note accepted or not) cost the who
 part 6 at 2.38 s, a note 13 dB over a quiet passage is a new note in the reference, ignored here because the long
 reference R (a peak follower) has fallen 1.5 dB less than the reference's. The C++ matches the fitted model to 0.07 dB
 (99 %, `nulltest/check_wbassrider_port.py`).
+
+### Phase 4, second pass: the note level is windowed by pitch, 2026-10-26
+
+- **The detector's timings step with pitch**: the shortest dip that releases a note is 23.3 ms at 200 Hz .. 1 kHz,
+  42.7 ms (2048 samples) at 80 .. 140 Hz, 85.3 ms (4096) at 60 Hz, 96.9 ms at 40 Hz; a note ends ~30 ms after a drop
+  of 42 dB at 175 Hz .. 1 kHz, ~50 ms at 90 .. 150 Hz, ~93 ms at 50 .. 80 Hz. The note level N is therefore the peak of
+  the low-passed input over the last 1024 / 2048 / 4096 samples, the window picked by the pitch (the hidden
+  PARAM_PITCH_INDEX and PARAM_MAX_POW2_DELAY); the model picks the shortest window spanning `pitch_c` periods of a
+  zero-crossing period estimate (fitted: 1.6 periods). N has no onset overshoot (the reference's R reaches a burst's
+  true level within 6 ms at 50 Hz and never above it), and R and S follow N.
+- **R** falls 1.74 dB/s after ~0.1 s (measured 0.3 .. 6 s after a drop, two floors): the 5000 ms release, on
+  amplitude.
+- **Probes**: 683 (42 more at 40 .. 200 Hz). The null now (`WBassRiderRender`, the C++ matching the model to 0.09 dB
+  at 99 %):
+
+| case | residual (dB) | gain error median (dB) | 90 % (dB) |
+|---|---|---|---|
+| steady 80 Hz -20 dBFS | -40.4 | 0.065 | 0.065 |
+| steps 1 kHz | -48.0 | 0.028 | 0.029 |
+| bass line | -30.0 | 0.058 | 0.811 |
+| bass line, Target -24 | -30.2 | 0.062 | 0.998 |
+| bass line, Sensitivity 80 | -25.9 | 0.434 | 0.877 |
+| bass line, Artifacts 20 | -30.0 | 0.058 | 0.733 |
+| synthetic part 6 (held out) | -16.0 | 0.156 | 2.763 |
+| synthetic part 7, Fast (held out) | -20.6 | 0.132 | 3.324 |
+| synthetic part 8, range -6 .. +6 (held out) | -16.7 | 0.098 | 3.233 |
