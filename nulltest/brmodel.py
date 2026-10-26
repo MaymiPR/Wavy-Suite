@@ -18,7 +18,7 @@ assert len(NAMES) == _lib.br_nparams()
 DEFAULTS = dict(target=-14.0, rmin=-12.0, rmax=12.0, idle=0.0, c0=0.68, sh_fc=31.35, sh_g=-28.90, sh_q=0.5075, pb_att=2.0,
                 pb_rel=100.0, lp_fc=1020.0, lp_q=0.60, n_att=1.0, n_rel=1.0, floor=-48.75, off=38.0, art=11.5, rel_depth=12.4,
                 rel_ms=21.0, glide=32.0, smooth=5.0, ref_att=1.0, ref_rel=5000.0, hp_fc=2000.0, illegal=0.0, on_rise=0.3,
-                slow_att=30.0, slow_rel=1000.0, mode=0.0, slow_rel_fast=0.0, thr_u=1.25, thr_a=0.05, hyst=0.3, settle=20.0, off_ms=60.0, win_ms=75.0, off_rel_ms=60.0, nmode=1.0, pitch_c=3.5)
+                slow_att=30.0, slow_rel=1000.0, mode=0.0, slow_rel_fast=0.0, thr_u=1.25, thr_a=0.05, hyst=0.3, settle=20.0, off_ms=60.0, win_ms=75.0, off_rel_ms=60.0, nmode=1.0, pitch_c=3.3)
 FS = 48000
 LOOKAHEAD = {False: 2016, True: 240}      # samples at 48 kHz: 42 ms, Live 5 ms
 

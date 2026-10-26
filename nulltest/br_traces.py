@@ -25,7 +25,8 @@ def material(name):
 CASES = [('bassline', {}), ('synth_3', {}), ('synth_4', {}), ('synth_5', {}),
          ('bassline', {'response': 'Fast'}), ('synth_4', {'response': 'Fast'}),
          ('bassline', {'sensitivity': 90.0}), ('synth_5', {'sensitivity': 20.0}),
-         ('bassline', {'artifacts': 15.0}), ('synth_3', {'artifacts': 85.0})]
+         ('bassline', {'artifacts': 15.0}), ('synth_3', {'artifacts': 85.0}),
+         ('synth_9', {}), ('synth_10', {}), ('synth_11', {'response': 'Fast'}), ('synth_12', {'sensitivity': 70.0})]
 
 
 def blocks(x, g):

@@ -121,7 +121,7 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
     double* qv = (double*) malloc (sizeof (double) * 3 * SMAX_CAP); int* qt = (int*) malloc (sizeof (int) * 3 * SMAX_CAP);
     SMax qs[3]; for (int k = 0; k < 3; ++k) smax_init (&qs[k], qv + k * SMAX_CAP, qt + k * SMAX_CAP, SMAX_CAP);
     const int wlen[3] = { (int) (1024 * fs / 48000.0 + 0.5), (int) (2048 * fs / 48000.0 + 0.5), (int) (4096 * fs / 48000.0 + 0.5) };
-    double prevXl = 0.0, period = 0.01 * fs; int lastCross = -1, wsel = 0;
+    double prevXl = 0.0, period = 0.01 * fs, cyclePos = 0.0, cycleNeg = 0.0, lastN = 0.0; int lastCross = -1, wsel = 0;
     int inNote = 0, released = 0, relCount = 0, below = 0, settle = 0, under = 0;
     double peakN = -300.0, g = 0.0, minN = 300.0;
     double raw = p[BR_IDLE], out = p[BR_IDLE], gts = p[BR_RMAX];
@@ -139,16 +139,20 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
         double N;
         if (p[BR_NMODE] >= 1.0)
         {
-            if (prevXl <= 0.0 && xl > 0.0)                     /* a rising zero crossing: the period since the last one */
+            /* a rising zero crossing: the period since the last one, if both halves of the cycle reached within 12 dB
+               of the note level (not a filter's ringing in silence, nor a note's last part cycle) */
+            if (xl > 0.0) cyclePos = fmax (cyclePos, xl * xl); else cycleNeg = fmax (cycleNeg, xl * xl);
+            if (prevXl <= 0.0 && xl > 0.0)
             {
-                if (lastCross >= 0) { const double pd = (double) (i - lastCross); if (pd > 0.0004 * fs) period = pd; }
-                lastCross = i;
+                if (lastCross >= 0 && fmin (cyclePos, cycleNeg) > 0.0631 * lastN) { const double pd = (double) (i - lastCross); if (pd > 0.0004 * fs) period = pd; }
+                lastCross = i; cyclePos = cycleNeg = 0.0;
             }
             prevXl = xl;
             const double want = p[BR_PITCH_C] * period;
             wsel = want <= wlen[0] ? 0 : (want <= wlen[1] ? 1 : 2);
             double m[3];
             for (int k = 0; k < 3; ++k) m[k] = smax_push (&qs[k], i, xl * xl, wlen[k]);
+            lastN = m[wsel];
             N = db_pow (m[wsel]);
         }
         else N = db_pow (follow (&Np, dp, cna, cnr));
@@ -203,7 +207,7 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
         /* (an ignored note, within 38 dB of the last: the gain stays where it is) */
         out = raw + csm * (out - raw);
         gain[i] = (float) out;
-        if (trace) { float* t = trace + 6 * i; t[0] = (float) E; t[1] = (float) N; t[2] = (float) (inNote + 2 * released + 4 * below + 8 * start); t[3] = (float) raw; t[4] = (float) S; t[5] = (float) R; }
+        if (trace) { float* t = trace + 6 * i; t[0] = p[BR_NMODE] >= 2.0 ? (float) (wsel * 100000 + period) : (float) E; t[1] = (float) N; t[2] = (float) (inNote + 2 * released + 4 * below + 8 * start); t[3] = (float) raw; t[4] = (float) S; t[5] = (float) R; }
     }
     free (qv); free (qt);
 }

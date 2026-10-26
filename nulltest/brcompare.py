@@ -26,7 +26,8 @@ def synth_notes(seed=3, secs=8.0, legato=0.3):
         if rng.uniform() < 0.15: a *= 0.1                                   # a ghost note
         n = np.arange(int(dur * FS)); env = np.exp(-n / FS / rng.uniform(0.1, 0.8)) * np.minimum(1, n / (0.002 * FS))
         env *= np.minimum(1, (len(n) - n) / (0.004 * FS))
-        s = int(t0 * FS); x[s:s + len(n)] += a * env * np.sin(2 * np.pi * f * n / FS + rng.uniform(0, 6.3))
+        s = int(t0 * FS); seg_ = a * env * np.sin(2 * np.pi * f * n / FS + rng.uniform(0, 6.3))
+        m_ = min(len(seg_), len(x) - s); x[s:s + m_] += seg_[:m_]
         t0 += dur * (1 - legato * (rng.uniform() < 0.3)) + rng.uniform(0, 0.08)
     return x.astype(np.float32)
 

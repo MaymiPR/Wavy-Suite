@@ -67,7 +67,7 @@ public:
     {
         shelf.clear(); lp.clear(); hp.clear(); qe.clear(); qh.clear();
         for (auto& w : win) w.clear();
-        prevXl = 0.0; period = 0.01 * fs; lastCross = -1; now = 0;
+        prevXl = 0.0; period = 0.01 * fs; lastCross = -1; now = 0; cyclePos = cycleNeg = lastNp = 0.0;
         P = Np = Hp = Rf = Sl = 0.0;
         inNote = released = below = false; relCount = under = offCount = 0; sinceOff = 1 << 30;
         peakN = -300.0; minN = 300.0; g = 0.0; raw = out = idleNow; energy = -300.0;
@@ -80,10 +80,14 @@ public:
         energy = db (follow (P, qe.power (shelf.process (x)), cpa, cpr));
         const double gt = s.target - energy + 0.68;
         const double xl = lp.process (x);
-        if (prevXl <= 0.0 && xl > 0.0)                    // a rising zero crossing: the period since the last one
+        // a rising zero crossing: the period since the last one, if both halves of the cycle reached within 12 dB of the
+        // note level (not a filter's ringing in silence, nor a note's last part cycle)
+        if (xl > 0.0) cyclePos = std::max (cyclePos, xl * xl); else cycleNeg = std::max (cycleNeg, xl * xl);
+        if (prevXl <= 0.0 && xl > 0.0)
         {
-            if (lastCross >= 0 && (double) (now - lastCross) > 0.0004 * fs) period = (double) (now - lastCross);
-            lastCross = now;
+            if (lastCross >= 0 && std::min (cyclePos, cycleNeg) > 0.0631 * lastNp && (double) (now - lastCross) > 0.0004 * fs)
+                period = (double) (now - lastCross);
+            lastCross = now; cyclePos = cycleNeg = 0.0;
         }
         prevXl = xl;
         const double want = pitchPeriods * period;
@@ -91,6 +95,7 @@ public:
         for (int w = 0; w < 3; ++w) m[w] = win[w].push (now, xl * xl);
         ++now;
         const double np = want <= win[0].length ? m[0] : (want <= win[1].length ? m[1] : m[2]);
+        lastNp = np;
         const double N = db (np);
         const double H = db (follow (Hp, qh.power (hp.process (x)), cna, cnr));
         const double R = db (peak (Rf, np, cra, krr));
@@ -137,11 +142,11 @@ public:
     double energy = -300.0;          // the level read (dB), what the Energy meter shows
 
     // the note detector's constants (nulltest/br_fit.py, measurements/wbassrider/detector_fit.json; br_export.py)
-    double slowAtt = 16.4990, slowRel = 1496.4321, refRel = 4329.0963, hyst = 0.0179, relMs = 2.7946, holdMs = 74.6346, onRise = 1.5812,
-           pitchPeriods = 1.6159, offMs = 7.6961, offRelMs = 60.0000, winMs = 12.8900, floorDb = -48.75;
+    double slowAtt = 16.9039, slowRel = 1132.0171, refRel = 5449.6525, hyst = 0.0142, relMs = 4.2350, holdMs = 68.6612, onRise = 1.9455,
+           pitchPeriods = 3.3000, offMs = 20.2554, offRelMs = 11.2688, winMs = 8.9094, floorDb = -48.75;
     // at Sensitivity 0 .. 100 by 25: the rise over S that is a new note, and the margin over S that keeps the attack
-    double onThr[5] { 1.4425, 1.2177, 2.6283, 1.8922, -1.9758 }, margin[5] { 2.6498, 1.0207, 0.9742, 0.8004, -1.0377 };
-    double depthSlow[5] { 12.0776, 11.0650, 12.8238, 10.6686, 0.2291 }, depthFast[5] { 4.7054, 3.7952, 4.6347, 3.0160, 0.2342 };
+    double onThr[5] { 1.5004, 1.0169, 2.9563, 2.1331, -2.0923 }, margin[5] { 2.3209, 1.2145, 1.3010, 1.4667, -1.5680 };
+    double depthSlow[5] { 12.8979, 12.2184, 12.1950, 5.1859, 0.4790 }, depthFast[5] { 4.3095, 1.2090, 4.9238, 5.2127, 0.1640 };
 
 private:
     struct Biquad
@@ -232,7 +237,7 @@ private:
     Biquad shelf, lp, hp;
     Quad qe, qh;
     SlidingMax win[3];
-    double prevXl = 0.0, period = 480.0;
+    double prevXl = 0.0, period = 480.0, cyclePos = 0.0, cycleNeg = 0.0, lastNp = 0.0;
     long long lastCross = -1, now = 0;
     double cpa = 0, cpr = 0, cna = 0, cnr = 0, cra = 0, krr = 0, csa = 0, ksr = 0, csm = 0, glide = 0;
     int relN = 0, holdN = 0, offN = 0, offRelN = 0, winN = 0, sinceOff = 1 << 30;

@@ -18,7 +18,7 @@ OUT = os.path.join(HERE, '..', 'measurements', 'wbassrider', 'detector_fit.json'
 SETTINGS = [(r, s) for r in ('Slow', 'Fast') for s in (0.0, 25.0, 50.0, 75.0, 100.0)]
 # the free parameters: (name, start, transform) with 'log' kept positive
 GLOBAL = [('slow_att', 30.0, 'log'), ('slow_rel', 1000.0, 'log'), ('ref_rel', 5000.0, 'log'), ('hyst', 0.3, 'log'),
-          ('rel_ms', 21.0, 'log'), ('settle', 20.0, 'log'), ('on_rise', 1.0, 'log'), ('off_ms', 60.0, 'log'), ('win_ms', 75.0, 'log'), ('pitch_c', 3.5, 'log')]
+          ('rel_ms', 21.0, 'log'), ('settle', 20.0, 'log'), ('on_rise', 1.0, 'log'), ('off_ms', 60.0, 'log'), ('win_ms', 75.0, 'log'), ('off_rel_ms', 60.0, 'log')]
 SENS = (0.0, 25.0, 50.0, 75.0, 100.0)
 THR0 = {0.0: 1.25, 25.0: 1.25, 50.0: 1.25, 75.0: 1.0, 100.0: 0.5}
 MARGIN0 = {0.0: 0.3, 25.0: 0.3, 50.0: 0.3, 75.0: 0.0, 100.0: -1.0}     # the attack phase: N over S + margin
