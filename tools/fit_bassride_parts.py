@@ -218,6 +218,11 @@ def main():
     known = sorted(ks)
     for yi in range(36, 162):
         top_rows[yi - 36] *= float(np.interp(yi, known, [ks[k_] for k_ in known]))
+    # the skin has the frame lines baked into those rows: there the panel is its neighbours' (the editor draws the lines)
+    for y0_, y1_ in ((73, 79), (152, 157)):
+        for yi in range(y0_ + 1, y1_):
+            t_ = (yi - y0_) / (y1_ - y0_)
+            top_rows[yi - 36] = top_rows[y0_ - 36] * (1 - t_) + top_rows[y1_ - 36] * t_
     pm['rows'] = top_rows.mean(1)
     # what rows times columns can't say (the skin's panel darkens towards its ends and round the knobs, where the frame
     # does not): the frame over the model on a coarse grid, 8 px cells over the top panel (linear between their centres),
@@ -254,34 +259,45 @@ def main():
               'inline constexpr int topPanelFixW = %d, topPanelFixH = %d;' % (len(gxs), len(gys)),
               'inline constexpr float topPanelFix[] = { %s };' % arr(fix.reshape(-1), '%.3f')]
     tick_angles = [0, 23, 46, 69, 91, 115, 135, -23, -46, -69, -91, -115, -135]
-    NB = 8
+    dash_angles = [s_ * (11.35 + 22.7 * k_) for k_ in range(6) for s_ in (-1, 1)]   # (round the knob's centre)
     BSTEP = 0.5
-    def bbasis(th): return [1.0] + sum(([math.cos(k * th), math.sin(k * th)] for k in range(1, NB + 1)), [])
     bradii = np.arange(18.5, 24.01, BSTEP)
-    nb = 1 + 2 * NB
-    rows = []; vals = []
-    for (cx, cy, pa) in knobs[1:]:
-        for yi in range(int(cy) - 25, int(cy) + 26):
-            for xi in range(int(cx) - 25, int(cx) + 26):
-                dx, dy = xi + 0.5 - cx, yi + 0.5 - cy
-                r = math.hypot(dx, dy)
-                if r < bradii[0] or r > bradii[-1]: continue
-                th = math.atan2(dx, -dy)
-                if min(abs(math.degrees(th) - t) for t in tick_angles) < 5.0: continue
-                fi = min((r - bradii[0]) / BSTEP, len(bradii) - 1 - 1e-6); i = int(fi); t = fi - i
-                row = np.zeros(len(bradii) * nb); bb = np.array(bbasis(th))
-                row[i * nb:(i + 1) * nb] = bb * (1 - t); row[(i + 1) * nb:(i + 2) * nb] = bb * t
-                rows.append(row); vals.append(gF[yi, xi] - panel_at(xi, yi) * shadow_at(xi + 0.5, yi + 0.5))
-    A = np.array(rows); y = np.array(vals)
-    lam = 2.0   # a little ridge on the harmonics, so sparse angles stay smooth
-    R = np.diag([0.0 if (k % nb) == 0 else lam for k in range(A.shape[1])])
-    bcoef = np.linalg.solve(A.T @ A + R.T @ R, A.T @ y).reshape(len(bradii), nb)
-    print('knobBezel: %d pixels, rms %.1f' % (len(y), np.sqrt(np.mean((A @ bcoef.reshape(-1) - y) ** 2))))
-    print('knobBezel: r 21 offset at +-40 deg %.0f, +-100 %.0f, 180 %.0f' % (np.array(bbasis(math.radians(40))) @ bcoef[5], np.array(bbasis(math.radians(100))) @ bcoef[5], np.array(bbasis(math.pi)) @ bcoef[5]))
-    lines += ['// the bezel round the knobs, the black rim and the light ring outside it, as an offset over the shadowed panel: per',
-              '// radius from 18.5 in 0.5 px steps (linear between), an offset and eight harmonics in angle (fitted on the frame)',
-              'inline constexpr float knobBezelR0 = 18.5f, knobBezelStep = %.2ff;' % BSTEP, 'inline constexpr int knobBezelRadii = %d, knobBezelHarmonics = %d;' % (len(bradii), NB),
-              'inline constexpr float knobBezel[] = { %s };' % arr(bcoef.reshape(-1), '%.2f')]
+    def fit_bezel(which, masked, NB):
+        """per radius (0.5 px knots, linear between) an offset over the shadowed panel and NB harmonics in angle, one
+        least-squares fit over every pixel of the ring round the given knobs, the masked angles left out"""
+        def bbasis(th): return [1.0] + sum(([math.cos(k * th), math.sin(k * th)] for k in range(1, NB + 1)), [])
+        nb = 1 + 2 * NB
+        rows = []; vals = []
+        for (cx, cy, pa) in which:
+            for yi in range(int(cy) - 25, int(cy) + 26):
+                for xi in range(int(cx) - 25, int(cx) + 26):
+                    dx, dy = xi + 0.5 - cx, yi + 0.5 - cy
+                    r = math.hypot(dx, dy)
+                    if r < bradii[0] or r > bradii[-1]: continue
+                    th = math.atan2(dx, -dy)
+                    if masked(math.degrees(th), r): continue
+                    fi = min((r - bradii[0]) / BSTEP, len(bradii) - 1 - 1e-6); i = int(fi); t = fi - i
+                    row = np.zeros(len(bradii) * nb); bb = np.array(bbasis(th))
+                    row[i * nb:(i + 1) * nb] = bb * (1 - t); row[(i + 1) * nb:(i + 2) * nb] = bb * t
+                    rows.append(row); vals.append(gF[yi, xi] - panel_at(xi, yi) * shadow_at(xi + 0.5, yi + 0.5))
+        A = np.array(rows); y = np.array(vals)
+        lam = 2.0   # a little ridge on the harmonics, so sparse angles stay smooth
+        R = np.diag([0.0 if (k % nb) == 0 else lam for k in range(A.shape[1])])
+        c = np.linalg.solve(A.T @ A + R.T @ R, A.T @ y).reshape(len(bradii), nb)
+        at = lambda deg, i: np.array(bbasis(math.radians(deg))) @ c[i]
+        print('bezel: %d pixels, rms %.1f; r 21 offset at 0 deg %.0f, +-40 %.0f, +-100 %.0f, 180 %.0f'
+              % (len(y), np.sqrt(np.mean((A @ c.reshape(-1) - y) ** 2)), at(0, 5), at(40, 5), at(100, 5), at(180, 5)))
+        return c
+    # Spill and Artifacts: the black rim and the light metal ring outside it (the ticks masked)
+    bcoef = fit_bezel(knobs[1:], lambda deg, r: min(abs(deg - t) for t in tick_angles) < 5.0, 8)
+    # Sensitivity: the black rim only, its ring being the dashes (masked from radius 19.4)
+    scoef = fit_bezel(knobs[:1], lambda deg, r: r >= 19.4 and min(abs(deg - t) for t in dash_angles) < 9.5, 4)
+    lines += ['// the bezel round Spill and Artifacts, the black rim and the light ring outside it, and round Sensitivity, the black',
+              '// rim alone, as an offset over the shadowed panel: per radius from 18.5 in 0.5 px steps (linear between), an offset',
+              '// and eight (Sensitivity: four) harmonics in angle (fitted on the frame, the ticks and dashes left out)',
+              'inline constexpr float knobBezelR0 = 18.5f, knobBezelStep = %.2ff;' % BSTEP, 'inline constexpr int knobBezelRadii = %d, knobBezelHarmonics = 8, knobBezelSensHarmonics = 4;' % len(bradii),
+              'inline constexpr float knobBezel[] = { %s };' % arr(bcoef.reshape(-1), '%.2f'),
+              'inline constexpr float knobBezelSens[] = { %s };' % arr(scoef.reshape(-1), '%.2f')]
     # the Response switch (fitted on the frame at Slow): its block (20 x 15 at x 105, y 107) as a rank-2 model, the
     # slot's grey by distance from the block (15 columns), the frame's grey; Fast has the block 15 px right, the slot
     # mirrored

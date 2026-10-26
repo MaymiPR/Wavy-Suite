@@ -191,7 +191,7 @@ const Image& Knob::dome (float scale)
 
 void Knob::paint (Graphics& g)
 {
-    const float s = std::sqrt (std::abs (g.getInternalContext().getPhysicalPixelScaleFactor()));
+    const float s = jlimit (0.25f, 8.0f, std::round (g.getInternalContext().getPhysicalPixelScaleFactor() * 100.0f) / 100.0f);
     {
         Graphics::ScopedSaveState ss (g);
         g.addTransform (AffineTransform::scale (1.0f / s));
@@ -727,31 +727,43 @@ void WBassRiderEditor::paintStatic (Graphics& g) const
     // ---- top panel: the group frames (2 px of grey 132 at 0.69, measured on x 7-8 / 311-312, y 75-77 and 154-155 over
     // three panel greys), stroked as one path so the shared stems are not drawn twice
     const PathStrokeType frameStroke (2.0f);
-    // each group: its title gap in the top line, round outer corners; at the junction (x 162) the top and bottom
-    // lines run in straight arms 6.5 px long into short stems (y 82 .. 87 and 144.3 .. 150), the side open (measured)
+    // each group (traced on the skin's 2x background): its title gap in the top line, the outer corners quadratic
+    // fillets 10 px each way; at the junction (x 162) the top and bottom lines bend down / up in the same 10 px fillets
+    // into short stems ending at y 87 and 144.6, the side open
     Path frames;
     auto group = [&frames] (float xOuter, float gapOuter, float gapJoin)    // the title gap's ends
     {
-        const float top = 76.5f, bottom = 155.0f, r = 8.0f, xJoin = 162.0f, dir = xJoin > xOuter ? 1.0f : -1.0f;
+        const float top = 76.5f, bottom = 155.0f, r = 10.0f, xJoin = 162.0f, dir = xJoin > xOuter ? 1.0f : -1.0f;
         frames.startNewSubPath (gapOuter, top);
         frames.lineTo (xOuter + dir * r, top);
         frames.quadraticTo (xOuter, top, xOuter, top + r);
         frames.lineTo (xOuter, bottom - r);
         frames.quadraticTo (xOuter, bottom, xOuter + dir * r, bottom);
-        frames.lineTo (xJoin - dir * 7.0f, bottom);
-        frames.lineTo (xJoin, 150.0f);
-        frames.lineTo (xJoin, 144.3f);
+        frames.lineTo (xJoin - dir * r, bottom);
+        frames.quadraticTo (xJoin, bottom, xJoin, bottom - r);
+        frames.lineTo (xJoin, 144.6f);
         frames.startNewSubPath (gapJoin, top);
-        frames.lineTo (xJoin - dir * 6.5f, top);
-        frames.lineTo (xJoin, 82.0f);
+        frames.lineTo (xJoin - dir * r, top);
+        frames.quadraticTo (xJoin, top, xJoin, top + r);
         frames.lineTo (xJoin, 87.0f);
     };
-    group (8.0f, 58.0f, 105.0f);
-    group (312.0f, 262.0f, 214.0f);
-    g.beginTransparencyLayer (0.69f);
-    g.setColour (kFrame);
-    g.strokePath (frames, frameStroke);
-    g.endTransparencyLayer();
+    group (8.0f, 61.0f, 101.5f);
+    group (312.0f, 258.5f, 218.0f);
+    {
+        // opaque into a layer at the physical scale, then laid on at 0.69 (a transparency layer here comes out at 1x)
+        const float ps = g.getInternalContext().getPhysicalPixelScaleFactor();
+        Image layer (Image::ARGB, roundToInt ((float) W * ps), roundToInt (170.0f * ps), true);
+        {
+            Graphics gl (layer);
+            gl.addTransform (AffineTransform::scale (ps));
+            gl.setColour (kFrame);
+            gl.strokePath (frames, frameStroke);
+        }
+        Graphics::ScopedSaveState ss (g);
+        g.addTransform (AffineTransform::scale (1.0f / ps));
+        g.setOpacity (0.69f);
+        g.drawImageAt (layer, 0, 0);
+    }
 
     g.setColour (kLabelLight);
     g.setFont (arial (12.0f, true));
@@ -776,20 +788,21 @@ void WBassRiderEditor::paintStatic (Graphics& g) const
     g.drawText ("Fast", Rectangle<float> (141.5f, 108.0f, 24.0f, 12.0f), Justification::centred);
 
     // the knobs' scales, measured on the reference's frame round the domes' centres (x 46 / 200 / 275, y 111.5):
-    // Sensitivity: 12 dashes centred at +-(11.3 + 22.67 k) degrees, 16 degrees long, 4 px deep, from radius 20 at the
-    // top drifting out to 22.3 at the ends, grey 131 (100 at the outermost pair); Spill / Artifacts: 13 ticks of their
-    // own lengths and greys (angle, inner and outer radius, grey)
+    // Sensitivity (measured on the skin's 2x background, where the dome does not hide them): 12 dashes on a ring of its
+    // own, centred 0.4 px left of and 1.4 px below the knob's (so they seem to drift out towards the ends), radius 21.1
+    // to 25.25, sectors 16.5 degrees long at the measured angles (about +-(10.7 + 22.1 k)), grey 131 (126 at the outermost
+    // pair);
+    // Spill / Artifacts: 13 ticks of their own lengths and greys (angle, inner and outer radius, grey)
     {
-        for (int k = 0; k < 6; ++k)
-            for (float side : { -1.0f, 1.0f })
-            {
-                const float mid = side * (11.33f + 22.67f * (float) k);
-                const float r0 = 20.0f + 0.0184f * std::abs (mid), r1 = r0 + 4.1f;
-                g.setColour (Colour::greyLevel ((k == 5 ? 100.0f : 131.0f) / 255.0f));
-                Path seg;
-                seg.addCentredArc (46.0f, 111.5f, (r0 + r1) * 0.5f, (r0 + r1) * 0.5f, 0.0f, degreesToRadians (mid - 8.0f), degreesToRadians (mid + 8.0f), true);
-                g.strokePath (seg, PathStrokeType (r1 - r0, PathStrokeType::mitered, PathStrokeType::butt));
-            }
+        const Rectangle<float> ring = Rectangle<float> (50.5f, 50.5f).withCentre ({ 45.6f, 112.9f });
+        static constexpr float dashes[] = { -122.3f, -100.0f, -76.7f, -54.0f, -32.0f, -10.0f, 11.4f, 33.2f, 54.6f, 76.6f, 98.8f, 120.2f };
+        for (float mid : dashes)
+        {
+            g.setColour (Colour::greyLevel ((std::abs (mid) > 110.0f ? 126.0f : 131.0f) / 255.0f));
+            Path seg;
+            seg.addPieSegment (ring, degreesToRadians (mid - 8.25f), degreesToRadians (mid + 8.25f), 21.1f / 25.25f);
+            g.fillPath (seg);
+        }
         struct Tick { float angle, r0, r1, grey; };
         static constexpr Tick ticks[] = { { 0.0f, 20.5f, 25.8f, 147.0f }, { 23.0f, 20.3f, 24.0f, 140.0f }, { 46.0f, 20.3f, 25.6f, 140.0f },
                                           { 69.0f, 20.5f, 24.3f, 135.0f }, { 91.0f, 21.0f, 26.8f, 147.0f }, { 115.0f, 21.3f, 25.3f, 115.0f },
@@ -889,9 +902,9 @@ static float knobShadowAt (float x, float y)
     return f;
 }
 
-// the bezel round each knob (WBassRiderSkinData.h, fitted on the reference's frame between the ticks): the black rim,
-// then a light metal ring lit from above (about +75 over the panel at the sides, lost in the shadow at the foot), as an
-// offset over the shadowed panel that dies out by radius 24
+// the bezel round each knob (WBassRiderSkinData.h, fitted on the reference's frame between the ticks and dashes): the
+// black rim, then round Spill and Artifacts a light metal ring lit from above (about +75 over the panel at the sides,
+// lost in the shadow at the foot), as an offset over the shadowed panel that dies out by radius 24
 // the top panel's correction over rows times columns (WBassRiderSkinData.h: the frame over the model on 8 px cells,
 // linear between their centres)
 static float topPanelFixAt (float x, float y)
@@ -916,11 +929,14 @@ static void knobBezelAt (float x, float y, float rgb[3])
         const float fi = jlimit (0.0f, (float) (sk::knobBezelRadii - 1) - 1.0e-3f, (r - sk::knobBezelR0) / sk::knobBezelStep);
         const int i = (int) fi;
         const float t = fi - (float) i;
-        auto at = [a] (int k)
+        const bool sens = cx < 100.0f;                                  // Sensitivity: the black rim alone
+        const float* table = sens ? sk::knobBezelSens : sk::knobBezel;
+        const int nh = sens ? sk::knobBezelSensHarmonics : sk::knobBezelHarmonics;
+        auto at = [a, table, nh] (int k)
         {
-            const float* c = sk::knobBezel + k * (1 + 2 * sk::knobBezelHarmonics);
+            const float* c = table + k * (1 + 2 * nh);
             float v = c[0];
-            for (int h = 1; h <= sk::knobBezelHarmonics; ++h) v += c[2 * h - 1] * std::cos ((float) h * a) + c[2 * h] * std::sin ((float) h * a);
+            for (int h = 1; h <= nh; ++h) v += c[2 * h - 1] * std::cos ((float) h * a) + c[2 * h] * std::sin ((float) h * a);
             return v;
         };
         const float v = at (i) * (1.0f - t) + at (i + 1) * t;
@@ -932,8 +948,9 @@ static void knobBezelAt (float x, float y, float rgb[3])
 void WBassRiderEditor::paintContent (Graphics& g)
 {
     namespace sk = wbassrider::skin;
-    // the static art, rendered once per window scale (the panels from their fitted models, pixel by pixel, then the art)
-    const float s = (float) getWidth() / (float) W;
+    // the static art, rendered once per physical scale (the window's size times the display's: the panels from their
+    // fitted models, pixel by pixel, then the art)
+    const float s = jlimit (0.25f, 8.0f, std::round (g.getInternalContext().getPhysicalPixelScaleFactor() * 100.0f) / 100.0f);
     if (background.isNull() || std::abs (s - backgroundScale) > 1.0e-3f)
     {
         backgroundScale = s;
