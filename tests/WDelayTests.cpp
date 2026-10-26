@@ -177,12 +177,51 @@ static void testPresets()
             auto* q = p.apvts.getParameter (v.id);
             if (q == nullptr) { known = false; continue; }
             const auto r = q->getNormalisableRange();
-            inRange = inRange && v.value >= r.start - 1.0e-3f && v.value <= r.end + 1.0e-3f;
+            inRange = inRange && v.value >= r.start - 1.0e-3f && v.value <= r.end * 1.0001f;   // (LoPass 20 139 as stored)
         }
     }
     CHECK (names.size() == (int) list.size());
     CHECK (known);
     CHECK (inRange);
+    // every preset, applied, reads back its own values (through the tapers)
+    int wrong = 0;
+    for (int k = 0; k < (int) list.size(); ++k)
+    {
+        const auto& pr = list[(size_t) k];
+        p.setCurrentProgram (k + 1);
+        for (const auto& v : pr.values)
+        {
+            if (juce::String (v.id) == wdelay::mix) continue;
+            const float got = p.apvts.getRawParameterValue (v.id)->load();
+            if (std::abs (got - v.value) > 1.0e-3f * std::max (1.0f, std::abs (v.value)))
+            {
+                ++wrong;
+                std::printf ("  preset %s: %s is %g, not %g\n", pr.name, v.id, (double) got, (double) v.value);
+            }
+        }
+    }
+    CHECK (wrong == 0);
+    // a preset's values reach the DSP as stored (the reference's preset load), until the parameter is moved
+    auto program = [&list] (const char* name) { for (int k = 0; k < (int) list.size(); ++k) if (juce::String (list[(size_t) k].name) == name) return k + 1; return 0; };
+    p.setCurrentProgram (program ("Ping Pong"));
+    CHECK (std::abs (p.settings (48000.0).depth - 0.0069f) < 1.0e-6f);
+    p.setCurrentProgram (program ("Broken Machine"));
+    CHECK (std::abs (p.settings (48000.0).rateHz - 281.7f) < 1.0e-3f);
+    CHECK (std::abs (p.settings (48000.0).lopassHz - 20139.0f) < 0.5f);   // stored 20 139: a filter, though shown Off
+    p.setCurrentProgram (program ("Full Reset"));
+    CHECK (p.settings (48000.0).lopassHz == 0.0f);                         // stored 20 100: Off
+    p.setCurrentProgram (program ("Ping Pong"));
+    auto* d = p.apvts.getParameter (wdelay::depth);
+    d->setValueNotifyingHost (d->convertTo0to1 (0.69f) + 1.0e-4f);           // moved: the parameter at its resolution
+    CHECK (std::abs (p.settings (48000.0).depth - 0.01f) < 1.0e-6f);
+    {   // the preset's values survive a session's save and reload
+        p.setCurrentProgram (program ("Broken Machine"));
+        juce::MemoryBlock mb;
+        p.getStateInformation (mb);
+        WDelayProcessor q;
+        q.setStateInformation (mb.getData(), (int) mb.getSize());
+        CHECK (std::abs (q.settings (48000.0).rateHz - 281.7f) < 1.0e-3f);
+    }
     CHECK (juce::String (list.front().name) == "Full Reset");
 }
 

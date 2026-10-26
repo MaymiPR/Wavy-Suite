@@ -40,7 +40,8 @@ The installers are not code-signed or notarized; see [packaging/](packaging) for
 
 Residual of WDelay against the reference, lower is better. The delay path nulls: defaults, ms and synced times,
 the filters, Ping Pong from either side and Feedback up to 200 % at **−84 … −104 dB**; modulation at **−61 … −81 dB**;
-the reference's 88 factory presets (each on drums, bass and voice, with its own Analog mode): **median −53.0 dB**.
+the reference's own 88 factory presets, loaded as it loads them (each on drums, bass and voice, with its own Analog
+mode): **median −53.2 dB**.
 
 - Analog modes: mode 4 nulls at −80 … −90 dB; modes 1–3 add random noise as the reference does, which no null can
   remove, and mode 3's model is the weakest part (about −41 dB).

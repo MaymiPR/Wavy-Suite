@@ -268,6 +268,8 @@ def write_hdelay():
     # nulltest/read_ref_presets_hd.py): 1 Sync (0 BPM, 1 Host, 2 ms), 2 BPM, 3 Delay ms, 4 Delay note (index), 6 Mix,
     # 7 Feedback, 8 / 9 Phase L / R, 10 Ping Pong, 14 Output, 15 LoPass (20 100 and up: Off), 17 HiPass (19: Off),
     # 19 Depth, 20 Rate, 21 LoFi, 23 Analog. The start side, Dual and the right side's times are not stored.
+    # Values as stored: the reference takes a preset's values exactly (WDelayProcessor uses them while the parameter
+    # stays where the preset put it); LoPass 20 100 is Off, 20 139 a filter at 20 139 Hz.
     data = json.load(open(os.path.join(ROOT, "build", "ref_presets_HDelay.json")))
     assert len(data) == len(HDELAY_NAMES) == 88, "preset list changed"
     assert len(set(HDELAY_NAMES)) == len(HDELAY_NAMES)
@@ -277,7 +279,7 @@ def write_hdelay():
         group = "Essentials" if k < 68 else "Studio"
         spec = ((1, "sync", 0, 2, 0), (2, "bpm", 30, 300, 2), (3, "delay", 1, 3500, 3), (4, "delayNote", 0, 19, 0),
                 (6, "mix", 0, 100, 2), (7, "feedback", 0, 200, 2), (8, "phaseL", 0, 1, 0), (9, "phaseR", 0, 1, 0),
-                (10, "pingPong", 0, 1, 0), (14, "output", -18, 18, 2), (15, "lopass", 19, 20138.77, 2), (17, "hipass", 19, 20138.77, 2),
+                (10, "pingPong", 0, 1, 0), (14, "output", -18, 18, 2), (15, "lopass", 19, 20139, 2), (17, "hipass", 19, 20138.77, 2),
                 (19, "depth", 0, 100, 3), (20, "rate", 0.1, 6000, 4), (21, "lofi", 0, 1, 0), (23, "analog", 0, 4, 0))
         vals = [(pid, num(get(i), lo, hi, nd)) for i, pid, lo, hi, nd in spec]
         rows.append('    { "%s", "%s", { %s } },' % (group, HDELAY_NAMES[k], ", ".join('{ "%s", %rf }' % (pid, float(v)) for pid, v in vals)))

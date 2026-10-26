@@ -22,8 +22,12 @@ _T = 1.0 - 3.0e-9                                        # the reference's tripl
 BEATS = [_T / 24, 1 / 16, 3 / 32, _T / 12, 1 / 8, 3 / 16, _T / 6, 1 / 4, 3 / 8, _T / 3, 1 / 2, 3 / 4, 2 * _T / 3, 1, 1.5, 4 * _T / 3, 2, 3, 4, 8]
 
 
+EXACT = False                                            # values as a preset gives them: no rounding (exact=1)
+
+
 def rate_res(v):
     """Rate at the reference's resolution: three significant digits, at least 0.01 (as WDelayProcessor.cpp)"""
+    if EXACT: return v
     step = 10.0 if v >= 1000 else 1.0 if v >= 100 else 0.1 if v >= 10 else 0.01
     return round(v / step) * step
 
@@ -42,9 +46,9 @@ class State:
     def times(self):
         def t(note, ms):
             s = self.v["sync"]
-            if s == "ms": return float(round(ms))                   # the reference's resolution: 1 ms (and 1 BPM)
+            if s == "ms": return float(ms if EXACT else round(ms))  # the reference's resolution: 1 ms (and 1 BPM)
             beats = BEATS[H.NOTES.index(note)]
-            return beats * 60000.0 / (float(round(float(self.v["bpm"]))) if s == "BPM" else self.host)
+            return beats * 60000.0 / ((float(self.v["bpm"]) if EXACT else float(round(float(self.v["bpm"])))) if s == "BPM" else self.host)
         return t(self.v["note"], float(self.v["delay"])), t(self.v["note_r"], float(self.v["delay_r"]))
 
     def rate(self):
@@ -69,7 +73,7 @@ def ours(x, fs=48000, comp="Stereo", preroll=3.0, host_bpm=120.0, changes=(), bl
     x = np.atleast_2d(np.asarray(x, np.float32))
     if x.shape[0] == 1: x = np.concatenate([x, x])
     st = State(host_bpm)
-    args = ["analog=2", "rate0=%.9f" % State(host_bpm).rate()]   # the reference's defaults (its first block at 375 ms)
+    args = (["exact=1"] if EXACT else []) + ["analog=2", "rate0=%.9f" % State(host_bpm).rate()]   # the reference's defaults (its first block at 375 ms)
     for k, v in settings.items():
         st.set(k, v); args += our_args(k, v)
     tl, tr = st.times()

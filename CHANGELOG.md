@@ -29,6 +29,10 @@
     −43 / −71 dB.
   - **Analog 1** refitted: −50 → −54 dB in the null suite.
   - **96 kHz:** the LFO runs twice as fast there, as the reference's (modulation +2.6 → −48 dB below 20 kHz).
+  - **Presets as the reference loads them:** a factory preset's values are used exactly as stored (Depth 0.69,
+    Rate 281.7, LoPass 20 139 as a filter at 20.1 kHz though shown Off), while a value set from a knob or the host
+    stays at the reference's resolution. Nine presets' LoPass corrected. The preset null test now loads the
+    reference's own presets (`nulltest/nulltest_wdelay_refpresets.py`; RefRender takes `state=`).
   - **Presets:** the reference's 88 presets, with Wavy names (`tools/make_presets.py`), and their null test
     (`nulltest/nulltest_wdelay_presets.py`).
 - **WDelay DSP** (Phase 4, `plugins/WDelay/WDelayDsp.h`):

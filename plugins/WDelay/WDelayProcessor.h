@@ -1,6 +1,9 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <array>
 #include <atomic>
+#include <cstring>
+#include <limits>
 #include "WavyMeter.h"
 #include "WDelayPresets.h"
 #include "WDelayDsp.h"
@@ -53,10 +56,11 @@ float atResolution (const char* id, float value);
 juce::String rateText (float hz);
 }
 
-class WDelayProcessor : public juce::AudioProcessor
+class WDelayProcessor : public juce::AudioProcessor, private juce::ValueTree::Listener
 {
 public:
     WDelayProcessor();
+    ~WDelayProcessor() override { apvts.state.removeListener (this); }
 
     void prepareToPlay (double, int) override;
     void releaseResources() override {}
@@ -109,4 +113,17 @@ private:
     bool prepared = false, layoutDual = false;
     float get (const char* id) const { return apvts.getRawParameterValue (id)->load(); }
     int currentProgram = 0;
+
+    // A factory preset's values as stored (wavy::presetExactTag in the state): the reference takes a preset's values
+    // exactly (Depth 0.69, Rate 281.7, LoPass 20 139 as a filter), but a value set from outside at its resolution.
+    // A parameter uses its preset value while it stays where the preset put it.
+    struct Exact { const char* id; std::atomic<float> value { std::numeric_limits<float>::quiet_NaN() }, norm { -1.0f }; };
+    std::array<Exact, 6> exact { { { wdelay::depth }, { wdelay::rate }, { wdelay::lopass }, { wdelay::hipass }, { wdelay::bpm },
+                                   { wdelay::feedback } } };
+    // the value the DSP takes: the preset's (exactFromPreset true) or the parameter's at its resolution
+    float value (const char* id, bool* exactFromPreset = nullptr) const;
+    void readExact();
+    void valueTreeChildAdded (juce::ValueTree&, juce::ValueTree&) override { readExact(); }
+    void valueTreeChildRemoved (juce::ValueTree&, juce::ValueTree&, int) override { readExact(); }
+    void valueTreeRedirected (juce::ValueTree&) override { readExact(); }
 };

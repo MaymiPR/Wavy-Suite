@@ -123,6 +123,36 @@ WDelayProcessor::WDelayProcessor()
       apvts (*this, &undo, "WDelay", layout())
 {
     analogStage.modes = wdelay::tables::analog;                   // H-Delay's Analog modes (4 is H-Comp's)
+    apvts.state.addListener (this);
+}
+
+void WDelayProcessor::readExact()
+{
+    const auto t = apvts.state.getChildWithName (wavy::presetExactTag);
+    for (auto& e : exact)
+    {
+        const auto* p = apvts.getParameter (e.id);
+        const bool has = t.isValid() && t.hasProperty (e.id) && p != nullptr;
+        const float v = has ? (float) t.getProperty (e.id) : std::numeric_limits<float>::quiet_NaN();
+        e.norm.store (has ? p->convertTo0to1 (p->getNormalisableRange().snapToLegalValue (v)) : -1.0f);
+        e.value.store (v);
+    }
+}
+
+float WDelayProcessor::value (const char* id, bool* exactFromPreset) const
+{
+    if (exactFromPreset != nullptr) *exactFromPreset = false;
+    for (auto& e : exact)
+        if (std::strcmp (e.id, id) == 0)
+        {
+            const float v = e.value.load (std::memory_order_relaxed);
+            if (! std::isnan (v) && std::abs (apvts.getParameter (id)->getValue() - e.norm.load (std::memory_order_relaxed)) < 1.0e-6f)
+            {
+                if (exactFromPreset != nullptr) *exactFromPreset = true;
+                return v;
+            }
+        }
+    return wdelay::atResolution (id, get (id));
 }
 
 // mono or stereo, in and out alike, or mono in and stereo out (the reference's mono-to-stereo component)
@@ -167,7 +197,7 @@ float wdelay::atResolution (const char* id, float v)
 wdelay::dsp::Settings WDelayProcessor::settings (double fs) const
 {
     wdelay::dsp::Settings s;
-    auto get = [this] (const char* id) { return wdelay::atResolution (id, this->get (id)); };
+    auto get = [this] (const char* id) { return value (id); };
     const int sync = roundToInt (get (wdelay::sync));
     auto samples = [&] (const char* msId, const char* noteId)
     {
@@ -185,9 +215,11 @@ wdelay::dsp::Settings WDelayProcessor::settings (double fs) const
     s.feedback = get (wdelay::feedback) * 0.01f;
     s.mix = get (wdelay::mix) * 0.01f;
     s.outputDb = get (wdelay::output);
-    const float hp = get (wdelay::hipass), lp = get (wdelay::lopass);
+    bool lpPreset = false;
+    const float hp = get (wdelay::hipass), lp = value (wdelay::lopass, &lpPreset);
     s.hipassHz = hp < wdelay::kHiPassOff ? 0.0f : hp;
-    s.lopassHz = lp >= wdelay::kLoPassOff ? 0.0f : lp;
+    // set from outside, LoPass is Off from 20 100; a preset's is Off at exactly 20 100 (its 20 139 filters, measured)
+    s.lopassHz = (lpPreset ? lp == wdelay::kLoPassOff : lp >= wdelay::kLoPassOff) ? 0.0f : lp;
     s.depth = get (wdelay::depth) * 0.01f;
     s.rateHz = get (wdelay::rate);
     if (sync != 2)                                                 // synced: Rate is in cycles per beat at 60 BPM (measured)

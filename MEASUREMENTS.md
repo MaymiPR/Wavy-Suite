@@ -994,9 +994,18 @@ host (`nulltest/nulltest_wdelay.py`).
     of a steady sine (`probe_hd_lfo_trace.py`, the period over 85 cycles): before the rounding 3074 Hz nulled at
     −10 … −54 dB, after it −76 … −84 dB, as every other rate.
   - Nulls on modulated material −67 … −84 dB (Depth 39 / 100, Rate 1 … 6000 Hz, delays 30 / 750 ms).
-- **Parameter resolutions** (ParamXML; the DSP takes the shown value): Delay, Feedback, Mix, BPM, Depth and the
-  filters whole units (Depth 0.69 acts as 1), Output 0.1 dB, Rate as above. Triplet notes are a hair short
-  (× (1 − 3e-9)): 1/8T at 120 BPM is 7999 samples, not 8000.
+- **Parameter resolutions: two paths** (found from the user's feedback "some presets do not have the same
+  settings"; `nulltest/nulltest_wdelay_refpresets.py` loads the reference's own preset arrays into its state).
+  - Set from outside (a host, automation, a knob), a value is used at its ParamXML resolution: Delay, Feedback,
+    Mix, BPM, Depth and the filters whole units (Depth 0.69 acts as 1), Output 0.1 dB, Rate to three significant
+    digits and at least 0.01 (3074 acts as 3070, 281.7 as 282, 47.84 as 47.8). LoPass from about 20 099 up is Off.
+  - Loaded from a preset, a value is used exactly as stored: Depth 0.69, Rate 281.7 and 47.84 (the delay trace's
+    period: 1004 samples, not 47.8's 1006). LoPass is Off only at exactly 20 100, its reset value; nine factory
+    presets store 20 139, which the reference shows as "Off" but runs as a filter at 20.1 kHz (impulse nulls −100 dB
+    against a 20 139 Hz filter, +0.9 dB against Off). A stored Delay is still taken in whole ms (6.6 acts as 6).
+  - WDelay does the same: a factory preset's values are kept in the state (wavy::presetExactTag) and used while a
+    parameter stays where the preset put it; moved, it is used at its resolution.
+  - Triplet notes are a hair short (× (1 − 3e-9)): 1/8T at 120 BPM is 7999 samples, not 8000.
 - **Self-oscillation with the filters** (Feedback above 100 % with HiPass and/or LoPass on, as in the preset Fast
   Siren) is chaotic: in WDelay's own model a 1e-6 change of the input grows to −4 dB within 3 s. Such a loop nulls
   for its first fraction of a second and then cannot, by any model short of a bit-exact one. Without the filters the

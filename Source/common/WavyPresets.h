@@ -14,6 +14,8 @@ struct FactoryPreset
     std::vector<Value> values;
 };
 
+inline const juce::Identifier presetExactTag { "PresetExact" };
+
 // keep / alsoKeep: parameters a preset never changes (the Mode switch; WBassX's Input, which the reference marks
 // IgnoreOnPresetLoad)
 inline void applyPreset (juce::AudioProcessorValueTreeState& apvts, const FactoryPreset& preset, juce::RangedAudioParameter* keep,
@@ -30,5 +32,12 @@ inline void applyPreset (juce::AudioProcessorValueTreeState& apvts, const Factor
         rp->setValueNotifyingHost (target);
         rp->endChangeGesture();
     }
+    // the preset's values as stored, before the parameters' ranges and snapping (a plug-in may use them while its
+    // parameters stay where the preset put them: WDelay, as the reference takes a preset's values exactly)
+    auto old = apvts.state.getChildWithName (presetExactTag);
+    if (old.isValid()) apvts.state.removeChild (old, nullptr);
+    juce::ValueTree exact (presetExactTag);
+    for (const auto& v : preset.values) exact.setProperty (v.id, v.value, nullptr);
+    apvts.state.appendChild (exact, nullptr);
 }
 }

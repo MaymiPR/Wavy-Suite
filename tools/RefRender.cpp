@@ -8,6 +8,7 @@
 // in.f32 / sc.f32: interleaved stereo float32 at fs; out.f32: the main output, interleaved stereo, the plug-in's latency
 // removed. Parameters are set by their display text (name=text, converted by the plug-in) or a normalised value
 // (name:=0.25). "--list" as the name lists the shell's sub-plugins.
+// state=<file>: a whole state (as getStateInformation writes it), applied as a setting (or at=t:state=<file>).
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <cstdio>
 #include <vector>
@@ -109,6 +110,14 @@ int main (int argc, char** argv)
     plugin->prepareToPlay (fs, block);
     auto setParam = [&plugin] (const String& a)
     {
+        if (a.startsWith ("state="))                              // a whole state (getStateInformation's), from a file
+        {
+            MemoryBlock mb;
+            if (! File (a.substring (6)).loadFileAsData (mb)) { std::printf ("  no state file '%s'\n", a.substring (6).toRawUTF8()); return; }
+            plugin->setStateInformation (mb.getData(), (int) mb.getSize());
+            std::printf ("  state from %s (%d bytes)\n", a.substring (6).toRawUTF8(), (int) mb.getSize());
+            return;
+        }
         const bool normalised = a.contains (":=");
         const auto name = a.upToFirstOccurrenceOf (normalised ? ":=" : "=", false, false);
         const auto val = a.fromFirstOccurrenceOf (normalised ? ":=" : "=", false, false);

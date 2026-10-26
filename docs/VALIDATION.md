@@ -4,13 +4,13 @@
 
 | Check | Result |
 |---|---|
-| Unit tests (`WDelayTests`, 94 checks, 2026-10-25: the parameter texts and tapers, Rate at its shown resolution, the display's note and Dual / Ping Pong layouts and clicks, the DSP laws (interpolator, glide, gain stage, LFO, filters, Ping Pong, Phase), an impulse through the processor at the default 1/8D, the 88 factory presets load and leave Mix alone, state round trip) | all pass (Windows, local) |
+| Unit tests (`WDelayTests`, 101 checks, 2026-10-25: a preset's exact values reach the DSP until the parameter is moved, and survive a session reload; the parameter texts and tapers, Rate at its shown resolution, the display's note and Dual / Ping Pong layouts and clicks, the DSP laws (interpolator, glide, gain stage, LFO, filters, Ping Pong, Phase), an impulse through the processor at the default 1/8D, the 88 factory presets load and leave Mix alone, state round trip) | all pass (Windows, local) |
 | pluginval, strictness level 10, `--skip-gui-tests`, on `WDelay.vst3` (Windows, local, 2026-10-25) | SUCCESS, exit code 0 |
 | The built VST3 (hosted by `tools/RefRender`) against the offline renderer, 3 modulated settings at 48 and 96 kHz | identical (−400 dB) |
 | FocusCheck (the space bar reaches the host after clicks on the knobs, the display, the buttons and the tap pad; 2026-10-25) | PASS |
 | Null test against the reference, 48 kHz | [NULL_RESULTS_WDELAY.md](NULL_RESULTS_WDELAY.md): the delay path (defaults, ms times, filters, Ping Pong either side, Feedback up to 200 %) −84 … −104 dB; modulation −61 … −81; glides inside the input −60 … −83; LoFi −70; Analog 4 −80 … −90, Analog 1 / 2 / 3 −53 / −51 / −40 (their random noise included) |
 | Sample rates | 44.1 kHz as 48 kHz; 96 kHz below 20 kHz −46 … −61 dB on the delay path, the band round the 24 kHz kernel cutoff differs (NULL_RESULTS_WDELAY.md) |
-| Factory presets against the reference (88 presets, each on drums, bass and voice-like, with its own Analog mode) | [NULL_RESULTS_WDELAY_PRESETS.md](NULL_RESULTS_WDELAY_PRESETS.md): median −53.0 dB; Analog Off −73.2, mode 3 −41.1; Fast Siren chaotic (self-oscillation through the filters) |
+| Factory presets against the reference's own presets (88, loaded into its state as it loads them; drums, bass, voice-like; each with its own Analog mode) | [NULL_RESULTS_WDELAY_PRESETS.md](NULL_RESULTS_WDELAY_PRESETS.md): median −53.2 dB; Analog Off −78.1, mode 3 −41.2; Fast Siren chaotic (self-oscillation through the filters) |
 | CPU (stereo at 48 kHz through the offline renderer, Feedback 60, Analog 2) | about 1.6 % of one core |
 
 ## WComp

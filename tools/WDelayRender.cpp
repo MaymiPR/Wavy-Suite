@@ -16,6 +16,8 @@
 #include "WCompAnalog.h"
 #include "WDelayAnalogTables.h"
 
+static bool exactValues = false;                                  // exact=1: values as given (a preset's), not rounded
+
 static void apply (wdelay::dsp::Settings& s, int& analog, int& block, const std::string& a, double fs)
 {
     const auto eq = a.find ('=');
@@ -24,7 +26,9 @@ static void apply (wdelay::dsp::Settings& s, int& analog, int& block, const std:
     double v = std::atof (a.c_str() + eq + 1);
     // the reference's resolutions (as the plug-in, WDelayProcessor.cpp: atResolution; the times and the LFO's rate come
     // computed, their parameters rounded by the caller)
-    if (k == "feedback" || k == "mix" || k == "depth" || k == "hipass" || k == "lopass") v = std::round (v);
+    if (k == "exact") { exactValues = v > 0.5; return; }
+    if (exactValues) {}
+    else if (k == "feedback" || k == "mix" || k == "depth" || k == "hipass" || k == "lopass") v = std::round (v);
     else if (k == "output") v = std::round (v * 10.0) / 10.0;
     if (k == "time") s.timeL = v * fs / 1000.0;                   // (whole samples or not: Settings::wholeTimes)
     else if (k == "time_r") s.timeR = v * fs / 1000.0;
