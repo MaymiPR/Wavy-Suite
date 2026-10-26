@@ -1099,3 +1099,27 @@ screenshots now come from the same read-back), its skin in the git-ignored `refe
     way, its meter is within 0.0 dB (median) of the reference's on steady tones and 1.1 dB on the bass line, its Rider
     within 0.1 / 1.8 dB.
 
+
+## WBass Rider: Phase 3 measurements (the reference's audio), 2026-10-26
+
+`nulltest/measure_bassrider.py` renders the reference (Bass Rider Mono, 48 kHz, a fresh instance per render) and
+reads the gain as output over input with the 42 ms latency removed (rms over the last second of 4 s tones).
+
+- **Static law** (80 Hz sine, defaults): the gain is exactly `Target + 5.48 - level` (level = the sine's peak in
+  dBFS), so the output settles at Target + 5.48 dB peak (+2.47 dB rms) for any level, and is clamped at Range Max /
+  Min (+12 / −12 at the defaults). Checked at Targets −14, −24 and −4, 3 dB steps from −60 to 0 dBFS: the law holds
+  to 0.01 dB everywhere off the clamps.
+- **Below the gate**: at 80 Hz, peaks of −51 dBFS and lower get no ride at all (gain 0.00, the Idle value); −48 and
+  up are ridden. Spill (−40 by default) must therefore be compared with a level about 10 dB above the sine's peak,
+  or a differently weighted one: to be pinned down with a fine sweep against Spill.
+- **Weighting** (−8 dBFS sines, Target −14): the level the rider sees, relative to 80 Hz:
+
+  | Hz | 20 | 25 | 30 | 40 | 50 | 60 | 70 | 80 | 100 | 120 | 150 | 200 | 300 | 500 | 700 | 1000 | 1500 |
+  |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+  | dB | ≤ −12.5 (clamped) | −12.4 | −10.1 | −6.7 | −4.2 | −2.4 | −1.0 | 0 | +1.4 | +2.3 | +3.2 | +3.8 | +4.4 | +4.6 | +4.7 | +4.8 | +4.8 |
+
+  A high-pass shape flattening above about 700 Hz, steeper than first order below 80 Hz (a first-order high-pass
+  matching 80 Hz would give −4.8 at 40 Hz, not −6.7). The hidden parameters name a 30 Hz high-pass and a 5.1 kHz
+  shelf; the fit comes next.
+- **Above about 1.7 kHz nothing is ridden** (2 and 5 kHz sines: gain 0, Idle): the note detector, on a low-passed
+  signal, never opens.
