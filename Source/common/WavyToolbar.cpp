@@ -63,6 +63,22 @@ juce::Rectangle<int> Toolbar::rect (Item i) const
             default:     return {};
         }
     }
+    if (getWidth() < width)        // a narrow editor (Bass Rider, 320): its ToolbarXML has no Skins box; the Mode
+        switch (i)                 // drop-down takes its place, the arrow / copy / setup / save boxes narrowed for it
+        {
+            case About:  return { 6, 2, 16, 15 };
+            case Mode:   return { 24, 2, 62, 15 };
+            case Undo:   return { 88, 2, 24, 15 };
+            case Redo:   return { 114, 2, 24, 15 };
+            case Prev:   return { 140, 2, 24, 15 };
+            case Next:   return { 166, 2, 24, 15 };
+            case Copy:   return { 192, 2, 38, 15 };
+            case Setup:  return { 232, 2, 38, 15 };
+            case Save:   return { 272, 2, 28, 15 };
+            case Menu:   return { 302, 2, 16, 15 };
+            case Preset: return { 2, 19, getWidth() - 4, 15 };
+            default:     return {};
+        }
     switch (i)
     {
         case About:  return { 4, 2, 16, 15 };
@@ -485,6 +501,7 @@ void Toolbar::paint (juce::Graphics& g)
     for (int i = 0; i < numItems; ++i)
     {
         const auto r = rect ((Item) i);
+        if (r.isEmpty()) continue;                                 // (no Skins box on a narrow bar)
         const bool hot = (i == this->hot);
         switch ((Item) i)
         {

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **WBass Ride** (Phase 2: the editor; the audio is delayed by the component's latency and passes at the Rider's idle
+  gain plus Output until the riding DSP), a note-by-note bass level rider modelled on Bass Rider: its 320 x 560 editor
+  drawn by Wavy (resizable) — the Target slider's glass thumb over the Energy meter, the Detect / Ignore groups with
+  the dashed-ring Sensitivity knob, the Response switch, Spill and Artifacts with their tick rings, the Range column
+  (Max / Min thumbs, the lit band between them, the Idle arrow and its line), the Rider fader on its +-12 dB scale,
+  the Output fader with its clip LED, the value boxes and the name plate; the caps, the meter, the Target thumb and
+  the panels are drawn from shading models fitted on the reference (`tools/fit_bassride_parts.py`, no image data in
+  the repository). Selection as measured on the reference: a click marks a control in yellow, its value shows while
+  the mouse is on it. The parameters, ranges and defaults of the reference's VST3; Mode Stereo / Mono / Live Stereo /
+  Live Mono (the reference's four components; 42 / 5 ms latency). The narrow Renaissance toolbar (320 px, no Skins
+  box) is new in the shared kit. MeterCapture's script screenshots read OpenGL editors back with `gl=1`.
 - **WDelay** (Phase 2: the editor; the audio passes through until the DSP), a hybrid delay modelled on H-Delay: the
   Hybrid-line editor (749 x 292, resizable) drawn by Wavy — the Delay and Feedback knobs in chrome skirts, the knurled
   modulation and filter knobs, the right column's small knobs, the tap pad, the Link wheel, the amber time display

@@ -1,0 +1,185 @@
+"""Fits compact shading models of the reference Bass Rider's controls (its skin, extracted into the git-ignored
+reference/wbassride/) and writes plugins/WBassRide/WBassRideSkinData.h: no image is copied, only small measured
+models that WBassRideEditor.cpp renders:
+
+- each fader cap (Rider, Range, Output) and the Response switch's block as a separable shading: a grey level per row
+  times a factor per column (both at the editor's 1x scale), plus the cap's alpha per row / column;
+(the knobs are drawn parametrically in WBassRideEditor.cpp, from the same measurements).
+
+    python -I tools/fit_bassride_parts.py
+"""
+import os
+import numpy as np
+from PIL import Image
+
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+SKIN = os.path.join(ROOT, 'reference', 'wbassride', 'webp', 'Bass Rider_Webp')
+OUT = os.path.join(ROOT, 'plugins', 'WBassRide', 'WBassRideSkinData.h')
+
+
+def load(n):
+    a = np.asarray(Image.open(os.path.join(SKIN, '%s.webp' % n)).convert('RGBA')).astype(float)
+    # 2x -> 1x (premultiplied box filter)
+    h, w = a.shape[0] // 2 * 2, a.shape[1] // 2 * 2
+    a = a[:h, :w]
+    al = a[..., 3:4] / 255.0
+    pm = a[..., :3] * al
+    pm = pm.reshape(h // 2, 2, w // 2, 2, 3).mean((1, 3))
+    al = al.reshape(h // 2, 2, w // 2, 2, 1).mean((1, 3))
+    rgb = np.where(al > 1e-3, pm / np.maximum(al, 1e-3), 0)
+    return rgb, al[..., 0]
+
+
+def separable(n, box=None):
+    """grey per row x factor per column over the opaque part; returns rows, cols, alpha rows/cols, rms error"""
+    rgb, al = load(n)
+    if box: rgb, al = rgb[box[1]:box[3], box[0]:box[2]], al[box[1]:box[3], box[0]:box[2]]
+    g = rgb.mean(2)
+    m = al > 0.9
+    cov = m.mean(0)
+    cols_core = np.where(cov > 0.6 * cov.max())[0]
+    mid = cols_core[len(cols_core) // 4: 3 * len(cols_core) // 4]
+    rows = np.array([np.median(g[y, mid][m[y, mid]]) if m[y, mid].any() else 0 for y in range(g.shape[0])])
+    cols = np.array([np.median(g[m[:, x], x] / np.maximum(rows[m[:, x]], 1)) if m[:, x].any() else 1 for x in range(g.shape[1])])
+    model = rows[:, None] * cols[None, :]
+    err = np.sqrt(np.mean((model - g)[m] ** 2))
+    tint = (rgb[m].mean(0) / max(rgb[m].mean(), 1)).tolist()
+    u, sv, vt = np.linalg.svd(al)
+    ar, ac = np.abs(u[:, 0]) * np.sqrt(sv[0]), np.abs(vt[0]) * np.sqrt(sv[0])
+    k = max(ar.max(), 1e-6); ar, ac = ar / k, ac * k
+    aerr = np.sqrt(np.mean((np.outer(ar, ac) - al) ** 2))
+    print('   alpha rank-1 rms %.3f' % aerr)
+    return rows, cols, ar, ac, err, tint
+
+
+def knob():
+    rgb, al = load('10136')                     # the middle frame: the pointer straight up
+    g = rgb.mean(2); h, w = g.shape
+    cy, cx = (h - 1) / 2, (w - 1) / 2
+    yy, xx = np.mgrid[0:h, 0:w]
+    r = np.hypot(yy - cy, xx - cx)
+    # away from the pointer (the lower half), the dome: grey by radius, with a linear top-to-bottom tilt
+    sel = (al > 0.95) & (yy > cy + 2)
+    A = np.stack([np.ones(sel.sum()), (yy[sel] - cy) / cy], 1)
+    radial = []
+    edges = np.arange(0, cx + 0.5, 0.5)
+    for r0 in edges:
+        s = sel & (np.abs(r - r0) < 0.5)
+        radial.append(g[s].mean() if s.any() else np.nan)
+    radial = np.array(radial)
+    radial = np.where(np.isnan(radial), np.nanmin(radial), radial)
+    # tilt: compare the upper and lower halves at the same radius (excluding the pointer column)
+    up = (al > 0.95) & (yy < cy - 2) & (np.abs(xx - cx) > 3)
+    lo = (al > 0.95) & (yy > cy + 2)
+    tilt = []
+    for r0 in edges[4:-4]:
+        a = g[up & (np.abs(r - r0) < 0.5)]; b = g[lo & (np.abs(r - r0) < 0.5)]
+        if len(a) and len(b): tilt.append((a.mean() - b.mean()) / 2)
+    tilt = float(np.mean(tilt))
+    # alpha by radius
+    alr = np.array([al[np.abs(r - r0) < 0.5].mean() for r0 in edges])
+    # the pointer: the dark column above the centre
+    colv = g[:int(cy), int(round(cx)) - 2:int(round(cx)) + 3]
+    ptr = colv.min(1)
+    dark = np.where(ptr < np.median(ptr) - 25)[0]
+    p_len0, p_len1 = (cy - dark.max(), cy - dark.min()) if len(dark) else (0, 0)
+    p_grey = float(ptr[dark].mean()) if len(dark) else 0
+    # pointer width: dark pixels across at mid length
+    ym = int(cy - (p_len0 + p_len1) / 2)
+    rowp = g[ym, :]
+    p_w = float((rowp < (np.median(g[ym, al[ym] > 0.9]) + p_grey) / 2).sum())
+    return radial, alr, tilt, (p_len0, p_len1, p_w, p_grey), edges[1] - edges[0]
+
+
+def panels():
+    """the base panel (15000, 2x -> 1x): per region a colour per row (median over the row) and a factor per column
+    (median over the region), and the grain left over (rms)"""
+    rgb, _ = load('15000')
+    out = []
+    for name, y0, y1, x0, x1 in (('top', 36, 162, 6, 314), ('cream', 162, 510, 0, 320), ('leather', 510, 560, 0, 320)):
+        reg = rgb[y0:y1, x0:x1]
+        rows = np.median(reg, 1)                                   # (h, 3)
+        lum = reg.mean(2) / np.maximum(rows.mean(1)[:, None], 1)
+        cols = np.median(lum, 0)                                   # (w,)
+        # keep the shading only: lines that span most of a row or column (the group frames, the tracks, the wells) are
+        # drawn by the editor, so rows / columns that stand out of their neighbourhood are replaced by its median
+        def clean(v, k, thr, keep=0):
+            out = v.copy()
+            for i in range(keep, len(v) - keep):                  # (the region's own edges stay)
+                med = np.median(v[max(0, i - k): i + k + 1], axis=0)
+                if np.max(np.abs(np.atleast_1d(v[i] - med)) / np.maximum(np.atleast_1d(med), 1)) > thr: out[i] = med
+            return out
+        if name != 'leather':
+            rows = clean(rows, 4, 0.06, keep=7)
+            cols = clean(cols, 24 if name == 'cream' else 6, 0.02, keep=6 if name == 'cream' else 1)
+        model = rows[:, None, :] * cols[None, :, None]
+        res = (reg - model).mean(2)
+        grain = float(np.sqrt(np.mean(np.clip(res, -40, 40) ** 2)))
+        print('%-8s rows %d cols %d grain rms %.1f' % (name, len(rows), len(cols), grain))
+        out.append((name, y0, x0, rows, cols, grain))
+    return out
+
+
+def arr(v, fmt='%.1f'):
+    return ', '.join((fmt % x) + 'f' for x in v)
+
+
+def main():
+    lines = ['#pragma once', '// Generated by tools/fit_bassride_parts.py: shading models fitted on the reference Bass Rider\'s controls (no image',
+             '// data; grey levels 0 .. 255 at the editor\'s 1x scale). Do not edit.', 'namespace wbassride::skin', '{',
+             'struct Cap { int w, h; const float* rows; const float* cols; const float* alphaRows; const float* alphaCols; float tint[3]; };']
+    caps = (('rider', '2000', None), ('range', '600', None), ('output', '3000', None), ('switchBlock', '4000', (5, 1, 18, 16)),
+            ('meterTrack', '551', None), ('meterLit', '550', None))
+    for name, n, box in caps:
+        rows, cols, ar, ac, err, tint = separable(n, box)
+        print('%-12s %dx%d  separable rms %.1f levels  tint %s' % (name, len(cols), len(rows), err, np.round(tint, 3)))
+        lines += ['inline constexpr float %sRows[] = { %s };' % (name, arr(rows)), 'inline constexpr float %sCols[] = { %s };' % (name, arr(cols, '%.3f')),
+                  'inline constexpr float %sAlphaRows[] = { %s };' % (name, arr(ar, '%.2f')), 'inline constexpr float %sAlphaCols[] = { %s };' % (name, arr(ac, '%.2f')),
+                  'inline constexpr Cap %s { %d, %d, %sRows, %sCols, %sAlphaRows, %sAlphaCols, { %s } };' % (name, len(cols), len(rows), name, name, name, name, arr(tint, '%.3f'))]
+    # the caps' cast shadows (the reference's Shadow images, black with alpha): under the cap a profile per row, from
+    # the cap image's last row on; along its sides a thin line of alpha (left, right)
+    lines += ['// the cast shadows of the caps: alpha per row below the cap (from the first strong row), the side lines alpha']
+    for name, shadow, capImg in (('rider', '2005', '2000'), ('range', '605', '600'), ('output', '3005', '3000')):
+        _, al = load(shadow)
+        _, cal = load(capImg)
+        h = cal.shape[0]
+        mid = slice(al.shape[1] // 3, 2 * al.shape[1] // 3)
+        start = h - 6 + int(np.argmax(al[h - 6:, mid].mean(1) > 0.15))   # the first strong row: just under the cap
+        prof = al[start:, mid].mean(1)
+        prof = prof[: int(np.max(np.where(prof > 0.02)[0])) + 1]
+        side = al[2:start, :].max(1)
+        print('%-7s shadow from row %d (cap image %d rows): %d rows, peak %.2f, side %.2f' % (name, start, h, len(prof), prof.max(), np.median(side)))
+        lines += ['inline constexpr float %sShadow[] = { %s };' % (name, arr(prof, '%.3f')),
+                  'inline constexpr int %sShadowStart = %d;   // its row in the shadow image (the cap image has %d)' % (name, start, h),
+                  'inline constexpr float %sShadowSide = %.3ff;' % (name, float(np.median(side)))]
+    # the Target thumb (29 x 22): a 1 px frame (x 2 .. 26, y 1 .. 18) around a white glass whose opacity varies by row
+    # (and rises towards the sides), a red centre line (x 14), a two-row shadow below
+    rgb, al = load('552')
+    g = rgb.mean(2)
+    inner_rows = range(2, 18); inner_cols = [c for c in range(3, 26) if c != 14]
+    grey = [float(np.mean([g[r, c] for c in inner_cols])) for r in inner_rows]
+    alpha = [float(np.mean([al[r, c] for c in range(7, 12)])) for r in inner_rows]
+    colk = [float(np.mean([al[r, c] / max(alpha[r - 2], 1e-3) for r in range(5, 15)])) for c in range(3, 26)]
+    line = [float(g[r, 14]) for r in inner_rows]
+    shadow = [float(al[19, 10]), float(al[20, 10])]
+    frame = float(g[1, 10])
+    print('targetThumb: glass alpha %.2f .. %.2f, frame grey %.0f' % (min(alpha), max(alpha), frame))
+    lines += ['// the Target thumb: glass grey and alpha per row (y 2 .. 17), alpha factor per column (x 3 .. 25), the red',
+              '// line brightness per row, the alpha of the two shadow rows, the frame grey',
+              'inline constexpr float thumbGlassGrey[] = { %s };' % arr(grey), 'inline constexpr float thumbGlassAlpha[] = { %s };' % arr(alpha, '%.3f'),
+              'inline constexpr float thumbGlassCol[] = { %s };' % arr(colk, '%.3f'), 'inline constexpr float thumbLine[] = { %s };' % arr(line),
+              'inline constexpr float thumbShadow[] = { %s };' % arr(shadow, '%.3f'), 'inline constexpr float thumbFrame = %.1ff;' % frame]
+    lines += ['// the panels: from y0 / x0 (1x), a colour per row (r, g, b) times a factor per column, and the grain (rms grey)',
+              'struct Panel { int y0, x0, h, w; const float* rows; const float* cols; float grain; };']
+    for name, y0, x0, rows, cols, grain in panels():
+        lines += ['inline constexpr float %sPanelRows[] = { %s };' % (name, arr(rows.reshape(-1))),
+                  'inline constexpr float %sPanelCols[] = { %s };' % (name, arr(cols, '%.3f')),
+                  'inline constexpr Panel %sPanel { %d, %d, %d, %d, %sPanelRows, %sPanelCols, %.1ff };' % (name, y0, x0, len(rows), len(cols), name, name, grain)]
+    lines += ['}', '']
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    open(OUT, 'w', encoding='utf-8').write('\n'.join(lines))
+    print('wrote', OUT)
+
+
+if __name__ == '__main__':
+    main()

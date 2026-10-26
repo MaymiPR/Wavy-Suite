@@ -147,9 +147,32 @@ namespace GlCapture
     static bool sizeWritten = false;
     static std::vector<uint8> px;
 
+    // the drag script's screenshots (gl=1 with drag=...): the latest frame is kept for them
+    static bool keepLast = false;
+    static std::vector<uint8> last;
+    static int lastW = 0, lastH = 0;
+    static std::atomic<int> frames { 0 };
+
     static void readBack()
     {
         std::lock_guard<std::mutex> g (lock);
+        if (keepLast)
+        {
+            int vp[4] {}; getIntegerv (0x0BA2, vp);
+            const int w = vp[2], h = vp[3];
+            if (w > 0 && h > 0)
+            {
+                std::vector<uint8> buf ((size_t) w * (size_t) h * 3);
+                readBuffer (0x0405); pixelStore (0x0D05, 1);
+                readPixels (0, 0, w, h, 0x1907, 0x1401, buf.data());
+                last.resize (buf.size());
+                for (int row = 0; row < h; ++row)
+                    std::memcpy (last.data() + (size_t) row * (size_t) w * 3, buf.data() + (size_t) (h - 1 - row) * (size_t) w * 3, (size_t) w * 3);
+                lastW = w; lastH = h;
+                ++frames;
+            }
+            return;
+        }
         if (feeder == nullptr || feeder->startTime == 0.0 || feeder->done || stream == nullptr) return;
         int vp[4] {}; getIntegerv (0x0BA2, vp);                          // GL_VIEWPORT
         const int x0 = crop[2] > 0 ? crop[0] : 0, y0 = crop[2] > 0 ? crop[1] : 0;
@@ -256,7 +279,32 @@ public:
         int n = 0;
         auto shot = [this, &n] (const char* when)
         {
-            if (shots != File()) grabPng (editor, shots.getSiblingFile (shots.getFileNameWithoutExtension() + "_" + String (n) + "_" + when + ".png"));
+            if (shots == File()) return;
+            const auto f = shots.getSiblingFile (shots.getFileNameWithoutExtension() + "_" + String (n) + "_" + when + ".png");
+            if (! GlCapture::keepLast) { grabPng (editor, f); return; }
+            {
+                MessageManagerLock mml;                          // a redraw, so the newest state is read back
+                editor.repaint();
+                for (auto* c : editor.getChildren()) c->repaint();
+            }
+            const int before = GlCapture::frames.load();
+            for (int i = 0; i < 40 && GlCapture::frames.load() == before; ++i) sleep (10);
+            sleep (60);
+            std::lock_guard<std::mutex> g (GlCapture::lock);
+            if (GlCapture::lastW <= 0) return;
+            Image img (Image::RGB, GlCapture::lastW, GlCapture::lastH, false);
+            {
+                Image::BitmapData bd (img, Image::BitmapData::writeOnly);
+                for (int row = 0; row < GlCapture::lastH; ++row)
+                    for (int col = 0; col < GlCapture::lastW; ++col)
+                    {
+                        const uint8* q = GlCapture::last.data() + ((size_t) row * (size_t) GlCapture::lastW + (size_t) col) * 3;
+                        bd.setPixelColour (col, row, Colour (q[0], q[1], q[2]));
+                    }
+            }
+            f.deleteFile();
+            FileOutputStream os (f);
+            PNGImageFormat().writeImageToStream (img, os);
         };
         for (auto& d : drags)
         {
@@ -511,6 +559,7 @@ public:
         }
         if (! drags.isEmpty())
         {
+            GlCapture::keepLast = gl;                    // the script's screenshots from the OpenGL frames
             dragScript = std::make_unique<DragScript> (*plugin, *editorComp, drags, design, File (args[2]));
             dragScript->moveAway = ! args.contains ("away=0");
             dragWatch = std::make_unique<DragWatch> (*dragScript);

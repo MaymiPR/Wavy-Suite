@@ -1033,3 +1033,22 @@ host (`nulltest/nulltest_wdelay.py`).
   - Noise with silence in, Mix 0: −102.7 / −85.5 / −106.0 / −108.9 dBFS; independent per channel.
   - In the null suite: Analog 1 −53 … −56 dB, 2 −51 … −55, 3 −40 … −42 (the noise included), 4 −83 … −90.
 - **CPU:** about 1.6 % of one core for stereo at 48 kHz (`WDelayRender`, Feedback 60, Analog 2).
+
+## WBass Ride: the reference editor (Phase 2), 2026-10-25
+Bass Rider's editor read back from its OpenGL frames (`tools/MeterCapture gl=1`; with `drag=...,hover|click` scripts the
+screenshots now come from the same read-back), its skin in the git-ignored `reference/wbassride/`.
+- **Layout**: 320 x 560 including the two-row toolbar (36 px). The top panel (y 36 .. 162, x 6 .. 313) and the cream
+  panel (y 162 .. 510, a trapezoid: x 5 .. 314 at its top, 0 .. 318 at its foot) carry a gentle shading and grain
+  (rms about 3 and 2 levels), fitted as a colour per row times a factor per column after removing the lines and wells.
+- **Scales**: +12 dB at y 222, 0 at 327, -12 at 432 (8.75 px per dB) for the Rider, the Output and the Range column;
+  the Rider's marks every 3 dB (numbered every 6, 2 px thick at +-12 and 0), ticks every 0.5 dB.
+- **Faders**: Range Max's cap ends at its value, Range Min's starts there; the lit band between them reaches the
+  Rider's scale; the Idle arrow and a light red line sit at the Idle value (its place in the range, PARAM_PARK_GAIN).
+- **Knobs**: a 71-frame strip turning +-132 degrees (frame 0 at -132, 35 at -3, 70 at +131); dome graded ~196 to
+  ~110 top to bottom, a black line at its edge, a bright arc at the top and a reflection near the bottom.
+- **Selection**: hovering shows nothing; a click marks the control in yellow (a ring on knobs, a frame on caps and
+  the switch) until another control is clicked; the selected control's value shows while the mouse is on it — knobs
+  in their value slot under the label, Range Max / Min in a box right of the cap — in a dark box with a 1 px white
+  frame. The Response switch's click toggles it and marks the preset modified.
+- **Not filmed yet**: the Rider fader grabbed, the Idle arrow's hover text, text entry, the Range box's drag, a lasso.
+
