@@ -4,10 +4,11 @@
 #include <vector>
 #include "WavyMeter.h"
 #include "WavyPresets.h"
+#include "WBassRideProvisional.h"
 
 // Parameters follow the reference's (Bass Rider's VST3 parameters and ParamXML ranges, defaults and resolutions; see
-// RESEARCH.md, WBass Ride). Phase 2: the audio is delayed by the component's latency and leaves at the Rider's idle
-// gain plus Output, until the riding DSP (Phase 4).
+// RESEARCH.md, WBass Ride). Phase 2: the audio is delayed by the component's latency and ridden by a provisional model
+// fitted on films of the reference's editor (WBassRideProvisional.h), until the riding DSP (Phase 4).
 namespace wbassride
 {
 inline constexpr const char* target = "target";            // -42 .. 0 dB, default -14 (the Target slider)
@@ -55,7 +56,8 @@ public:
     juce::UndoManager undo { 32, 32 };
     juce::AudioProcessorValueTreeState apvts;
 
-    // editor taps: the input's energy (dB, for the Target meter), the output's peak (clip LED), the Rider's gain (dB)
+    // editor taps: the input's energy (dB, the highest of the block, for the Target meter), the output's peak (clip LED),
+    // the Rider's gain (dB)
     wavy::PeakTap energyDb, outDb;
     std::atomic<float> rideDb { 0.0f };
     // the Rider fader grabbed in the editor: its gain while held (riding resumes on release)
@@ -72,5 +74,6 @@ private:
     double sr = 48000.0;
     int delaySamples = 0, writePos = 0, configuredMode = -1;
     std::vector<std::vector<float>> line;
-    float gainNow = 1.0f;
+    wbassride::ProvisionalRide ride;
+    float gainNow = 1.0f, gainTo = 1.0f, gainStep = 0.0f;
 };

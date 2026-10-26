@@ -152,6 +152,61 @@ def main():
         print('%-14s %dx%d from the frame, separable rms %.1f' % (name, w, y1 - y0, err))
         lines += ['inline constexpr float %sRows[] = { %s };' % (name, arr(rows.reshape(-1))), 'inline constexpr float %sCols[] = { %s };' % (name, arr(cols, '%.3f')),
                   'inline constexpr FrameCap %s { %d, %d, %d, %d, %sRows, %sCols };' % (name, x0, y0 - yref, w, y1 - y0, name, name)]
+    # the knobs' dome as the reference draws it (fitted on its frame, Artifacts and Sensitivity at 50, the pointer up and
+    # masked): per radius (0.5 px steps) a grey level and the first two harmonics in angle (0 = up, clockwise)
+    import math
+    radii = np.arange(0.0, 22.01, 0.5)
+    A = []; Y = []
+    centres = ((274.5, 111.0), (45.5, 111.0))
+    gF = frame.mean(2)
+    def bil(x, y):
+        x0, y0 = int(math.floor(x)), int(math.floor(y)); fx, fy = x - x0, y - y0
+        return (gF[y0, x0] * (1 - fx) * (1 - fy) + gF[y0, x0 + 1] * fx * (1 - fy) + gF[y0 + 1, x0] * (1 - fx) * fy + gF[y0 + 1, x0 + 1] * fx * fy)
+    coef = []
+    for r in radii:
+        rows = []; vals = []
+        for (cx, cy) in centres:
+            for ang in np.arange(0, 360, 4.0 if r > 3 else 15.0):
+                th = math.radians(ang)
+                if r < 19.5 and math.cos (th) > -0.05 and abs (r * math.sin (th)) < 2.6: continue   # the pointer
+                x = cx + 0.5 + r * math.sin(th); y = cy + 0.5 - r * math.cos(th)
+                rows.append([1, math.cos(th), math.sin(th), math.cos(2 * th), math.sin(2 * th)]); vals.append(bil(x - 0.5, y - 0.5))
+        c, *_ = np.linalg.lstsq(np.array(rows), np.array(vals), rcond=None)
+        coef.append(c)
+    coef = np.array(coef)
+    print('knobDome: %d radii, centre grey %.0f, rim (r 20.5) %.0f' % (len(radii), coef[0, 0], coef[41, 0]))
+    lines += ['// the dome of the knobs (fitted on the frame, the pointer masked): per radius from the centre in 0.5 px steps, grey =',
+              '// c0 + c1 cos a + s1 sin a + c2 cos 2a + s2 sin 2a, a from straight up, clockwise; centred 0.5 px above the',
+              '// centre of the control rectangle',
+              'inline constexpr float knobDomeStep = 0.5f;', 'inline constexpr int knobDomeRadii = %d;' % len(radii),
+              'inline constexpr float knobDome[] = { %s };' % arr(coef.reshape(-1), '%.2f')]
+    # the Response switch (fitted on the frame at Slow): its block (20 x 15 at x 105, y 107) as a rank-2 model, the
+    # slot's grey by distance from the block (15 columns), the frame's grey; Fast has the block 15 px right, the slot
+    # mirrored
+    blk = gF[107:122, 105:125]
+    u, sv, vt = np.linalg.svd(blk, full_matrices=False)
+    k = 2
+    bu = u[:, :k] * sv[:k]; bv = vt[:k]
+    err = np.sqrt(np.mean((bu @ bv - blk) ** 2))
+    slot = gF[107:122, 125:140].mean(0)
+    print('switch block rank-2 rms %.1f; slot %s' % (err, np.round(slot).astype(int)))
+    lines += ['// the Response switch: its block (15 rows x 20 columns) as rows[k] x cols[k], k = 0, 1; the slot by distance from',
+              '// the block; the frame grey',
+              'inline constexpr float switchBlockU[] = { %s };' % arr(bu.reshape(-1), '%.3f'),
+              'inline constexpr float switchBlockV[] = { %s };' % arr(bv.T.reshape(-1), '%.4f'),
+              'inline constexpr float switchSlot[] = { %s };' % arr(slot),
+              'inline constexpr float switchFrame = %.1ff;' % float(np.median(gF[122, 105:139]))]
+    # the clip LED (measured on the frames, off and lit): a 1 px dark frame (x 280 .. 294, y 186 .. 195) round an inside
+    # whose colour changes by row only (rows 187 .. 194, x 281 .. 293; its end columns 0.95 of it); lit, a red glow on
+    # its sides (rows 190 .. 195) and below it (row 196)
+    lit = np.asarray(Image.open(os.path.join(ROOT, 'reference', 'wbassride', 'shot_clip_lit.png')).convert('RGB')).astype(float)
+    off_rows = frame[187:195, 283:291].mean(1); on_rows = lit[187:195, 283:291].mean(1)
+    glow_side = (lit[190:196, 280] + lit[190:196, 294]) / 2; glow_below = lit[196, 282:292].mean(0)
+    lines += ['// the clip LED: rows 187 .. 194 inside (r, g, b), off and lit; the lit glow beside it (rows 190 .. 195) and below',
+              'inline constexpr float ledOffRows[] = { %s };' % arr(off_rows.reshape(-1)), 'inline constexpr float ledOnRows[] = { %s };' % arr(on_rows.reshape(-1)),
+              'inline constexpr float ledGlowSide[] = { %s };' % arr(glow_side.reshape(-1)), 'inline constexpr float ledGlowBelow[] = { %s };' % arr(glow_below),
+              'inline constexpr float ledFrame = %.1ff;' % float(np.median(frame[186, 283:291].mean(1)))]
+    print('led: off rows', np.round(off_rows.mean(1)).astype(int), 'on rows', np.round(on_rows[:, 0]).astype(int))
     # the caps' cast shadows (the reference's Shadow images, black with alpha): under the cap a profile per row, from
     # the cap image's last row on; along its sides a thin line of alpha (left, right)
     lines += ['// the cast shadows of the caps: alpha per row below the cap (from the first strong row), the side lines alpha']

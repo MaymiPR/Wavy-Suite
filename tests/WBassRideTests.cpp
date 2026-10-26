@@ -65,14 +65,40 @@ static void testLatencyAndPath()
             for (int blk = 0; blk < 40 && found < 0; ++blk, pos += 256)
             {
                 b.clear();
-                if (blk == 1) { b.setSample (0, 10, 1.0f); b.setSample (1, 10, 1.0f); }
+                // under the Spill gate (-40 dBFS): no note, the Rider at its idle value (0 dB)
+                if (blk == 1) { b.setSample (0, 10, 0.005f); b.setSample (1, 10, 0.005f); }
                 p.processBlock (b, midi);
                 for (int i = 0; i < 256; ++i)
-                    if (std::abs (b.getSample (0, i)) > 0.1f) { found = pos + i; peak = b.getSample (0, i); break; }
+                    if (std::abs (b.getSample (0, i)) > 0.0005f) { found = pos + i; peak = b.getSample (0, i); break; }
             }
             CHECK (found == 256 + 10 + expect);
-            CHECK_NEAR (peak, juce::Decibels::decibelsToGain (-6.0), 1e-3);
+            CHECK_NEAR (peak, 0.005 * juce::Decibels::decibelsToGain (-6.0), 1e-5);
         }
+}
+
+// the provisional riding model against the reference's films: an 80 Hz tone at -20 dBFS rms rides to +8.47 dB with the
+// Energy meter at -21.9 dBFS; when it stops the Rider is back at its idle value within 0.4 s (the reference: 0.3 s)
+static void testProvisionalRide()
+{
+    WBassRideProcessor p;
+    const double fs = 48000.0;
+    p.setPlayConfigDetails (2, 2, fs, 480);
+    p.prepareToPlay (fs, 480);
+    juce::AudioBuffer<float> b (2, 480);
+    juce::MidiBuffer midi;
+    double ph = 0.0;
+    float energy = -100.0f;
+    for (int blk = 0; blk < 100; ++blk)                              // 1 s
+    {
+        for (int i = 0; i < 480; ++i, ph += 80.0 / fs)
+            b.setSample (0, i, (float) (0.1 * std::sqrt (2.0) * std::sin (2.0 * juce::MathConstants<double>::pi * ph))), b.setSample (1, i, b.getSample (0, i));
+        p.processBlock (b, midi);
+        energy = p.energyDb.take();
+    }
+    CHECK_NEAR (p.rideDb.load(), 8.47, 0.4);
+    CHECK_NEAR (energy, -21.9, 0.5);
+    for (int blk = 0; blk < 40; ++blk) { b.clear(); p.processBlock (b, midi); }   // 0.4 s of silence
+    CHECK_NEAR (p.rideDb.load(), 0.0, 0.05);
 }
 
 static void testStateAndEditor()
@@ -128,6 +154,7 @@ int main()
     juce::ScopedJuceInitialiser_GUI init;
     testParameters();
     testLatencyAndPath();
+    testProvisionalRide();
     testStateAndEditor();
     testSelection();
     std::printf ("%d checks, %d failures\n", checks, failures);

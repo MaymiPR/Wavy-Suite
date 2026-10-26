@@ -38,14 +38,14 @@ float hashNoise (int x, int y, int seed)
 // a value in a reference-style black box (Range, Rider, Output)
 void valueBox (Graphics& g, Rectangle<float> r, const String& text)
 {
-    // a black box with round corners in a light rim (measured)
-    g.setColour (Colour (232, 228, 190).withAlpha (0.7f));
-    g.drawRoundedRectangle (r.expanded (1.0f), 3.0f, 1.0f);
+    // a black box (measured: rows 468.5 .. 482, a lighter bottom edge), 11 px digits
     g.setColour (kValueBox);
-    g.fillRoundedRectangle (r, 2.5f);
+    g.fillRoundedRectangle (r, 1.0f);
+    g.setColour (Colour (110, 106, 80).withAlpha (0.6f));
+    g.fillRect (r.getX() + 1.0f, r.getBottom(), r.getWidth() - 2.0f, 0.6f);
     g.setColour (kValueText);
-    g.setFont (arial (12.0f));
-    g.drawText (text, r, Justification::centred);
+    g.setFont (arial (11.0f));
+    g.drawText (text, r.translated (0.0f, 0.5f), Justification::centred);
 }
 
 // a selected control's value (measured): a dark box in a 1 px white frame, light grey text
@@ -140,40 +140,51 @@ void Knob::mouseUp (const MouseEvent& e)
     if (! feel.up (*this, e, getLocalBounds().getCentre().toFloat(), nullptr)) Slider::mouseUp (e);
 }
 
-// the dome as measured on the reference's knob (44 px, shot at its default turn): graded from ~187 at the top to ~121
-// at the bottom (linear in y), a bright arc at the top edge (205), a bright reflection near the bottom (216), a black
-// line at its edge (radius 19.5 .. 20.5); the pointer a 2 px dark line from 4 to 18 px out
+// the dome as the reference draws it (WBassRideSkinData.h: a grey per radius and two harmonics in angle, fitted on its
+// frame), centred 0.5 px above the control's centre, rendered once per scale; the pointer (measured): a 2 px dark core
+// with soft edges from 2.5 to 17.5 px out, 87 near the centre to 104 at its tip; the selection a yellow ring at the rim
+const Image& Knob::dome (float scale)
+{
+    namespace sk = wbassride::skin;
+    if (domeImage.isValid() && std::abs (scale - domeScale) < 1.0e-3f) return domeImage;
+    domeScale = scale;
+    const int n = roundToInt (44.0f * scale);
+    domeImage = Image (Image::ARGB, n, n, true);
+    Image::BitmapData bd (domeImage, Image::BitmapData::writeOnly);
+    for (int py = 0; py < n; ++py)
+        for (int px = 0; px < n; ++px)
+        {
+            const float x = ((float) px + 0.5f) / scale - 22.0f, y = ((float) py + 0.5f) / scale - 21.5f;
+            const float r = std::sqrt (x * x + y * y);
+            const float alpha = jlimit (0.0f, 1.0f, (21.9f - r) / 0.8f);
+            if (alpha <= 0.0f) continue;
+            const float a = std::atan2 (x, -y);
+            const float fi = jlimit (0.0f, (float) (sk::knobDomeRadii - 1) - 1.0e-3f, r / sk::knobDomeStep);
+            const int i = (int) fi;
+            const float f = fi - (float) i;
+            auto at = [a] (int k) { const float* c = sk::knobDome + k * 5; return c[0] + c[1] * std::cos (a) + c[2] * std::sin (a) + c[3] * std::cos (2.0f * a) + c[4] * std::sin (2.0f * a); };
+            const float v = jlimit (0.0f, 255.0f, at (i) * (1.0f - f) + at (i + 1) * f);
+            bd.setPixelColour (px, py, Colour::greyLevel (v / 255.0f).withAlpha (alpha));
+        }
+    return domeImage;
+}
+
 void Knob::paint (Graphics& g)
 {
-    const auto c = getLocalBounds().toFloat().getCentre();
-    const float r = 20.5f;
-    g.setColour (Colour (22, 22, 22));
-    g.fillEllipse (c.x - r, c.y - r, 2.0f * r, 2.0f * r);
-    const float d = 19.3f;
-    ColourGradient dome (Colour (196, 196, 198), c.x, c.y - d, Colour (108, 108, 110), c.x, c.y + d, false);
-    dome.addColour (0.5, Colour (152, 152, 154));
-    g.setGradientFill (dome);
-    g.fillEllipse (c.x - d, c.y - d, 2.0f * d, 2.0f * d);
-    // a little darker towards the edge
-    ColourGradient edge (Colours::transparentBlack, c.x, c.y, Colours::black.withAlpha (0.35f), c.x + d, c.y, true);
-    edge.addColour (0.80, Colours::transparentBlack);
-    g.setGradientFill (edge);
-    g.fillEllipse (c.x - d, c.y - d, 2.0f * d, 2.0f * d);
-    Path top;
-    top.addCentredArc (c.x, c.y, d - 1.2f, d - 1.2f, 0.0f, degreesToRadians (-50.0f), degreesToRadians (50.0f), true);
-    g.setColour (Colour (215, 215, 217).withAlpha (0.9f));
-    g.strokePath (top, PathStrokeType (1.6f));
-    Path bottom;
-    bottom.addCentredArc (c.x, c.y, d - 3.0f, d - 3.0f, 0.0f, degreesToRadians (145.0f), degreesToRadians (215.0f), true);
-    g.setColour (Colour (225, 225, 227).withAlpha (0.85f));
-    g.strokePath (bottom, PathStrokeType (1.5f));
-    // the pointer
+    const float s = std::sqrt (std::abs (g.getInternalContext().getPhysicalPixelScaleFactor()));
+    {
+        Graphics::ScopedSaveState ss (g);
+        g.addTransform (AffineTransform::scale (1.0f / s));
+        g.drawImageAt (dome (s), 0, 0);
+    }
+    const Point<float> c (22.0f, 21.5f);
     const auto& rp = getRotaryParameters();
     const float a = rp.startAngleRadians + (float) valueToProportionOfLength (getValue()) * (rp.endAngleRadians - rp.startAngleRadians);
     const Point<float> dir (std::sin (a), -std::cos (a));
-    g.setColour (Colour (88, 88, 90));
-    g.drawLine (Line<float> (c + dir * 4.0f, c + dir * 18.0f), 2.2f);
-    drawMark (g, Rectangle<float> (2.0f * d, 2.0f * d).withCentre (c), marks != nullptr ? marks->of (this) : Mark::None, true);
+    ColourGradient pg (Colour (87, 87, 89), c.x + dir.x * 2.5f, c.y + dir.y * 2.5f, Colour (104, 104, 106), c.x + dir.x * 17.5f, c.y + dir.y * 17.5f, false);
+    g.setGradientFill (pg);
+    g.drawLine (Line<float> (c + dir * 2.5f, c + dir * 17.5f), 2.6f);
+    drawMark (g, Rectangle<float> (39.0f, 39.0f).withCentre (c), marks != nullptr ? marks->of (this) : Mark::None, true);
 }
 
 //==============================================================================
@@ -312,18 +323,32 @@ void TargetSlider::paint (Graphics& g)
 // the switch (37 x 17): a dark slot, the ridged chrome block on the left (Slow) or the right (Fast)
 void Switch::paintButton (Graphics& g, bool, bool)
 {
-    const auto r = getLocalBounds().toFloat();
-    ColourGradient slot (Colour (20, 20, 20), 0.0f, 0.0f, Colour (36, 36, 36), 0.0f, r.getHeight(), false);
-    g.setGradientFill (slot);
-    g.fillRoundedRectangle (r.reduced (0.5f), 2.0f);
-    g.setColour (Colour (70, 70, 70));
-    g.drawRoundedRectangle (r.reduced (0.5f), 2.0f, 1.0f);
-    const float bx = getToggleState() ? r.getWidth() - 19.0f : 1.0f;
-    drawCap (g, wbassride::skin::switchBlock, bx + 3.0f, 1.0f);
-    g.setColour (Colour (150, 150, 150));
-    g.fillRect (bx + 1.0f, 1.0f, 2.0f, 15.0f);
-    g.fillRect (bx + 16.0f, 1.0f, 2.0f, 15.0f);
-    drawMark (g, r, marks != nullptr ? marks->of (this) : Mark::None);
+    // as the reference draws it (WBassRideSkinData.h, fitted on its frame): a dark 1 px frame, the slot graded by the
+    // distance from the block, the ridged block (a rank-2 model) on the left (Slow) or 15 px right (Fast); selected,
+    // the frame turns yellow
+    namespace sk = wbassride::skin;
+    const bool fast = getToggleState();
+    g.setColour (Colour::greyLevel (sk::switchFrame / 255.0f));
+    g.fillRect (getLocalBounds());
+    for (int k = 0; k < 15; ++k)
+    {
+        const int x = fast ? 15 - k : 21 + k;                              // the slot: k from the block outwards
+        g.setColour (Colour::greyLevel (sk::switchSlot[k] / 255.0f));
+        g.fillRect (x, 1, 1, 15);
+    }
+    const int bx = fast ? 16 : 1;
+    for (int r = 0; r < 15; ++r)
+        for (int c = 0; c < 20; ++c)
+        {
+            const float v = sk::switchBlockU[r * 2] * sk::switchBlockV[c * 2] + sk::switchBlockU[r * 2 + 1] * sk::switchBlockV[c * 2 + 1];
+            g.setColour (Colour::greyLevel (jlimit (0.0f, 255.0f, v) / 255.0f));
+            g.fillRect (bx + c, 1 + r, 1, 1);
+        }
+    if (marks != nullptr && marks->of (this) != Mark::None)
+    {
+        g.setColour (kMarkSelected);
+        g.drawRect (getLocalBounds(), 1);
+    }
 }
 
 //==============================================================================
@@ -374,6 +399,30 @@ void IdleColumn::mouseUp (const MouseEvent& e)
 }
 
 //==============================================================================
+// the cursor over the knobs and Output (the reference's DisplayCursor controls, filmed with MeterCapture): an arrow
+// with a small up / down arrow at its lower right, the hotspot at the arrow's tip (6, 7)
+static MouseCursor dragCursor()
+{
+    Image img (Image::ARGB, 32, 32, true);
+    {
+        Graphics g (img);
+        Path arrow;
+        arrow.startNewSubPath (6.5f, 7.5f);
+        arrow.lineTo (6.5f, 21.5f); arrow.lineTo (9.5f, 18.5f); arrow.lineTo (12.0f, 24.0f); arrow.lineTo (14.0f, 23.0f);
+        arrow.lineTo (11.5f, 17.5f); arrow.lineTo (15.5f, 17.5f); arrow.closeSubPath();
+        g.setColour (Colours::white); g.fillPath (arrow);
+        g.setColour (Colours::black); g.strokePath (arrow, PathStrokeType (1.0f));
+        Path updown;
+        updown.startNewSubPath (22.5f, 17.5f); updown.lineTo (25.5f, 20.5f); updown.lineTo (23.5f, 20.5f); updown.lineTo (23.5f, 23.5f);
+        updown.lineTo (25.5f, 23.5f); updown.lineTo (22.5f, 26.5f); updown.lineTo (19.5f, 23.5f); updown.lineTo (21.5f, 23.5f);
+        updown.lineTo (21.5f, 20.5f); updown.lineTo (19.5f, 20.5f); updown.closeSubPath();
+        g.setColour (Colours::white); g.fillPath (updown);
+        g.setColour (Colours::black); g.strokePath (updown, PathStrokeType (1.0f));
+    }
+    return MouseCursor (img, 6, 7);
+}
+
+//==============================================================================
 WBassRideEditor::WBassRideEditor (WBassRideProcessor& p)
     : Editor (p, p.apvts, p.undo, p.apvts.getParameter (wbassride::mode), "WBass Ride", JucePlugin_VersionString, W, H,
               wavy::Toolbar::Style::Renaissance, wbassride::modeNames()),
@@ -385,6 +434,9 @@ WBassRideEditor::WBassRideEditor (WBassRideProcessor& p)
 {
     marks.blueAlone = { &rider, &idleColumn };
     marks.changed = [this] { content().repaint(); };
+    const auto cursor = dragCursor();
+    for (Component* c : { (Component*) &sensitivity, (Component*) &spill, (Component*) &artifacts, (Component*) &output })
+        c->setMouseCursor (cursor);
     marks.enter = [this] (Slider* sl) { openEntry (sl); };
     for (auto* k : { &sensitivity, &spill, &artifacts }) k->marks = &marks;
     for (auto* f : { &rangeMax, &rangeMin, &output, &rider }) f->marks = &marks;
@@ -512,6 +564,12 @@ void WBassRideEditor::closeEntry (bool apply)
 // Response, Artifacts)
 void WBassRideEditor::contentMouseDown (const MouseEvent& e)
 {
+    if (Rectangle<float> (279.0f, 183.0f, 17.0f, 15.0f).contains (e.position))   // the clip LED: a click clears it
+    {
+        clip = false;
+        content().repaint (276, 182, 24, 18);
+        return;
+    }
     lassoing = true;
     lassoStart = e.position;
     marks.group.clear();
@@ -553,11 +611,13 @@ void WBassRideEditor::tick()
 {
     const double now = Time::getMillisecondCounterHiRes() * 0.001, dt = lastTick > 0.0 ? now - lastTick : 0.0;
     lastTick = now;
-    energy = energyBar.update (proc.energyDb.take(), dt);
+    // the Energy meter's display (measured on the reference's films): it rises at once and falls 37.3 dB per second at
+    // most (slower when the energy itself falls slower)
+    const float e = proc.energyDb.take();
+    energy = e >= energy ? e : jmax (e, energy - 37.3f * (float) jmin (dt, 0.25));
     target.energyDb = energy;
     target.repaint();
-    if (proc.outDb.take() >= 0.0f) { clip = true; clipUntil = now + 1.0; }
-    else if (clip && now > clipUntil) clip = false;
+    if (proc.outDb.take() >= 0.0f && ! clip) { clip = true; content().repaint (276, 182, 24, 18); }   // latched
     const float r = proc.rideDb.load();
     if (! rider.isMouseButtonDown() && std::abs (r - ride) > 1.0e-4f)
     {
@@ -674,30 +734,35 @@ void WBassRideEditor::paintStatic (Graphics& g) const
     g.drawText ("Slow", Rectangle<float> (78.0f, 108.0f, 24.0f, 12.0f), Justification::centred);
     g.drawText ("Fast", Rectangle<float> (143.0f, 108.0f, 24.0f, 12.0f), Justification::centred);
 
-    // the Sensitivity knob's dashed ring, the Spill / Artifacts scales (Lo at -135 degrees to Hi at +135, the scale a little wider than the pointer's +-132)
+    // the knobs' scales, measured on the reference's frame round the domes' centres (x 46 / 200 / 275, y 111.5):
+    // Sensitivity: 12 dashes centred at +-(11.3 + 22.67 k) degrees, 16 degrees long, 4 px deep, from radius 20 at the
+    // top drifting out to 22.3 at the ends, grey 131 (100 at the outermost pair); Spill / Artifacts: 13 ticks of their
+    // own lengths and greys (angle, inner and outer radius, grey)
     {
-        const Point<float> c (46.0f, 112.0f);
-        g.setColour (Colour (138, 138, 138));
-        for (int i = 0; i < 12; ++i)
-        {
-            const float a0 = degreesToRadians (-135.0f + 270.0f * (float) i / 12.0f + 3.0f), a1 = degreesToRadians (-135.0f + 270.0f * (float) (i + 1) / 12.0f - 3.0f);
-            Path seg;
-            seg.addCentredArc (c.x, c.y, 25.2f, 25.2f, 0.0f, a0, a1, true);
-            g.strokePath (seg, PathStrokeType (5.2f));
-        }
-        // Spill and Artifacts: a thin light ring at radius 21.5 carrying 11 ticks out to 28 (measured)
-        for (float cx : { 200.0f, 275.0f })
-        {
-            g.setColour (Colour (120, 120, 120));
-            g.drawEllipse (cx - 21.5f, 90.5f, 43.0f, 43.0f, 1.0f);
-            g.setColour (Colour (150, 150, 150));
-            for (int i = 0; i <= 10; ++i)
+        for (int k = 0; k < 6; ++k)
+            for (float side : { -1.0f, 1.0f })
             {
-                const float a = degreesToRadians (-135.0f + 27.0f * (float) i);
-                const Point<float> d (std::sin (a), -std::cos (a));
-                g.drawLine (Line<float> (Point<float> (cx, 112.0f) + d * 21.5f, Point<float> (cx, 112.0f) + d * 28.0f), 2.0f);
+                const float mid = side * (11.33f + 22.67f * (float) k);
+                const float r0 = 20.0f + 0.0184f * std::abs (mid), r1 = r0 + 4.1f;
+                g.setColour (Colour::greyLevel ((k == 5 ? 100.0f : 131.0f) / 255.0f));
+                Path seg;
+                seg.addCentredArc (46.0f, 111.5f, (r0 + r1) * 0.5f, (r0 + r1) * 0.5f, 0.0f, degreesToRadians (mid - 8.0f), degreesToRadians (mid + 8.0f), true);
+                g.strokePath (seg, PathStrokeType (r1 - r0, PathStrokeType::mitered, PathStrokeType::butt));
             }
-        }
+        struct Tick { float angle, r0, r1, grey; };
+        static constexpr Tick ticks[] = { { 0.0f, 20.5f, 25.8f, 147.0f }, { 23.0f, 20.3f, 24.0f, 140.0f }, { 46.0f, 20.3f, 25.6f, 140.0f },
+                                          { 69.0f, 20.5f, 24.3f, 135.0f }, { 91.0f, 21.0f, 26.8f, 147.0f }, { 115.0f, 21.3f, 25.3f, 115.0f },
+                                          { 135.0f, 21.3f, 27.3f, 100.0f } };
+        for (float cx : { 200.0f, 275.0f })
+            for (auto& t : ticks)
+                for (float side : { -1.0f, 1.0f })
+                {
+                    if (t.angle == 0.0f && side > 0.0f) continue;
+                    const float a = degreesToRadians (side * t.angle);
+                    const Point<float> c (cx, 111.5f), d (std::sin (a), -std::cos (a));
+                    g.setColour (Colour::greyLevel (t.grey / 255.0f));
+                    g.drawLine (Line<float> (c + d * t.r0, c + d * t.r1), 2.0f);
+                }
     }
 
     // ---- lower panel: labels, screws, the clip LED's socket, the wells, tracks, scales and value boxes
@@ -708,14 +773,17 @@ void WBassRideEditor::paintStatic (Graphics& g) const
     g.drawText ("Output", Rectangle<float> (231.0f, 185.0f, 52.0f, 14.0f), Justification::centred);
     for (float y : { 177.5f, 495.0f })
     {
-        // a screw (measured): a dark ring, a light face, a dark cross
-        g.setColour (Colour (24, 24, 20));
-        g.drawEllipse (155.2f, y - 4.3f, 8.6f, 8.6f, 1.4f);
-        g.setColour (Colour (170, 166, 140));
-        g.fillEllipse (156.6f, y - 2.9f, 5.8f, 5.8f);
-        g.setColour (Colour (20, 20, 18));
-        g.fillRect (157.0f, y - 0.5f, 5.0f, 1.0f);
-        g.fillRect (159.0f, y - 2.5f, 1.0f, 5.0f);
+        // a screw (measured): centred at 159.5, a dark ring of radius 4 on a light face, a faint lit ring outside it
+        // (brightest below), a small dark plus at the centre
+        const Point<float> c (159.5f, y);
+        g.setColour (Colours::white.withAlpha (0.35f));
+        g.drawEllipse (Rectangle<float> (10.6f, 10.6f).withCentre (c.translated (0.0f, 0.4f)), 1.0f);
+        g.setColour (Colour (150, 147, 125));
+        g.fillEllipse (Rectangle<float> (7.0f, 7.0f).withCentre (c));
+        g.setColour (Colour (10, 10, 8));
+        g.drawEllipse (Rectangle<float> (8.4f, 8.4f).withCentre (c), 1.3f);
+        g.fillRect (c.x - 1.5f, c.y - 0.5f, 3.0f, 1.0f);
+        g.fillRect (c.x - 0.5f, c.y - 1.5f, 1.0f, 3.0f);
     }
     for (float x : { 52.0f, 150.0f, 248.0f })                       // the wells behind the tracks
     {
@@ -817,26 +885,44 @@ void WBassRideEditor::paintContent (Graphics& g)
 
     // the Range band: the space between Min and Max, lit, up to the Rider's scale; the Idle line across it
     const float lo = proc.get (wbassride::rangeMin), hi = proc.get (wbassride::rangeMax);
-    g.setColour (Colours::white.withAlpha (0.22f));
+    g.setColour (Colour (255, 253, 209).withAlpha (0.21f));      // a warm light (measured on the band against plain cream)
     g.fillRect (Rectangle<float>::leftTopRightBottom (72.0f, scaleY (hi), 149.0f, scaleY (lo)));
     g.setColour (kIdleLine.withAlpha (0.8f));
     g.fillRect (72.0f, scaleY (proc.idleDb()) - 0.5f, 77.0f, 1.0f);
     if (idleColumn.dragging || marks.hover == &idleColumn || marks.showsValue (&idleColumn)) hoverBox (g, { 3.0f, 323.0f, 27.0f, 13.0f }, String (proc.idleDb(), 1));
 
-    // the clip LED
+    // the clip LED (measured on the frames): a dark frame x 280 .. 294, y 186 .. 195, the inside by row, off or lit; lit,
+    // a red glow beside and below it. It stays lit until it is clicked (as the reference's)
     {
-        const Rectangle<float> led (280.0f, 184.0f, 15.0f, 12.0f);
-        ColourGradient lg (clip ? Colour (255, 70, 60) : Colour (96, 96, 96), 0.0f, led.getY(), clip ? Colour (190, 10, 10) : Colour (52, 52, 52), 0.0f, led.getBottom(), false);
-        g.setGradientFill (lg);
-        g.fillRoundedRectangle (led, 2.0f);
-        g.setColour (Colour (28, 28, 28));
-        g.drawRoundedRectangle (led.expanded (0.5f), 2.0f, 1.0f);
+        namespace sk = wbassride::skin;
+        g.setColour (Colour::greyLevel (sk::ledFrame / 255.0f));
+        g.fillRect (280, 186, 15, 10);
+        const float* rows = clip ? sk::ledOnRows : sk::ledOffRows;
+        for (int r = 0; r < 8; ++r)
+        {
+            const Colour c ((uint8) rows[r * 3], (uint8) rows[r * 3 + 1], (uint8) rows[r * 3 + 2]);
+            g.setColour (c.darker (0.06f));
+            g.fillRect (281, 187 + r, 13, 1);
+            g.setColour (c);
+            g.fillRect (282, 187 + r, 11, 1);
+        }
+        if (clip)
+        {
+            for (int r = 0; r < 6; ++r)
+            {
+                g.setColour (Colour ((uint8) sk::ledGlowSide[r * 3], (uint8) sk::ledGlowSide[r * 3 + 1], (uint8) sk::ledGlowSide[r * 3 + 2]));
+                g.fillRect (279, 190 + r, 1, 1);
+                g.fillRect (295, 190 + r, 1, 1);
+            }
+            g.setColour (Colour ((uint8) sk::ledGlowBelow[0], (uint8) sk::ledGlowBelow[1], (uint8) sk::ledGlowBelow[2]));
+            g.fillRect (281, 196, 13, 1);
+        }
     }
 
     // value boxes
-    valueBox (g, { 44.0f, 468.0f, 34.0f, 15.0f }, String (hi - lo, 1));
-    valueBox (g, { 143.0f, 468.0f, 34.0f, 15.0f }, String (rider.getValue(), 2));
-    valueBox (g, { 241.0f, 468.0f, 34.0f, 15.0f }, String (output.getValue(), 1));
+    valueBox (g, { 44.0f, 468.5f, 34.0f, 13.5f }, String (hi - lo, 1));
+    valueBox (g, { 143.0f, 468.5f, 34.0f, 13.5f }, String (rider.getValue(), 2));
+    valueBox (g, { 241.0f, 468.5f, 34.0f, 13.5f }, String (output.getValue(), 1));
 
     // the values shown under the mouse (the reference's hover texts)
     if (target.isMouseButtonDown() || marks.showsValue (&target)) hoverBox (g, { 272.0f, 48.0f, 32.0f, 13.0f }, String (target.getValue(), 1));

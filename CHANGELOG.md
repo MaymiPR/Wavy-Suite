@@ -20,6 +20,14 @@
   host's text over +-12 dB); the Rider's blue grab and its return to riding on release; hidden cursor during drags;
   the lasso with its yellow / blue group (member drags move nothing, as the reference). Mean difference to the
   reference frame 14.1 -> 8.6 levels.
+- **WBass Ride editor, third pass, and its behaviour with audio**: the knobs' domes and pointers fitted on the
+  reference's frame and their scales measured tick by tick round the domes' true centres; the Response switch and
+  the clip LED as drawn by the reference (the LED latching until clicked); the lit band's warm tone; screws and value
+  boxes. Mean difference 8.6 -> 7.6 levels (knobs 17 -> 8, switch 17 -> 3, LED 25 -> 10). The knob cursor over the
+  knobs and Output; no hover effects, as the reference. A provisional riding model fitted on films of the reference
+  (`WBassRideProvisional.h`) moves the Rider and the Energy meter as the reference's do (steady tones within 0.1 dB,
+  a bass line within about 1-2 dB), until the DSP of Phase 4. MeterCapture's script mode streams the OpenGL frames
+  with an action log and saves the cursor.
 - **WDelay** (Phase 2: the editor; the audio passes through until the DSP), a hybrid delay modelled on H-Delay: the
   Hybrid-line editor (749 x 292, resizable) drawn by Wavy — the Delay and Feedback knobs in chrome skirts, the knurled
   modulation and filter knobs, the right column's small knobs, the tap pad, the Link wheel, the amber time display

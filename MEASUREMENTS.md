@@ -1071,4 +1071,31 @@ screenshots now come from the same read-back), its skin in the git-ignored `refe
   Spill, Rider, Range Max, Range Min, Output, Sensitivity, Target, Idle, Response, Artifacts): the first yellow, the
   others blue; clicking a member makes it the yellow one; dragging a member moves nothing; with the mouse on the
   yellow one every member's value shows.
+- **Hover and animations** (MeterCapture script mode now streams every OpenGL frame with an action log, and saves the
+  cursor): hovering changes no pixel anywhere; the cursor over Sensitivity, Artifacts and Output (the DisplayCursor
+  controls) is an arrow with a small up / down arrow (hotspot 6, 7), elsewhere the system arrow; the Response switch
+  flips in one frame (no slide). The knobs' scales are static: only the dome turns.
+- **Knob scales, measured round the domes' true centres** (x 46 / 200 / 275, y 111.5, half a pixel above the GUIXML
+  rectangles'): Sensitivity has 12 dashes at +-(11.3 + 22.67 k) degrees, 16 degrees long and 4 px deep, from radius 20
+  at the top drifting out to 22.3 at the ends (grey 131, the last pair 100); Spill and Artifacts 13 ticks at 0, +-23,
+  +-46, +-69, +-91, +-115, +-135 degrees, each with its own length (radius 20.3 .. 27.3) and grey (100 .. 147). The
+  dome is fitted on the frame (a grey per radius and two angular harmonics), the pointer a 2 px core from radius 2.5 to
+  17.5 (grey 87 .. 104).
+- **Response switch, clip LED, band**: the switch's block is identical in both states, 15 px apart, the slot's gradient
+  mirrored (darkest by the block); the LED is a dark 15 x 10 frame whose inside changes by row (off 55 .. 87, lit
+  red-orange 173 .. 245 with a red glow beside and below); the lit band is a warm light (255, 253, 209) at 0.21.
+- **With audio** (films of steady 80 Hz tones and a bass line, `nulltest/read_br_film.py`: the Energy meter's lit
+  length, the Rider cap's place by template, the clip LED, and the reference's own output gain):
+  - the Rider shows the gain being applied (within its 1 px reading, 0.1 dB); the reference rides note by note: a
+    note gets one gain, close to Target minus the note's weighted energy, held for the note; a level change inside a
+    held tone moves it only partly (-10 -> -30 dBFS: -1.5 -> +1.6 dB); soft notes right after loud ones are often not
+    new notes; at a note's start the shown gain overshoots and settles within 0.1 s (the audio, 42 ms later, already
+    at the settled gain); after a note it waits about 50 ms and returns to the Idle value within about 0.1 s;
+  - the Energy meter reads a steady 80 Hz sine 1.9 dB under its rms (-20 -> -21.9), low notes lower (45 Hz about
+    -6 dB, a high-pass weighting), rises at once and falls 37 dB per second at most;
+  - the clip LED latches at the first clip and stays lit until clicked;
+  - a provisional model of all this (`plugins/WBassRide/WBassRideProvisional.h`, fitted by
+    `nulltest/ride_provisional.py`) drives WBass Ride's editor until the DSP is identified: filmed in a host the same
+    way, its meter is within 0.0 dB (median) of the reference's on steady tones and 1.1 dB on the bass line, its Rider
+    within 0.1 / 1.8 dB.
 

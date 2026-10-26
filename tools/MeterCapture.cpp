@@ -152,6 +152,7 @@ namespace GlCapture
     static std::vector<uint8> last;
     static int lastW = 0, lastH = 0;
     static std::atomic<int> frames { 0 };
+    static double scriptStart = 0.0;                 // script mode: frames go to `stream` with the wall time since then
 
     static void readBack()
     {
@@ -170,6 +171,14 @@ namespace GlCapture
                     std::memcpy (last.data() + (size_t) row * (size_t) w * 3, buf.data() + (size_t) (h - 1 - row) * (size_t) w * 3, (size_t) w * 3);
                 lastW = w; lastH = h;
                 ++frames;
+                if (stream != nullptr)
+                {
+                    const double now = Time::getMillisecondCounterHiRes() * 0.001 - scriptStart;
+                    const double t[2] = { now, now };
+                    stream->write (t, sizeof (t));
+                    stream->write (last.data(), last.size());
+                    if (! sizeWritten) { File (out.getFullPathName() + ".txt").replaceWithText (String (w) + " " + String (h)); sizeWritten = true; }
+                }
             }
             return;
         }
@@ -273,6 +282,51 @@ public:
         : Thread ("drag"), plugin (p), editor (ed), drags (std::move (d)), design (designW), shots (shotBase) {}
     std::atomic<bool> done { false };
     bool moveAway = true;                             // away=0: the mouse stays over the editor between drags
+    // the time of an action, in the frame stream's clock (script mode, gl=1)
+    void event (const String& what)
+    {
+        if (shots == File()) return;
+        const double now = Time::getMillisecondCounterHiRes() * 0.001 - GlCapture::scriptStart;
+        shots.getSiblingFile (shots.getFileNameWithoutExtension() + ".events.txt").appendText (String (now, 4) + " " + what + "\n");
+    }
+    // the cursor's image now (on white and on black, so its transparency can be told), and whether it is the arrow
+    void cursorShot (int n)
+    {
+        CURSORINFO ci { sizeof (CURSORINFO) };
+        if (! GetCursorInfo (&ci) || ci.hCursor == nullptr) { std::printf ("cursor: none\n"); return; }
+        const bool arrow = ci.hCursor == LoadCursor (nullptr, IDC_ARROW);
+        std::printf ("cursor: %s (%p)\n", arrow ? "the standard arrow" : "its own", (void*) ci.hCursor);
+        const int sz = 32;
+        for (int bg = 0; bg < 2; ++bg)
+        {
+            HDC screen = GetDC (nullptr), mem = CreateCompatibleDC (screen);
+            HBITMAP bmp = CreateCompatibleBitmap (screen, sz, sz);
+            auto old = SelectObject (mem, bmp);
+            RECT r { 0, 0, sz, sz };
+            HBRUSH br = CreateSolidBrush (bg == 0 ? RGB (255, 255, 255) : RGB (0, 0, 0));
+            FillRect (mem, &r, br); DeleteObject (br);
+            DrawIconEx (mem, 0, 0, ci.hCursor, sz, sz, 0, nullptr, DI_NORMAL);
+            Image img (Image::RGB, sz, sz, false);
+            for (int y = 0; y < sz; ++y)
+                for (int x = 0; x < sz; ++x)
+                {
+                    const COLORREF c = GetPixel (mem, x, y);
+                    img.setPixelAt (x, y, Colour (GetRValue (c), GetGValue (c), GetBValue (c)));
+                }
+            ICONINFO ii {};
+            if (bg == 0 && GetIconInfo (ci.hCursor, &ii))
+            {
+                std::printf ("cursor hotspot %d, %d\n", (int) ii.xHotspot, (int) ii.yHotspot);
+                if (ii.hbmMask) DeleteObject (ii.hbmMask);
+                if (ii.hbmColor) DeleteObject (ii.hbmColor);
+            }
+            SelectObject (mem, old); DeleteObject (bmp); DeleteDC (mem); ReleaseDC (nullptr, screen);
+            const auto f = shots.getSiblingFile (shots.getFileNameWithoutExtension() + "_" + String (n) + (bg == 0 ? "_cursor_w.png" : "_cursor_b.png"));
+            f.deleteFile();
+            FileOutputStream os (f);
+            PNGImageFormat().writeImageToStream (img, os);
+        }
+    }
     void run() override
     {
         sleep (2000);
@@ -343,11 +397,13 @@ public:
             }
             if (mod == "hover")                                   // no click: what does hovering show?
             {
-                sleep (400); shot ("hover");
+                event ("hover " + d);
+                sleep (400); shot ("hover"); cursorShot (n);
                 std::printf ("hover\n"); continue;
             }
             if (mod == "click" || mod == "dbl" || mod.endsWith ("click"))   // click / double-click (+ modifier), then type t[6] + Enter
             {
+                event (mod + " " + d);
                 const WORD kv = mod.startsWith ("ctrl") ? VK_CONTROL : mod.startsWith ("alt") ? VK_MENU : mod.startsWith ("shift") ? VK_SHIFT : 0;
                 if (kv) { keybd_event ((BYTE) kv, 0, 0, 0); sleep (50); }
                 for (int c = 0; c < (mod == "dbl" ? 2 : 1); ++c)
@@ -372,6 +428,7 @@ public:
                 dump ("after"); continue;
             }
             if (vk) { keybd_event ((BYTE) vk, 0, 0, 0); sleep (50); }
+            event ("down " + d);
             mouse_event (MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0); sleep (80);
             shot ("down");
             bool hidden = false;
@@ -560,6 +617,14 @@ public:
         if (! drags.isEmpty())
         {
             GlCapture::keepLast = gl;                    // the script's screenshots from the OpenGL frames
+            if (gl)                                      // and every frame streamed, for animations (.events.txt: the actions)
+            {
+                std::lock_guard<std::mutex> g (GlCapture::lock);
+                GlCapture::out = File (args[2]); GlCapture::out.deleteFile();
+                GlCapture::stream = GlCapture::out.createOutputStream();
+                GlCapture::scriptStart = Time::getMillisecondCounterHiRes() * 0.001;
+                File (args[2]).getSiblingFile (File (args[2]).getFileNameWithoutExtension() + ".events.txt").deleteFile();
+            }
             dragScript = std::make_unique<DragScript> (*plugin, *editorComp, drags, design, File (args[2]));
             dragScript->moveAway = ! args.contains ("away=0");
             dragWatch = std::make_unique<DragWatch> (*dragScript);

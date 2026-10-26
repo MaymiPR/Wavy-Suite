@@ -83,6 +83,11 @@ public:
     Marks* marks = nullptr;
     double wheelAcc = 0.0;
     bool showing() const { return isMouseButtonDown() || (marks != nullptr && marks->showsValue (this)); }
+private:
+    const juce::Image& dome (float scale);
+    juce::Image domeImage;
+    float domeScale = 0.0f;
+public:
 };
 
 // a vertical fader with a chrome cap (Output, Range Max / Min) or the Rider's ridged cap
@@ -211,9 +216,7 @@ private:
 
     juce::Image background;
     float backgroundScale = 0.0f;
-    wavy::MeterBallistics energyBar;
     double lastTick = 0.0;
     float energy = -100.0f, ride = 0.0f;
-    bool clip = false;
-    double clipUntil = 0.0;
+    bool clip = false;                                          // latched until clicked
 };
