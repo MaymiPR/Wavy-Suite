@@ -17,7 +17,7 @@ enum {
     BR_OFF, BR_ART, BR_REL_DEPTH, BR_REL_MS, BR_GLIDE,
     BR_SMOOTH, BR_REF_ATT, BR_REF_REL, BR_HP_FC, BR_ILLEGAL,
     BR_ON_RISE, BR_SLOW_ATT, BR_SLOW_REL, BR_MODE, BR_SLOW_REL_FAST,
-    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_NPARAMS
+    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_HOLD_MIN, BR_WIN_LATCH, BR_FAST, BR_NPARAMS
 };
 
 typedef struct { double b0, b1, b2, a1, a2, z1, z2; } Biquad;
@@ -149,7 +149,9 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
             }
             prevXl = xl;
             const double want = p[BR_PITCH_C] * period;
-            wsel = want <= wlen[0] ? 0 : (want <= wlen[1] ? 1 : 2);
+            /* the window follows the pitch between notes and in a note's attack, then stays for the note (latch 1) */
+            if (p[BR_WIN_LATCH] < 0.5 || ! inNote || under < settleN)
+                wsel = want <= wlen[0] ? 0 : (want <= wlen[1] ? 1 : 2);
             double m[3];
             for (int k = 0; k < 3; ++k) m[k] = smax_push (&qs[k], i, xl * xl, wlen[k]);
             lastN = m[wsel];
@@ -179,7 +181,7 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
             {
                 /* released: under the slow envelope by the depth for long enough */
                 relCount = N < S - p[BR_REL_DEPTH] ? relCount + 1 : 0;
-                if (relCount >= relN) { released = 1; minN = N; }
+                if (relCount >= relN) { released = 1; minN = N; if (p[BR_FAST] >= 0.5) { start = 1; Sl = pow (10.0, N / 10.0); } }   /* Fast: a release re-rides at once, from here */
                 /* or still sounding: a rising crossing of the slow envelope by the threshold */
                 if (N < S + p[BR_THR_U] - p[BR_HYST]) below = 1;
                 if (! released && below && open && N > S + p[BR_THR_U]) start = 1;
@@ -198,7 +200,7 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
                only goes down */
             under = N > S + p[BR_THR_A] ? 0 : under + 1;
             if (under < settleN) g = gt;                 /* (BR_SETTLE: how long under it before the hold, ms) */
-            else if (gt < g) g = gt;
+            else if (p[BR_HOLD_MIN] >= 0.5 && gt < g) g = gt;   /* (hold_min 1: the hold only goes down; 0: constant) */
         }
         if (inNote)
             raw = fmin (p[BR_RMAX], fmax (p[BR_RMIN], g));

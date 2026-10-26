@@ -1241,3 +1241,28 @@ reference R (a peak follower) has fallen 1.5 dB less than the reference's. The C
 | synthetic part 6 (held out) | -16.0 | 0.156 | 2.763 |
 | synthetic part 7, Fast (held out) | -20.6 | 0.132 | 3.324 |
 | synthetic part 8, range -6 .. +6 (held out) | -16.7 | 0.098 | 3.233 |
+
+### Phase 4, third pass: the hold is constant, the windows pinned, 2026-10-26
+
+- **Outside the attack phase the gain holds where it is**, whatever the level read does: a 71 Hz note at -4.4 dBFS
+  followed legato by a 122 Hz note at -4.5 (which reads 3.5 dB louder through the weighting) keeps the first note's
+  gain to the hundredth. (The earlier "only goes down" came from legato steps up, which are attacks over S.)
+- **The window steps**, measured finely on the release timer: 1024 samples from 175 Hz up (165 Hz is 2048), 2048 from
+  86 Hz (90 .. 165 Hz), 4096 at 74 Hz and under, intermediate 50 .. 58 ms at 78 .. 82 Hz. The model's window is the
+  shortest spanning 3.3 periods (pinned from these, not fitted), and a zero crossing counts only when both halves of
+  its cycle reach within 12 dB of the note level (a stopped note's filter ringing no longer shrinks the window).
+- **Not modelled yet**: with Response Fast, a 100 Hz note followed legato by a much quieter (10 dB +) 40 Hz note is
+  ridden afresh (Slow, and 60 / 150 Hz, are not); plain decays and level drops never re-ride at either setting.
+- **The null now**:
+
+| case | residual (dB) | gain error median (dB) | 90 % (dB) |
+|---|---|---|---|
+| steady 80 Hz -20 dBFS | -41.8 | 0.071 | 0.071 |
+| steps 1 kHz | -48.2 | 0.029 | 0.030 |
+| bass line | -30.6 | 0.092 | 0.163 |
+| bass line, Target -24 | -29.7 | 0.118 | 0.416 |
+| bass line, Sensitivity 80 | -26.1 | 0.410 | 0.722 |
+| bass line, Artifacts 20 | -30.6 | 0.092 | 0.182 |
+| synthetic part 6 (held out) | -34.3 | 0.123 | 0.468 |
+| synthetic part 7, Fast (held out) | -21.3 | 0.166 | 4.325 |
+| synthetic part 8, range -6 .. +6 (held out) | -28.3 | 0.031 | 2.419 |

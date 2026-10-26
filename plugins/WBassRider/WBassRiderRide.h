@@ -16,7 +16,7 @@
 //                   two peak followers of N: a long reference R and a slow envelope S
 //   a note:         starts over the floor, legal and within the Artifacts gate under R (for a moment
 //                   after a note has ended: legal and within 38 dB of its peak); while it rises over S (and for a
-//                   moment after) the gain follows the law, then it only goes down; it is released when it stays under S
+//                   moment after) the gain follows the law, then it holds; it is released when it stays under S
 //                   by a depth (Response, Sensitivity) for a while, and a rise from there is a new note, as is (still
 //                   sounding) a rise over S by a threshold (Sensitivity); it ends when it stays 38 dB under its peak, and
 //                   the gain glides to the Idle value at 32 dB/s, held where it is while an ignored note sounds
@@ -128,8 +128,7 @@ public:
         else if (inNote)
         {
             under = N > S + bySensitivity (margin, s.sensitivity) ? 0 : under + 1;
-            if (under < holdN) g = gt;
-            else g = std::min (g, gt);
+            if (under < holdN) g = gt;                     // (then the gain holds where it is, whatever the level does)
         }
         if (inNote) raw = std::clamp (g, s.rangeMin, s.rangeMax);
         else if (N < peakN - 38.0)          // silence (38 dB under the last note): the glide to the Idle value
