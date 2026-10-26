@@ -484,3 +484,125 @@ name).
 - **UI**: the H-Comp kit (`WavyHybridUI`) covers the panel, knobs, buttons and display; new are the tap pad, the
   vertical bar meter with its scale, the Link wheel, the delay display's layouts (note / BPM, ms, Ping Pong, Dual)
   and the stepped note scale on the Delay knob.
+
+## 6. WBass Ride (Bass Rider)
+
+### Sources
+- **B1** Local manual `Bass Rider.bundle\Contents\Resources\Bass Rider.pdf` (10 pages, Bass Rider User Guide; the copy
+  in `Plug-Ins V17\Documents` is identical).
+- **B2** Local `ParamXML\1000.xml` (47 parameters; `nulltest/paramxml_table.py`), `GUIXML\1000.xml`,
+  `ToolbarXML\1001.xml`, `AlgXML\1001.xml` (algorithm `BLVR`: components `BSLS` / `BSLM` Bass Rider Stereo / Mono,
+  `BSVS` / `BSVM` Bass Rider Live Stereo / Mono), `ProcessXML\1000.xml` / `1001.xml` (no side-chain inputs, up to
+  192 kHz), presets in `Presets\1000.xml` (17), skins in `Webp.zip` (2x images, git-ignored `reference/wbassride/`).
+- **B3** The installed VST3 (`WaveShell1-VST3 17.1`) as seen by a host (`nulltest/probe_bassrider.py`): components
+  *Bass Rider Mono* (uid −1142096219), *Bass Rider Stereo* (−1140620123), *Bass Rider Live Mono* (−512295259),
+  *Bass Rider Live Stereo* (−510819163); no side-chain bus.
+- **B4** Frames of the real editor read back from its OpenGL drawing (`tools/MeterCapture gl=1`, 320 × 560,
+  git-ignored `reference/wbassride/`).
+
+### Documented behaviour (B1)
+- Rides bass levels automatically, **note by note**: it detects each note's attack, sustain and release and sets a
+  gain per note towards a target, leaving the note's own envelope alone (unlike a compressor).
+- **Target** 0 … −42 dBFS (default −14), a slider over the **Target Energy Meter** (the input's energy, 0 … −42 dBFS);
+  it also calibrates the Rider fader's 0. Meant to sit near the input's average level.
+- **Note detection**: **Sensitivity** 0 … 100 (default 50; higher detects more notes), **Response** Slow / Fast
+  (default Slow; when the detector resets for the next note: Slow for long releases, Fast for short ones).
+- **Ignore**: **Spill** −50 … −3 dBFS (default −40; signal below it is not detected as notes), **Artifacts** 0 … 100
+  (default 50; tolerance to buzz, crackles, squeaks and modulation within a note that would trigger detection).
+- **Range**: **Max** −11 … +12 dB (default +12), **Min** −12 … +11 dB (default −12), the **Effective Range** shown
+  between them (1 … 24 dB); the **Idle arrow** (−12 … +12 dB, default 0) is the Rider fader's value when no bass plays.
+- **Rider fader** −12 … +12 dB: the automatic gain; it can be grabbed for manual gain, and riding resumes on release.
+- **Output** −12 … +12 dB (default 0) after the riding, with a clip LED.
+- **Components**: Bass Rider (Mono, Stereo), latency 42 ms, "round, transparent"; Bass Rider Live (Mono, Stereo),
+  latency 5 ms, "adds a little punch to note start events".
+
+### Specifications (B3, measured)
+- **Latency** reported and compensated: 42.00 ms (1852 samples at 44.1 kHz, 2016 at 48, 4032 at 96) and Live 5.00 ms
+  (221 / 240 / 480). With it removed, the output lines up with the input (cross-correlation lag 0).
+- **Static level at the defaults**: an 80 Hz sine settles at −11.53 dBFS rms out for any input from −20 to −3 dBFS
+  rms (gain +8.47 … −8.53 dB), and at +12 dB gain (the Max range) for −30 and −40. So Target −14 aims at an energy
+  measure that reads an 80 Hz sine 2.47 dB below its rms (the weighting filters, or a peak / energy definition):
+  Phase 3.
+- **VST3 parameters** (what a host sees, 10 plus bypass): spill (471 steps of 0.1 dB), range_max, range_min, output
+  (0.1 dB), sensitivity (1001 steps), target (421 steps of 0.1 dB), idle (shown in dB), response (Slow / Fast),
+  artifacts (1001 steps). The Rider fader is not a host parameter (no ride automation out).
+
+### Parameters (B2, B3), in preset-array order
+The preset array holds the 46 stored values (0–45; 46 is display-only). Target is `*` (kept) in all but the first
+two presets.
+
+| # | ID | Label / control | Range | Default | In VST3 |
+|---|---|---|---|---|---|
+| 0–3 | IN / OUT_VU L / R | meters (display only) | −32 … 0 dB | | — |
+| 4 | PARAM_OUT_GAIN | Output | ±12 dB, 0.1 | 0 | output |
+| 5 | PARAM_OUT_GAIN_TC | OutAtt | 0.01 … 100 ms, log (presets 5.01) | 5 | — |
+| 6 | PARAM_DIRECT_DELAY | DirectDelay | 0 … 100 ms (42: the look-ahead, the latency) | 42 | — |
+| 7 | PARAM_RIDE | Rider fader | ±12 dB, 0.01 (display only) | 0 | — |
+| 8, 9 | PARAM_RIDE_GAIN_MIN / MAX | Range Min / Max | −12 … +11 / −11 … +12 dB, 0.1 | −12 / +12 | range_min, range_max |
+| 10 | PARAM_RIDE_RANGE | Effective range | 1 … 24 (display only) | | — |
+| 11 | PARAM_USER_RIDE_TOUCH | the fader grabbed | toggle (display only) | 0 | — |
+| 12 | PARAM_RIDE_TARGET0 | Target | −42 … 0 dB, 0.1 | −14 | target |
+| 13, 14 | PARAM_ATTACK0 / RELEASE0 | PBAtt / PBRel | 0.1 … 1000 / 1 … 10 000 ms, log | 2 / 100 | — |
+| 15, 16 | PARAM_WEIGHT_HPF_FREQ / GAIN | detector weighting high-pass | 1 … 2000 Hz / −140 … 0 dB (presets 29.9 Hz, −30 dB) | 30 / −30 | — |
+| 17, 18 | PARAM_WEIGHT_HSH_FREQ / GAIN | detector weighting high shelf | 20 … 20 000 Hz / −140 … +24 dB (presets 5094 Hz, +0.1 dB) | 5093 / 0 | — |
+| 19, 20 | PARAM_ENERGY_METER / MUSIC_METER | Energy (the Target meter) / Music | −42 / −48 … 0 dB (display only) | | — |
+| 21 | PARAM_BAD_LPF_FREQ | BADLpf: the note detector's low-pass | 20 … 20 000 Hz (presets 998) | 1000 | — |
+| 22 | PARAM_BAD_ILLEGAL_HPF_FREQ | IllegalHpf | 20 … 20 000 Hz (presets 2005) | 2000 | — |
+| 23 | PARAM_MAX_POW2_DELAY | MaxDly | 0 … 4 | 2 | — |
+| 24 | PARAM_BAD_NOTE_OFF_GATE | NoteOffGate | −100 … 0 dB | −38 | — |
+| 25, 26 | PARAM_BAD_NOTE_ATTACK / RELEASE | NoteAtt / NoteRel | 0.001 … 100 / 1 … 10 000 ms | 1 / 1 | — |
+| 27, 28 | PARAM_BAD_SLOW_ATTACK / RELEASE | SlowAtt / SlowRel | (presets 29.854 / 1000 ms) | 30 / 1000 | — |
+| 29, 30 | PARAM_BAD_REF_ATTACK / RELEASE | RefAtt / RefRel | (presets 1 / 5011.9 ms) | 1 / 5000 | — |
+| 31 | PARAM_BAD_NOTE_ON_THRESH | Sensitivity | 0 … 100, 0.01 | 50 | sensitivity |
+| 32 | PARAM_BAD_SUSTAIN_THRESH | SustainThresh | −140 … 0 dB | −1 | — |
+| 33 | PARAM_BAD_NOTE_OFF_THRESH | Response | Slow / Fast (0 / 1) | Slow | response |
+| 34 | PARAM_PARK_GAIN | Idle arrow | 0.02 … 0.98: the fraction of the range (0.5 → 0 dB at ±12) | 0.5 | idle |
+| 35 | PARAM_PARK_DB | the Idle value in dB (display only) | ±12 | | — |
+| 36, 37 | PARAM_PARK_ATTACK / RELEASE | ParkAtt / ParkRel: the glide to the Idle value | 200 … 20 000 ms | 271 | — |
+| 38 | PARAM_PITCH_INDEX | (display only) | 0 … 4 | | — |
+| 39–43 | BAD_ATTACK / SUSTAIN / IDLE, BAD_RATIO_MIN / MAX | the detector's state (display only) | | | — |
+| 44 | PARAM_BAD_NOTE_ON_GATE | Artifacts | −20 … −3 dB, shown 0 … 100 linearly (−11.5 → 50) | −11.5 | artifacts |
+| 45 | PARAM_BAD_GATE | Spill | −50 … −3 dB (typed positive means negative) | −40 | spill |
+| 46 | PARAM_RIDE_GAIN | Attenuation (display only) | | | — |
+
+The hidden values read like a design sheet for Phase 3: a note detector ("BAD") on a low-passed (about 1 kHz)
+signal with note, slow and reference envelopes (attack / release pairs), note-on and note-off gates and a sustain
+threshold; a weighted energy (high-pass 30 Hz at −30 dB, high shelf 5.1 kHz) for the level; a gain smoother (attack
+2 ms, release 100 ms); an idle "park" glide (271 ms); the 42 ms direct delay as look-ahead. All presets share every
+hidden value.
+
+### GUI geometry (B2, B4)
+View **320 × 560 px** including the two-row Renaissance toolbar (RVox's ToolbarXML, its preset row 316 px wide
+instead of 367). The panel (B4, `reference/wbassride/shot_default_running.png`):
+- Dark top panel: **Target** slider 59, 45, 210 × 22 over the **Energy** meter 71, 48, 184 × 15; "Detect" group:
+  **Sensitivity** knob 24, 90, 44 × 44 (a dashed ring scale), **Response** Slow / Fast toggle 104, 106, 37 × 17;
+  "Ignore" group: **Spill** 178, 90 and **Artifacts** 253, 90 (44 × 44, 71-frame knob strips).
+- Cream lower panel: **Range** column (Max 36, 198 and Min 36, 225 thumbs on 45 × 228 tracks; the **Idle** arrow
+  marker 35, 222, 12 × 211; the **Range** value box 41, 466), the **Rider** fader 128, 189, 58 × 279 on a ±12 dB
+  scale (6 dB marks, 1 dB ticks) with its value box, the **Output** fader 235, 212, 43 × 234 with its value box and
+  a **clip LED** 279, 183. Faders have shadows; the Range column shades the band between Min and Max, and the Idle
+  value is drawn as a line across to the Rider scale.
+- Bottom: a bass clef and the product name in large type on dark leather.
+- Text entry and Alt-reset on the knobs and faders (`ReciveTextEntery`, `OptionReset`); the fader text follows the
+  thumb.
+
+### Presets (B2)
+17 presets, all RealWorld arrays (Full Reset, PA Default, and 15 for bass styles: slow / fast, fretless, upright,
+picked, slap, fret noise, stage, a suppressor with Max 0). They change only Output, Range Min / Max, Sensitivity,
+Response, Idle, Artifacts and Spill (and Target in the first two). They will be carried over by their values with
+Wavy names, and their null test will load the reference's own preset states (as WDelay's, `RefRender state=`).
+
+### Notes for the next phases
+- **UI (Phase 2)**: the Renaissance toolbar narrower (316); new parts: the fader family (Rider, Output, Range
+  Min / Max with the shaded band and the Idle arrow), the Target slider over the Energy meter, the dashed-ring
+  Sensitivity knob and the Response toggle; the Rider fader moves by itself and can be grabbed. The Live components
+  differ only by a badge (65 × 30 at 246, 520).
+- **Components**: Mono / Stereo by the bus layout, Studio / Live as a switch (Mode), which changes the latency
+  (42 / 5 ms).
+- **Measurement (Phase 3)**: the gain is observable sample by sample (output / input with the latency removed, a
+  pilot tone for the quiet parts); the energy measure and its weighting; the static law (Target, Min / Max, Idle);
+  the gain smoother; note-on / note-off detection against Sensitivity, Response, Spill and Artifacts on synthetic
+  notes (attacks, decays, legato, ghost notes, buzz); the look-ahead (42 / 5 ms) and what Live changes; stereo
+  linking.
+- **Nulls**: steady material should null once the static law and smoother are exact; the note detector is the hard
+  part (a learned block is the fallback, as in WComp).
