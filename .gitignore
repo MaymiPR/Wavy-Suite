@@ -36,3 +36,7 @@ nulltest/hcgrad.lib
 nulltest/hcgrad.exp
 nulltest/wcomp_trace.exe
 nulltest/wcomp_trace.obj
+nulltest/brmodel.dll
+nulltest/brmodel.obj
+nulltest/brmodel.exp
+nulltest/brmodel.lib

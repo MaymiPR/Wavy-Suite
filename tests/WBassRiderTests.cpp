@@ -1,6 +1,7 @@
-// Unit tests for WBass Rider (Phase 2): the parameters as the reference's, the components' latency, the audio path
-// until the riding DSP, the state, the editor.
+// Unit tests for WBass Rider: the parameters as the reference's, the components' latency, the audio path, the ride
+// against the reference's measured behaviour (law, look-ahead, hold, glide, stereo mid), the state, the editor.
 // Run: WBassRiderTests (exit code 0 = all passed).
+#include <functional>
 #include <cmath>
 #include <cstdio>
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -52,12 +53,12 @@ static void testLatencyAndPath()
             WBassRiderProcessor p;
             auto* m = p.apvts.getParameter (wbassrider::mode);
             m->setValueNotifyingHost (m->convertTo0to1 ((float) mode));
+            auto* o = p.apvts.getParameter (wbassrider::output);
+            o->setValueNotifyingHost (o->convertTo0to1 (-6.0f));
             p.setPlayConfigDetails (2, 2, fs, 256);
             p.prepareToPlay (fs, 256);
             const int expect = juce::roundToInt ((mode == 2 ? 5.0 : 42.0) * 0.001 * fs);
             CHECK (p.getLatencySamples() == expect);
-            auto* o = p.apvts.getParameter (wbassrider::output);
-            o->setValueNotifyingHost (o->convertTo0to1 (-6.0f));
             juce::AudioBuffer<float> b (2, 256);
             juce::MidiBuffer midi;
             int found = -1, pos = 0;
@@ -65,40 +66,86 @@ static void testLatencyAndPath()
             for (int blk = 0; blk < 40 && found < 0; ++blk, pos += 256)
             {
                 b.clear();
-                // under the Spill gate (-40 dBFS): no note, the Rider at its idle value (0 dB)
-                if (blk == 1) { b.setSample (0, 10, 0.005f); b.setSample (1, 10, 0.005f); }
+                // far under the detector's floor (-48.75 dBFS, measured): no note, the Rider at its idle value (0 dB)
+                if (blk == 1) { b.setSample (0, 10, 0.001f); b.setSample (1, 10, 0.001f); }
                 p.processBlock (b, midi);
                 for (int i = 0; i < 256; ++i)
-                    if (std::abs (b.getSample (0, i)) > 0.0005f) { found = pos + i; peak = b.getSample (0, i); break; }
+                    if (std::abs (b.getSample (0, i)) > 0.0001f) { found = pos + i; peak = b.getSample (0, i); break; }
             }
             CHECK (found == 256 + 10 + expect);
-            CHECK_NEAR (peak, 0.005 * juce::Decibels::decibelsToGain (-6.0), 1e-5);
+            CHECK_NEAR (peak, 0.001 * juce::Decibels::decibelsToGain (-6.0), 2e-6);
         }
 }
 
-// the provisional riding model against the reference's films: an 80 Hz tone at -20 dBFS rms rides to +8.47 dB with the
-// Energy meter at -21.9 dBFS; when it stops the Rider is back at its idle value within 0.4 s (the reference: 0.3 s)
-static void testProvisionalRide()
+// a processor at 48 kHz fed with blocks of 480 samples; `make` fills each block (left, right), the output is kept
+static std::vector<float> runRide (WBassRiderProcessor& p, int blocks, std::function<void (int, float&, float&)> make, int outCh = 0)
 {
-    WBassRiderProcessor p;
     const double fs = 48000.0;
     p.setPlayConfigDetails (2, 2, fs, 480);
     p.prepareToPlay (fs, 480);
     juce::AudioBuffer<float> b (2, 480);
     juce::MidiBuffer midi;
-    double ph = 0.0;
-    float energy = -100.0f;
-    for (int blk = 0; blk < 100; ++blk)                              // 1 s
+    std::vector<float> out;
+    for (int blk = 0; blk < blocks; ++blk)
     {
-        for (int i = 0; i < 480; ++i, ph += 80.0 / fs)
-            b.setSample (0, i, (float) (0.1 * std::sqrt (2.0) * std::sin (2.0 * juce::MathConstants<double>::pi * ph))), b.setSample (1, i, b.getSample (0, i));
+        for (int i = 0; i < 480; ++i) { float l = 0.0f, r = 0.0f; make (blk * 480 + i, l, r); b.setSample (0, i, l); b.setSample (1, i, r); }
         p.processBlock (b, midi);
-        energy = p.energyDb.take();
+        for (int i = 0; i < 480; ++i) out.push_back (b.getSample (outCh, i));
     }
-    CHECK_NEAR (p.rideDb.load(), 8.47, 0.4);
-    CHECK_NEAR (energy, -21.9, 0.5);
-    for (int blk = 0; blk < 40; ++blk) { b.clear(); p.processBlock (b, midi); }   // 0.4 s of silence
+    return out;
+}
+
+static double sineAt (int n, double f, double peakDb) { return std::pow (10.0, peakDb / 20.0) * std::sin (2.0 * juce::MathConstants<double>::pi * f * n / 48000.0); }
+
+// the ride against the reference's measured law (MEASUREMENTS.md, WBass Rider Phase 3): gain = Target - E + 0.68 dB with
+// E the weighted level (an 80 Hz sine reads 4.81 dB under its peak): an 80 Hz tone at -20 dBFS rms rides to +8.48 dB
+// with the Energy meter at -21.8; when it stops the gain glides to the Idle value at 32 dB/s (back within 0.4 s)
+static void testRideLaw()
+{
+    WBassRiderProcessor p;
+    float energy = -100.0f;
+    runRide (p, 100, [] (int n, float& l, float& r) { l = r = (float) sineAt (n, 80.0, -16.99); });
+    energy = p.energyDb.take();
+    CHECK_NEAR (p.rideDb.load(), 8.48, 0.1);
+    CHECK_NEAR (energy, -21.8, 0.2);
+    // (continue on the same processor: 0.4 s of silence)
+    juce::AudioBuffer<float> b (2, 480); juce::MidiBuffer midi;
+    for (int blk = 0; blk < 25; ++blk) { b.clear(); p.processBlock (b, midi); }
+    const float after250ms = p.rideDb.load();
+    for (int blk = 0; blk < 15; ++blk) { b.clear(); p.processBlock (b, midi); }
+    CHECK (after250ms < 8.0f && after250ms > 0.5f);                        // gliding (32 dB/s)
     CHECK_NEAR (p.rideDb.load(), 0.0, 0.05);
+}
+
+// the look-ahead: a legato step -30 -> -16 dBFS (1 kHz) at 1 s; the gain starts down 42 ms before the louder audio
+// leaves the plug-in (measured on the reference), so the output never shows the step at the old gain
+static void testRideLookAhead()
+{
+    WBassRiderProcessor p;
+    const int step = 48000;
+    auto y = runRide (p, 200, [step] (int n, float& l, float& r) { l = r = (float) sineAt (n, 1000.0, n < step ? -30.0 : -16.0); });
+    const int lat = p.getLatencySamples();
+    CHECK (lat == 2016);
+    // the output's envelope just after the step reaches the output: about -16 + the new gain (+2.69), not -16 + 12
+    float pk = 0.0f;
+    for (int i = step + lat + 100; i < step + lat + 600; ++i) pk = std::max (pk, std::abs (y[(size_t) i]));
+    CHECK_NEAR (juce::Decibels::gainToDecibels (pk), -16.0 + 2.69, 0.3);
+}
+
+// within a note the gain only goes down: a legato step down (-16 -> -30) keeps the gain of the louder part
+static void testRideHold()
+{
+    WBassRiderProcessor p;
+    runRide (p, 300, [] (int n, float& l, float& r) { l = r = (float) sineAt (n, 1000.0, n < 48000 ? -16.0 : -30.0); });
+    CHECK_NEAR (p.rideDb.load(), 2.69, 0.1);
+}
+
+// stereo: one gain for both channels, from the mid: L at -6, R at -30 dBFS (in phase, 1 kHz) ride as their mid (-11.5)
+static void testRideStereoMid()
+{
+    WBassRiderProcessor p;
+    runRide (p, 100, [] (int n, float& l, float& r) { l = (float) sineAt (n, 1000.0, -6.0); r = (float) sineAt (n, 1000.0, -30.0); });
+    CHECK_NEAR (p.rideDb.load(), -1.82, 0.15);
 }
 
 static void testStateAndEditor()
@@ -154,7 +201,10 @@ int main()
     juce::ScopedJuceInitialiser_GUI init;
     testParameters();
     testLatencyAndPath();
-    testProvisionalRide();
+    testRideLaw();
+    testRideLookAhead();
+    testRideHold();
+    testRideStereoMid();
     testStateAndEditor();
     testSelection();
     std::printf ("%d checks, %d failures\n", checks, failures);

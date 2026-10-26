@@ -29,3 +29,15 @@ target_compile_definitions(WBassRiderTests PRIVATE
     JucePlugin_ProducesMidiOutput=0 JucePlugin_IsMidiEffect=0 JucePlugin_VersionString="0.1.0")
 target_link_libraries(WBassRiderTests PRIVATE WavyCommon juce::juce_recommended_config_flags)
 add_test(NAME WBassRiderTests COMMAND WBassRiderTests)
+
+# Offline renderer for the null tests: the plug-in's processor on raw float files (tools/WBassRiderRender.cpp)
+juce_add_console_app(WBassRiderRender PRODUCT_NAME "WBassRiderRender")
+target_sources(WBassRiderRender PRIVATE
+    ${CMAKE_SOURCE_DIR}/tools/WBassRiderRender.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/WBassRiderProcessor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/WBassRiderEditor.cpp)
+target_include_directories(WBassRiderRender PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(WBassRiderRender PRIVATE
+    JucePlugin_Name="WBass Rider" JucePlugin_IsSynth=0 JucePlugin_WantsMidiInput=0
+    JucePlugin_ProducesMidiOutput=0 JucePlugin_IsMidiEffect=0 JucePlugin_VersionString="0.1.0")
+target_link_libraries(WBassRiderRender PRIVATE WavyCommon juce::juce_recommended_config_flags)

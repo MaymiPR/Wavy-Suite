@@ -56,6 +56,9 @@ void WBassRiderProcessor::configure()
     line.assign ((size_t) jmax (1, getMainBusNumInputChannels()), std::vector<float> ((size_t) delaySamples + 1, 0.0f));
     writePos = 0;
     ride.prepare (sr);
+    smooth5 = std::exp (-1.0 / (0.005 * sr));
+    outGain = Decibels::decibelsToGain ((double) get (wbassrider::output));
+    heldDb = 0.0;
     setLatencySamples (delaySamples);
 }
 
@@ -64,30 +67,37 @@ void WBassRiderProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
     ScopedNoDenormals nd;
     if (modeIndex() != configuredMode || (int) line.size() < b.getNumChannels()) configure();
     const int n = b.getNumSamples(), ch = jmin (b.getNumChannels(), (int) line.size());
-    const double target = get (wbassrider::target), lo = get (wbassrider::rangeMin), hi = get (wbassrider::rangeMax);
-    const double idle = idleDb(), gate = get (wbassrider::spill), outDb = get (wbassrider::output);
+    wbassrider::RideSettings st;
+    st.target = get (wbassrider::target); st.rangeMin = get (wbassrider::rangeMin); st.rangeMax = get (wbassrider::rangeMax);
+    st.idleDb = idleDb(); st.artifacts = get (wbassrider::artifacts); st.sensitivity = get (wbassrider::sensitivity);
+    st.fast = get (wbassrider::response) > 0.5f;
+    const double outTo = Decibels::decibelsToGain ((double) get (wbassrider::output));
     const bool held = userRide.load();
+    const double heldTo = (double) userRideDb.load();
+    if (! held && wasHeld) { returning = true; wasHeld = false; }
 
-    // the provisional riding model (WBassRiderProvisional.h) listens to the input as it comes in; its gain is applied
-    // to the audio the component's latency later, so a note's gain is in place when the note is heard (as the
-    // reference's look-ahead)
+    // the ride listens to the mid of the input as it comes in; its gain meets the audio the component's latency later,
+    // so a note's gain is in place when the note is heard (the reference's look-ahead)
     const int len = delaySamples + 1;
     int pos = writePos;
     float energyMax = -100.0f;
+    double r = 0.0;
     for (int i = 0; i < n; ++i)
     {
-        float in[2] = { b.getSample (0, i), ch > 1 ? b.getSample (1, i) : 0.0f };
-        if (ride.push (in, ch, target, lo, hi, idle, gate))
+        const double mid = ch > 1 ? 0.5 * ((double) b.getSample (0, i) + (double) b.getSample (1, i)) : (double) b.getSample (0, i);
+        r = ride.push (mid, st);
+        energyMax = jmax (energyMax, (float) ride.energy);
+        // a held Rider: its gain, reached over 5 ms; on release the ride is rejoined over 5 ms, then followed exactly
+        if (held || returning)
         {
-            energyMax = jmax (energyMax, (float) ride.energy);
-            gainTo = (float) Decibels::decibelsToGain ((held ? (double) userRideDb.load() : ride.gain) + outDb);
-            gainStep = (gainTo - gainNow) / (float) jmax (1, (int) std::lround (sr / 1000.0));
+            const double to = held ? heldTo : r;
+            heldDb = to + smooth5 * (heldDb - to);
+            returning = ! held && std::abs (heldDb - r) > 0.005;
+            wasHeld = true;
         }
-        if (gainStep != 0.0f)
-        {
-            gainNow += gainStep;
-            if ((gainStep > 0.0f && gainNow >= gainTo) || (gainStep < 0.0f && gainNow <= gainTo)) { gainNow = gainTo; gainStep = 0.0f; }
-        }
+        else heldDb = r;
+        outGain = outTo + smooth5 * (outGain - outTo);
+        const float gainNow = (float) (Decibels::decibelsToGain (heldDb) * outGain);
         const int rd = pos - delaySamples < 0 ? pos - delaySamples + len : pos - delaySamples;
         for (int c = 0; c < ch; ++c)
         {
@@ -99,7 +109,7 @@ void WBassRiderProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
     }
     writePos = pos;
     energyDb.push (energyMax);
-    rideDb.store (held ? userRideDb.load() : (float) ride.gain);
+    rideDb.store ((float) heldDb);
     const float pk = b.getMagnitude (0, n);
     this->outDb.push (pk > 1.0e-5f ? Decibels::gainToDecibels (pk) : -100.0f);
 }

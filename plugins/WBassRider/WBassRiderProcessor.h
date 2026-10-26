@@ -4,11 +4,11 @@
 #include <vector>
 #include "WavyMeter.h"
 #include "WavyPresets.h"
-#include "WBassRiderProvisional.h"
+#include "WBassRiderRide.h"
 
 // Parameters follow the reference's (Bass Rider's VST3 parameters and ParamXML ranges, defaults and resolutions; see
-// RESEARCH.md, WBass Rider). Phase 2: the audio is delayed by the component's latency and ridden by a provisional model
-// fitted on films of the reference's editor (WBassRiderProvisional.h), until the riding DSP (Phase 4).
+// RESEARCH.md, WBass Rider). The audio is delayed by the component's latency (the look-ahead) and ridden by the model
+// identified on the reference's audio (WBassRiderRide.h; MEASUREMENTS.md, WBass Rider Phase 3 / 4).
 namespace wbassrider
 {
 inline constexpr const char* target = "target";            // -42 .. 0 dB, default -14 (the Target slider)
@@ -74,6 +74,7 @@ private:
     double sr = 48000.0;
     int delaySamples = 0, writePos = 0, configuredMode = -1;
     std::vector<std::vector<float>> line;
-    wbassrider::ProvisionalRide ride;
-    float gainNow = 1.0f, gainTo = 1.0f, gainStep = 0.0f;
+    wbassrider::Ride ride;
+    double outGain = 1.0, heldDb = 0.0, smooth5 = 0.0;      // the Output gain and a held Rider, each smoothed over 5 ms
+    bool wasHeld = false, returning = false;
 };

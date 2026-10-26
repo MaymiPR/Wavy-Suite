@@ -1158,3 +1158,60 @@ with the input (cross-correlation lag 0). Each finding names its subcommand.
   smoothing and the same note detection (a dip and re-attack gives the same new note).
 - **Stereo**: one gain for both channels, read from the **mid, (L + R) / 2**: L −6 / R −30 dBFS (in phase) rides
   at the mid's −11.5; R = −L reads silence (gain at Idle); L 1 kHz and R 1.2 kHz read as the two-tone sum.
+
+## WBass Rider: Phase 4, the riding model identified, 2026-10-26
+
+The model (`nulltest/brmodel.c`, the same as `plugins/WBassRider/WBassRiderRide.h` line for line) was built from
+targeted probes on the reference (`nulltest/br_probes.py`: 641 short signals, each with the reference's gain at set
+times) and its gain traces on bass material (`nulltest/br_traces.py`: the bass line and synthetic parts at several
+settings); `nulltest/br_fit.py` fits the note detector's constants by CMA-ES on both (`br_export.py` writes them into
+the C++). What the probes established:
+
+- **The level read** (Phase 3) is a power follower of the quadrature envelope; the quadrature pair is an IIR allpass
+  pair (12 Hz .. 20 kHz, 0.23 degrees at 48 kHz; `nulltest/design_hilbert.py`, one set per rate), since the gain's ramp
+  starts exactly at the look-ahead (the envelope adds no delay of its own).
+- **The attack phase**: from a note's start the gain follows the law, both ways, while the note's level N stays over
+  a slow envelope S (a peak follower: a ~20 ms rise, falling at most a few dB/s, tracking anything slower exactly) and
+  for about 50 ms after it falls under; then the gain holds, only going down. On single decaying notes (200 Hz,
+  -6 dBFS, decays of 0.05 .. 2 s and none) the reference's held gain is +1.38 / +0.97 / +0.70 / +0.45 / +0.18 / 0 dB
+  over a steady note's; a fixed settle time or a smoothed law cannot give that curve, the attack-phase rule does
+  (within 0.12 dB before the fit). It also takes the quadrature pair's onset overshoot out of the held gain.
+- **New notes**, two ways: a note stays under S by a depth (Response, Sensitivity) for ~23 ms, and a rise from there
+  is a new note if it is within the Artifacts gate of a long reference R (a peak follower falling ~2 dB/s); or, still
+  sounding, it rises over S by a threshold (Sensitivity). After a deep drop the new note's gain is limited by the
+  energy follower still falling (43 dB/s) from the note before, which is why re-attacks soon after a drop read
+  partway between the old gain and the new note's.
+- **The end of a note**: its level stays 38 dB under its peak for ~60 ms (a 21 ms gap between notes does not end
+  one); the gain then glides to the Idle value at 32 dB/s. While it glides, any legal note within 38 dB of the last
+  note's peak is a new note (no floor, no Artifacts gate; measured: after a -20 dBFS note the gate stays at -57.6
+  dBFS for 300 ms, the glide's length, and is back to the Artifacts gate by 400 ms). An ignored note (outside the
+  gates, within 38 dB of the last note) freezes the gain where it is.
+- **Spill**: no effect found on any probe (steady tones, legato drops, re-attacks, gaps, starts from silence,
+  high-frequency bleed, -50 .. -3 dB). The parameter is kept (stored, automatable) and does nothing yet.
+- **Constants** (the fit, `measurements/wbassrider/detector_fit.json`; cost 710 over 641 probes and 10 traces): the
+  slow envelope rises in 12 ms and falls at most 6.5 dB/s (1342 ms), the reference 1.4 dB/s (6051 ms); a note is
+  released after 23.7 ms under S, holds 67 ms after its level falls under S, ends 63.8 ms after falling 38 dB under
+  its peak, and for 27 ms after that takes any note within 38 dB. The per-setting thresholds (rise over S, the attack
+  margin, the release depth) are in the file; some are not monotonic in Sensitivity where the probes cannot tell two
+  paths apart.
+
+### The null (Phase 4, `nulltest/nulltest_wbassrider.py`; the plug-in's own processor, `WBassRiderRender`)
+
+| case | residual (dB) | gain error median (dB) | 90 % (dB) |
+|---|---|---|---|
+| steady 80 Hz -20 dBFS | -40.3 | 0.067 | 0.067 |
+| steps 1 kHz | -47.9 | 0.028 | 0.029 |
+| bass line | -28.1 | 0.073 | 1.238 |
+| bass line, Target -24 | -28.1 | 0.074 | 1.238 |
+| bass line, Sensitivity 80 | -25.1 | 0.454 | 1.653 |
+| bass line, Artifacts 20 | -28.2 | 0.073 | 1.238 |
+| synthetic part 6 (held out) | -8.5 | 0.188 | 10.952 |
+| synthetic part 7, Fast (held out) | -15.4 | 0.125 | 4.564 |
+| synthetic part 8, range -6 .. +6 (held out) | -16.7 | 0.116 | 3.233 |
+
+The level law, the look-ahead, the smoothing and the hold null to -40 .. -48 dB; the bass line to -28 dB. The
+synthetic parts (ghost notes at a tenth of the level, random gaps) are where the note detector still decides
+differently: borderline gate decisions (a new note accepted or not) cost the whole note several dB. Example: synthetic
+part 6 at 2.38 s, a note 13 dB over a quiet passage is a new note in the reference, ignored here because the long
+reference R (a peak follower) has fallen 1.5 dB less than the reference's. The C++ matches the fitted model to 0.07 dB
+(99 %, `nulltest/check_wbassrider_port.py`).
