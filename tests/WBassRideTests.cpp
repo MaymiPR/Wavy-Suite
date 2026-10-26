@@ -92,12 +92,44 @@ static void testStateAndEditor()
     CHECK (wbassride::ui::scaleY (-12.0f) == 432.0f);
 }
 
+// the selection rules measured on the reference (click, lasso group, Rider / Idle in blue, member drags blocked)
+static void testSelection()
+{
+    using namespace wbassride::ui;
+    juce::Component a, b, rider;
+    Marks m;
+    m.blueAlone = { &rider };
+    CHECK (m.click (&a));
+    CHECK (m.of (&a) == Mark::Selected);
+    CHECK (m.of (&b) == Mark::None);
+    CHECK (m.click (&rider));
+    CHECK (m.of (&rider) == Mark::Member);                          // the Rider alone: blue
+    m.group = { &rider, &a, &b };
+    m.selected = &rider;
+    CHECK (m.of (&rider) == Mark::Selected);                        // in a group the first is yellow
+    CHECK (m.of (&b) == Mark::Member);
+    CHECK (! m.click (&b));                                          // a member: its drag moves nothing
+    CHECK (m.of (&b) == Mark::Selected && m.of (&rider) == Mark::Member);
+    m.hover = &b;
+    CHECK (m.showsValue (&a) && m.showsValue (&b));                 // the primary under the mouse: every member's value
+    juce::Component other;
+    CHECK (m.click (&other));                                        // outside the group: the group goes
+    CHECK (m.group.empty() && m.of (&a) == Mark::None);
+    // the host sees Idle over a fixed +-12 dB, whatever the range (as the reference's text)
+    WBassRideProcessor p;
+    auto* mx = p.apvts.getParameter (wbassride::rangeMax);
+    mx->setValueNotifyingHost (mx->convertTo0to1 (6.0f));
+    CHECK (p.apvts.getParameter (wbassride::idle)->getText (0.5f, 16) == "0.0");
+    CHECK_NEAR (p.idleDb(), -3.0, 1e-4);                             // the arrow itself: the middle of -12 .. 6
+}
+
 int main()
 {
     juce::ScopedJuceInitialiser_GUI init;
     testParameters();
     testLatencyAndPath();
     testStateAndEditor();
+    testSelection();
     std::printf ("%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;
 }

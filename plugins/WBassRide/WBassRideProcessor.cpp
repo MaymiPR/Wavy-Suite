@@ -20,9 +20,9 @@ AudioProcessorValueTreeState::ParameterLayout WBassRideProcessor::layout()
     addF (wbassride::artifacts, "Artifacts", { 0.0f, 100.0f, 0.1f }, 50.0f, plain1);
     addF (wbassride::rangeMax, "Range Max", { -11.0f, 12.0f, 0.1f }, 12.0f, db1);
     addF (wbassride::rangeMin, "Range Min", { -12.0f, 11.0f, 0.1f }, -12.0f, db1);
-    // the Idle arrow is stored as its place in the range (as the reference's preset arrays) and shown in dB
-    addF (wbassride::idle, "Idle", { 0.02f, 0.98f, 0.001f }, 0.5f,
-          [this] (float v) { return String (wbassride::idleDb (v, get (wbassride::rangeMin), get (wbassride::rangeMax)), 1); });
+    // the Idle arrow is stored as its place in the range (as the reference's preset arrays); the host sees it in dB
+    // over a fixed +-12 dB (as the reference's: its text stays 0.0 at 0.5 whatever the range)
+    addF (wbassride::idle, "Idle", { 0.02f, 0.98f, 0.01f }, 0.5f, [] (float v) { return String (wbassride::idleDb (v, -12.0f, 12.0f), 1); });
     addF (wbassride::output, "Output", { -12.0f, 12.0f, 0.1f }, 0.0f, db1);
     l.add (std::make_unique<AudioParameterChoice> (ParameterID { wbassride::mode, 1 }, "Mode", wbassride::modeNames(), 0));
     return l;

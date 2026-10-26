@@ -13,6 +13,13 @@
   the mouse is on it. The parameters, ranges and defaults of the reference's VST3; Mode Stereo / Mono / Live Stereo /
   Live Mono (the reference's four components; 42 / 5 ms latency). The narrow Renaissance toolbar (320 px, no Skins
   box) is new in the shared kit. MeterCapture's script screenshots read OpenGL editors back with `gl=1`.
+- **WBass Ride editor, second pass, against Bass Rider's frames and filmed behaviour**: the caps fitted on the
+  reference's 1x frame (outline and lip), the exact scales, the clef and name plate, the leather's scratches, the
+  value boxes; text entry by double-click where the reference has it (not on the Rider), Spill's typed positives read
+  as negative, out-of-range values ignored; the Idle arrow as its own control (its value box at the left edge, the
+  host's text over +-12 dB); the Rider's blue grab and its return to riding on release; hidden cursor during drags;
+  the lasso with its yellow / blue group (member drags move nothing, as the reference). Mean difference to the
+  reference frame 14.1 -> 8.6 levels.
 - **WDelay** (Phase 2: the editor; the audio passes through until the DSP), a hybrid delay modelled on H-Delay: the
   Hybrid-line editor (749 x 292, resizable) drawn by Wavy — the Delay and Feedback knobs in chrome skirts, the knurled
   modulation and filter knobs, the right column's small knobs, the tap pad, the Link wheel, the amber time display

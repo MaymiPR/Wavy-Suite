@@ -1050,5 +1050,25 @@ screenshots now come from the same read-back), its skin in the git-ignored `refe
   the switch) until another control is clicked; the selected control's value shows while the mouse is on it — knobs
   in their value slot under the label, Range Max / Min in a box right of the cap — in a dark box with a 1 px white
   frame. The Response switch's click toggles it and marks the preset modified.
-- **Not filmed yet**: the Rider fader grabbed, the Idle arrow's hover text, text entry, the Range box's drag, a lasso.
+- **Caps as drawn**: each fader cap carries a 1 px dark outline and a dark lip under it (Rider: x 133 .. 186,
+  y 294 .. 362 at 0 dB; Range Max x 41 .. 79, y 200 .. 219 at +12; Output x 238 .. 276, y 319 .. 338 at 0); fitted on
+  the frame itself (`tools/fit_bassride_parts.py`), since the 2x skin reduced to 1x shifts their ridges by a row.
+- **Scales, exactly**: the minor ticks are not on a dB grid: five half-pixel ticks (grey 101) at 5, 9, 13, 17, 21 px
+  below each 3 dB mark; the Output's 3 dB marks are 6 px long (11 at +-12 and 0). Numbers are centred (x 117.5 / 202
+  / 291), Arial about 10 px.
+- **Drags** (MeterCapture drag scripts): the faders and the Idle arrow move 8.75 px per dB, the Target 4.31 px per dB,
+  the knobs 0.1 per px on slow moves (the suite's knob feel); the cursor is hidden during every drag and comes back
+  where the thumb went. The Range box below the column and the band do not drag.
+- **The Rider grabbed**: it follows the mouse, outlined in blue (its own selected look, as the Idle arrow's); on
+  release it goes back to riding at once.
+- **Text entry**: a double-click opens it on the knobs, Target, Output and Range Max / Min (in their value slots);
+  a value outside the range is ignored (Target 25), Spill reads a typed positive number as negative (30 -> -30); the
+  Rider, the Idle arrow and the Range box take none. A single click and typing does nothing.
+- **Idle**: dragging the arrow shows its value in a box fixed at the left edge (3, 323, the IdleHover control); the
+  host's text for Idle maps it over a fixed +-12 dB (0.5 shows 0.0 whatever the range), while the arrow sits at its
+  place in the current range.
+- **Lasso**: a background drag draws a 1 px white rectangle and selects the controls it touches (in the control order
+  Spill, Rider, Range Max, Range Min, Output, Sensitivity, Target, Idle, Response, Artifacts): the first yellow, the
+  others blue; clicking a member makes it the yellow one; dragging a member moves nothing; with the mouse on the
+  yellow one every member's value shows.
 

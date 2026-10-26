@@ -10,7 +10,7 @@ namespace
 // colours measured on the reference's editor (reference/wbassride, git-ignored)
 const Colour kLabelLight (177, 177, 177), kLabelDim (153, 153, 153), kFrame (104, 104, 104), kLabelDark (38, 36, 30),
     kTick (34, 33, 28), kValueBox (0, 0, 0), kValueText (236, 236, 236), kAmberTop (255, 205, 60), kAmberBottom (231, 150, 0),
-    kIdleLine (205, 120, 105), kIdleArrow (36, 52, 84), kMarkSelected (241, 227, 7);
+    kIdleLine (205, 120, 105), kIdleArrow (36, 52, 84), kMarkSelected (241, 227, 7), kMarkMember (7, 150, 229);
 
 // a fitted cap (WBassRideSkinData.h): grey per row x factor per column, alpha per row x per column
 void drawCap (Graphics& g, const wbassride::skin::Cap& c, float x, float y, int columns = 1 << 20)
@@ -38,10 +38,13 @@ float hashNoise (int x, int y, int seed)
 // a value in a reference-style black box (Range, Rider, Output)
 void valueBox (Graphics& g, Rectangle<float> r, const String& text)
 {
+    // a black box with round corners in a light rim (measured)
+    g.setColour (Colour (232, 228, 190).withAlpha (0.7f));
+    g.drawRoundedRectangle (r.expanded (1.0f), 3.0f, 1.0f);
     g.setColour (kValueBox);
-    g.fillRect (r);
+    g.fillRoundedRectangle (r, 2.5f);
     g.setColour (kValueText);
-    g.setFont (arial (11.0f));
+    g.setFont (arial (12.0f));
     g.drawText (text, r, Justification::centred);
 }
 
@@ -69,7 +72,7 @@ void setMarks (Marks* m, Component* c, bool hover)
 void wbassride::ui::drawMark (Graphics& g, Rectangle<float> r, Mark m, bool round)
 {
     if (m == Mark::None) return;
-    g.setColour (kMarkSelected);
+    g.setColour (m == Mark::Member ? kMarkMember : kMarkSelected);
     if (round) g.drawEllipse (r, 1.5f);
     else g.drawRoundedRectangle (r, 1.5f, 1.2f);
 }
@@ -82,6 +85,7 @@ bool LinearDrag::down (Slider& s, const MouseEvent& e)
     active = true;
     start = s.getValue();
     origin = last = virt = e.position;
+    e.source.enableUnboundedMouseMovement (true, false);         // hidden cursor, no screen edge
     s.Slider::mouseDown (e);                                       // the host's gesture begins
     return true;
 }
@@ -94,6 +98,8 @@ void LinearDrag::drag (Slider& s, const MouseEvent& e, float pxPerUnit, bool ver
     float k = 1.0f;
     if (wavy::ctrlHeldNow()) k = std::abs (vertical ? d.y : d.x) <= 2.0f ? 0.037f : 0.19f;
     virt += d * k;
+    this->vertical = vertical;
+    this->pxPerUnit = pxPerUnit;
     const float moved = vertical ? origin.y - virt.y : virt.x - origin.x;
     s.setValue (jlimit (s.getMinimum(), s.getMaximum(), start + (double) (moved / pxPerUnit)), sendNotificationSync);
 }
@@ -103,6 +109,10 @@ void LinearDrag::up (Slider& s, const MouseEvent& e)
     if (! active) return;
     active = false;
     s.Slider::mouseUp (e);
+    e.source.enableUnboundedMouseMovement (false);
+    const float moved = (float) (s.getValue() - start) * pxPerUnit;   // the cursor comes back where the thumb went
+    const auto at = vertical ? juce::Point<float> (origin.x, origin.y - moved) : juce::Point<float> (origin.x + moved, origin.y);
+    juce::Desktop::setMousePosition (s.localPointToGlobal (at).roundToInt());
 }
 
 //==============================================================================
@@ -119,11 +129,16 @@ void Knob::mouseEnter (const MouseEvent&) { setMarks (marks, this, true); }
 void Knob::mouseExit (const MouseEvent&) { setMarks (marks, this, false); }
 void Knob::mouseDown (const MouseEvent& e)
 {
-    if (marks != nullptr) { marks->selected = this; if (marks->changed) marks->changed(); }
+    blocked = marks != nullptr && ! marks->click (this);
+    if (blocked) return;
     if (! feel.down (*this, e, {}, nullptr)) Slider::mouseDown (e);
 }
-void Knob::mouseDrag (const MouseEvent& e) { if (feel.active) feel.drag (*this, e, nullptr); else Slider::mouseDrag (e); }
-void Knob::mouseUp (const MouseEvent& e) { if (! feel.up (*this, e, getLocalBounds().getCentre().toFloat(), nullptr)) Slider::mouseUp (e); }
+void Knob::mouseDrag (const MouseEvent& e) { if (blocked) return; if (feel.active) feel.drag (*this, e, nullptr); else Slider::mouseDrag (e); }
+void Knob::mouseUp (const MouseEvent& e)
+{
+    if (blocked) { blocked = false; return; }
+    if (! feel.up (*this, e, getLocalBounds().getCentre().toFloat(), nullptr)) Slider::mouseUp (e);
+}
 
 // the dome as measured on the reference's knob (44 px, shot at its default turn): graded from ~187 at the top to ~121
 // at the bottom (linear in y), a bright arc at the top edge (205), a bright reflection near the bottom (216), a black
@@ -174,17 +189,17 @@ Fader::Fader (Kind k) : kind (k)
 // starts there (measured: the band between them is the range)
 float Fader::yOf (double v) const { return scaleY ((float) v) - (float) getY(); }
 
+// the cap as the reference draws it (WBassRideSkinData.h, fitted on its 1x frame): outline and lip included
+static const wbassride::skin::FrameCap& frameCap (Fader::Kind k)
+{
+    namespace sk = wbassride::skin;
+    return k == Fader::Rider ? sk::riderFrame : k == Fader::Output ? sk::outputFrame : k == Fader::RangeMax ? sk::rangeMaxFrame : sk::rangeMinFrame;
+}
+
 Rectangle<float> Fader::capBounds() const
 {
-    const float y = yOf (getValue());
-    switch (kind)
-    {
-        case Rider:    return { 3.0f, y - 34.0f, 54.0f, 58.0f };
-        case Output:   return { 4.0f, y - 9.0f, 38.0f, 18.0f };
-        case RangeMax: return { 5.0f, y - 19.0f, 38.0f, 18.0f };
-        case RangeMin: return { 5.0f, y + 3.0f, 38.0f, 18.0f };
-    }
-    return {};
+    const auto& c = frameCap (kind);
+    return { (float) (c.x0 - getX()), yOf (getValue()) + (float) c.dy, (float) c.w, (float) c.h };
 }
 
 bool Fader::hitTest (int x, int y) { return capBounds().expanded (2.0f).contains ((float) x, (float) y); }
@@ -193,13 +208,15 @@ void Fader::mouseExit (const MouseEvent&) { setMarks (marks, this, false); }
 
 void Fader::mouseDown (const MouseEvent& e)
 {
-    if (marks != nullptr) { marks->selected = this; if (marks->changed) marks->changed(); }
+    blocked = marks != nullptr && ! marks->click (this);
+    if (blocked) return;
     if (kind == Rider && onGrab) onGrab (true);
     feel.down (*this, e);
 }
-void Fader::mouseDrag (const MouseEvent& e) { feel.drag (*this, e, 8.75f, true); }
+void Fader::mouseDrag (const MouseEvent& e) { if (! blocked) feel.drag (*this, e, 8.75f, true); }
 void Fader::mouseUp (const MouseEvent& e)
 {
+    if (blocked) { blocked = false; return; }
     feel.up (*this, e);
     if (kind == Rider && onGrab) onGrab (false);
 }
@@ -208,31 +225,31 @@ void Fader::paint (Graphics& g)
 {
     namespace sk = wbassride::skin;
     const auto cap = capBounds();
-    const Mark m = marks != nullptr ? marks->of (this) : Mark::None;
-    // the cast shadow (fitted on the reference's): a profile below the cap, thin lines along its sides
-    const sk::Cap& img = kind == Rider ? sk::rider : kind == Output ? sk::output : sk::range;
-    const Point<float> origin = kind == Rider ? Point<float> (cap.getX() - 2.0f, cap.getY() - 1.0f)
-                              : kind == Output ? Point<float> (cap.getX() - 4.0f, cap.getY() - 2.0f) : Point<float> (cap.getX() - 5.0f, cap.getY() - 2.0f);
+    const auto& fc = frameCap (kind);
+    // the cast shadow below the cap's lip (the skin's profile, after the rows the frame's cap already holds)
     const float* prof = kind == Rider ? sk::riderShadow : kind == Output ? sk::outputShadow : sk::rangeShadow;
     const int n = kind == Rider ? (int) std::size (sk::riderShadow) : kind == Output ? (int) std::size (sk::outputShadow) : (int) std::size (sk::rangeShadow);
-    const int start = kind == Rider ? sk::riderShadowStart : kind == Output ? sk::outputShadowStart : sk::rangeShadowStart;
-    const float side = kind == Rider ? sk::riderShadowSide : kind == Output ? sk::outputShadowSide : sk::rangeShadowSide;
-    for (int r = 0; r < n; ++r)
+    const int skip = kind == Rider ? 3 : 2;
+    for (int r = skip; r < n; ++r)
     {
         g.setColour (Colours::black.withAlpha (jlimit (0.0f, 1.0f, prof[r])));
-        g.fillRect (origin.x + 2.0f, origin.y + (float) (start + r), (float) img.w - 4.0f, 1.0f);
+        g.fillRect (cap.getX() + 1.0f, cap.getBottom() + (float) (r - skip), cap.getWidth() - 2.0f, 1.0f);
     }
-    g.setColour (Colours::black.withAlpha (side * 0.5f));
-    g.fillRect (origin.x + 1.0f, origin.y + 2.0f, 1.0f, (float) start - 2.0f);
-    g.fillRect (origin.x + (float) img.w - 2.0f, origin.y + 2.0f, 1.0f, (float) start - 2.0f);
-    switch (kind)
     {
-        case Rider:    drawCap (g, sk::rider, cap.getX() - 2.0f, cap.getY() - 1.0f); break;
-        case Output:   drawCap (g, sk::output, cap.getX() - 4.0f, cap.getY() - 2.0f); break;
-        case RangeMax:
-        case RangeMin: drawCap (g, sk::range, cap.getX() - 5.0f, cap.getY() - 2.0f); break;
+        Graphics::ScopedSaveState clip (g);
+        Path round;
+        round.addRoundedRectangle (cap, kind == Rider ? 3.5f : 2.5f);
+        g.reduceClipRegion (round);
+        for (int r = 0; r < fc.h; ++r)
+            for (int k = 0; k < fc.w; ++k)
+            {
+                const float f = fc.cols[k];
+                g.setColour (Colour ((uint8) jlimit (0.0f, 255.0f, fc.rows[r * 3] * f), (uint8) jlimit (0.0f, 255.0f, fc.rows[r * 3 + 1] * f),
+                                     (uint8) jlimit (0.0f, 255.0f, fc.rows[r * 3 + 2] * f)));
+                g.fillRect (cap.getX() + (float) k, cap.getY() + (float) r, 1.0f, 1.0f);
+            }
     }
-    drawMark (g, cap.expanded (1.0f), m);
+    drawMark (g, cap, marks != nullptr ? marks->of (this) : Mark::None);
 }
 
 //==============================================================================
@@ -251,11 +268,11 @@ void TargetSlider::mouseEnter (const MouseEvent&) { setMarks (marks, this, true)
 void TargetSlider::mouseExit (const MouseEvent&) { setMarks (marks, this, false); }
 void TargetSlider::mouseDown (const MouseEvent& e)
 {
-    if (marks != nullptr) { marks->selected = this; if (marks->changed) marks->changed(); }
-    feel.down (*this, e);
+    blocked = marks != nullptr && ! marks->click (this);
+    if (! blocked) feel.down (*this, e);
 }
-void TargetSlider::mouseDrag (const MouseEvent& e) { feel.drag (*this, e, 181.0f / 42.0f, false); }
-void TargetSlider::mouseUp (const MouseEvent& e) { feel.up (*this, e); }
+void TargetSlider::mouseDrag (const MouseEvent& e) { if (! blocked) feel.drag (*this, e, 181.0f / 42.0f, false); }
+void TargetSlider::mouseUp (const MouseEvent& e) { if (! blocked) feel.up (*this, e); blocked = false; }
 
 void TargetSlider::paint (Graphics& g)
 {
@@ -310,15 +327,65 @@ void Switch::paintButton (Graphics& g, bool, bool)
 }
 
 //==============================================================================
+void IdleColumn::paint (Graphics& g)
+{
+    const float y = scaleY (idleDb ? idleDb() : 0.0f) - (float) getY();
+    Path tri;
+    tri.addTriangle (4.0f, y - 4.5f, 4.0f, y + 4.5f, 11.0f, y);
+    g.setColour (kIdleArrow);
+    g.fillPath (tri);
+    const Mark m = marks != nullptr ? marks->of (this) : Mark::None;
+    if (m != Mark::None)
+    {
+        g.setColour (m == Mark::Member ? kMarkMember : kMarkSelected);
+        g.strokePath (tri, PathStrokeType (1.0f));
+    }
+}
+
+void IdleColumn::mouseEnter (const MouseEvent&) { setMarks (marks, this, true); }
+void IdleColumn::mouseExit (const MouseEvent&) { setMarks (marks, this, false); }
+
+void IdleColumn::mouseDown (const MouseEvent& e)
+{
+    blocked = marks != nullptr && ! marks->click (this);
+    if (blocked) return;
+    if (e.mods.isAltDown()) { if (reset) reset(); return; }
+    dragging = true;
+    grab = e.position.y + (float) getY() - scaleY (idleDb());
+    e.source.enableUnboundedMouseMovement (true, false);
+    if (gesture) gesture (true);
+}
+
+void IdleColumn::mouseDrag (const MouseEvent& e)
+{
+    if (dragging && setIdleDb) setIdleDb (dbAtY (e.position.y + (float) getY() - grab));
+    repaint();
+}
+
+void IdleColumn::mouseUp (const MouseEvent& e)
+{
+    blocked = false;
+    if (! dragging) return;
+    dragging = false;
+    if (gesture) gesture (false);
+    e.source.enableUnboundedMouseMovement (false);
+    Desktop::setMousePosition (localPointToGlobal (Point<float> (e.mouseDownPosition.x, scaleY (idleDb()) - (float) getY() + grab)).roundToInt());
+    if (marks != nullptr && marks->changed) marks->changed();
+}
+
+//==============================================================================
 WBassRideEditor::WBassRideEditor (WBassRideProcessor& p)
     : Editor (p, p.apvts, p.undo, p.apvts.getParameter (wbassride::mode), "WBass Ride", JucePlugin_VersionString, W, H,
               wavy::Toolbar::Style::Renaissance, wbassride::modeNames()),
       proc (p),
       sensitivity (make<Knob>()), spill (make<Knob>()), artifacts (make<Knob>()), responseSwitch (make<Switch>()),
       target (make<TargetSlider>()), rangeMax (make<Fader> (Fader::RangeMax)), rangeMin (make<Fader> (Fader::RangeMin)),
-      output (make<Fader> (Fader::Output)), rider (make<Fader> (Fader::Rider))
+      output (make<Fader> (Fader::Output)), rider (make<Fader> (Fader::Rider)), idleColumn (make<IdleColumn>()),
+      lasso (make<wavy::flat::LassoOverlay>())
 {
+    marks.blueAlone = { &rider, &idleColumn };
     marks.changed = [this] { content().repaint(); };
+    marks.enter = [this] (Slider* sl) { openEntry (sl); };
     for (auto* k : { &sensitivity, &spill, &artifacts }) k->marks = &marks;
     for (auto* f : { &rangeMax, &rangeMin, &output, &rider }) f->marks = &marks;
     target.marks = &marks;
@@ -340,23 +407,146 @@ WBassRideEditor::WBassRideEditor (WBassRideProcessor& p)
     {
         proc.userRideDb.store ((float) rider.getValue());
         proc.userRide.store (held);
+        if (! held)                                                 // riding resumes at once (measured)
+        {
+            ride = proc.idleDb();
+            rider.setValue (ride, dontSendNotification);
+            content().repaint();
+        }
     };
     rider.onValueChange = [this] { if (proc.userRide.load()) proc.userRideDb.store ((float) rider.getValue()); };
     // Range Max stays at least 1 dB above Min (the Effective Range is 1 .. 24 dB)
     rangeMax.onValueChange = [this] { if (rangeMin.getValue() > rangeMax.getValue() - 1.0) rangeMin.setValue (rangeMax.getValue() - 1.0, sendNotificationSync); content().repaint(); };
     rangeMin.onValueChange = [this] { if (rangeMax.getValue() < rangeMin.getValue() + 1.0) rangeMax.setValue (rangeMin.getValue() + 1.0, sendNotificationSync); content().repaint(); };
     output.onValueChange = [this] { content().repaint (230, 460, 60, 30); };
+    // the Idle arrow
+    auto* idleParam = p.apvts.getParameter (wbassride::idle);
+    idleColumn.marks = &marks;
+    idleColumn.idleDb = [this] { return proc.idleDb(); };
+    idleColumn.setIdleDb = [this, idleParam] (float db)
+    {
+        const float lo = proc.get (wbassride::rangeMin), hi = proc.get (wbassride::rangeMax);
+        idleParam->setValueNotifyingHost (idleParam->convertTo0to1 (jlimit (0.02f, 0.98f, (jlimit (lo, hi, db) - lo) / jmax (1.0f, hi - lo))));
+        content().repaint();
+    };
+    idleColumn.gesture = [idleParam] (bool begin) { if (begin) idleParam->beginChangeGesture(); else idleParam->endChangeGesture(); };
+    idleColumn.reset = [this, idleParam] { idleParam->setValueNotifyingHost (idleParam->getDefaultValue()); content().repaint(); };
+    addToContent (idleColumn, { 33, 214, 16, 226 });
+    addToContent (lasso, { 0, 0, W, H });                          // over everything, takes no clicks
+    lasso.setVisible (false);
 }
 
 WBassRideEditor::~WBassRideEditor()
 {
+    entry.reset();
     for (auto* k : { &sensitivity, &spill, &artifacts }) k->marks = nullptr;
 }
 
-Rectangle<float> WBassRideEditor::idleArrow() const
+Rectangle<int> WBassRideEditor::entryArea (Slider* sl) const
 {
-    const float y = scaleY (proc.idleDb());
-    return { 35.0f, y - 5.5f, 12.0f, 11.0f };
+    if (sl == &sensitivity) return { 27, 157, 37, 13 };
+    if (sl == &spill) return { 181, 157, 37, 13 };
+    if (sl == &artifacts) return { 256, 157, 37, 13 };
+    if (sl == &target) return { 272, 48, 32, 13 };
+    if (sl == &output) return { 241, 469, 34, 14 };
+    if (sl == &rangeMax || sl == &rangeMin)
+    {
+        auto* f = static_cast<Fader*> (sl);
+        const auto cap = f->capBounds().translated ((float) f->getX(), (float) f->getY());
+        return { 88, roundToInt (cap.getCentreY()) - 7, 31, 14 };
+    }
+    return {};
+}
+
+void WBassRideEditor::openEntry (Slider* sl)
+{
+    const auto area = entryArea (sl);
+    if (area.isEmpty()) return;
+    closeEntry (false);
+    entryFor = sl;
+    entry = std::make_unique<TextEditor>();
+    entry->setFont (arial (11.0f));
+    entry->setJustification (Justification::centredLeft);
+    entry->setIndents (2, 0);
+    entry->setColour (TextEditor::backgroundColourId, Colours::white);
+    entry->setColour (TextEditor::textColourId, Colours::black);
+    entry->setColour (TextEditor::outlineColourId, Colours::black);
+    entry->setColour (TextEditor::focusedOutlineColourId, Colours::black);
+    entry->setText (sl->getTextFromValue (sl->getValue()).upToFirstOccurrenceOf (" ", false, false), false);
+    entry->onReturnKey = [this] { closeEntry (true); };
+    entry->onEscapeKey = [this] { closeEntry (false); };
+    entry->onFocusLost = [this] { closeEntry (false); };
+    content().addAndMakeVisible (*entry);
+    entry->setBounds (area);
+    entry->selectAll();
+    entry->grabKeyboardFocus();                                    // only while typing: the host keeps it otherwise
+}
+
+void WBassRideEditor::closeEntry (bool apply)
+{
+    if (entry == nullptr) return;
+    auto e = std::move (entry);                                    // (losing the focus calls back here)
+    auto* sl = entryFor;
+    entryFor = nullptr;
+    if (apply && sl != nullptr)
+    {
+        const auto t = e->getText().trim().upToFirstOccurrenceOf (" ", false, false);
+        if (t.containsAnyOf ("0123456789"))
+        {
+            double v = t.getDoubleValue();
+            if (sl == &spill) v = -std::abs (v);                   // the reference's PositiveTextEntryToNegative
+            if (v >= sl->getMinimum() - 1.0e-9 && v <= sl->getMaximum() + 1.0e-9)
+            {
+                Slider::ScopedDragNotification drag (*sl);
+                sl->setValue (v, sendNotificationSync);
+            }
+        }
+    }
+    e->setVisible (false);
+    MessageManager::callAsync ([e = std::shared_ptr<TextEditor> (std::move (e))] {});   // destroyed after its callback returns
+    content().repaint();
+}
+
+// the lasso (measured on the reference: a 1 px white rectangle while dragging on the background; the controls it
+// touches, in the reference's control order: Spill, Rider, Range Max, Range Min, Output, Sensitivity, Target, Idle,
+// Response, Artifacts)
+void WBassRideEditor::contentMouseDown (const MouseEvent& e)
+{
+    lassoing = true;
+    lassoStart = e.position;
+    marks.group.clear();
+    marks.selected = nullptr;
+    if (marks.changed) marks.changed();
+}
+
+void WBassRideEditor::contentMouseDrag (const MouseEvent& e)
+{
+    if (! lassoing) return;
+    const auto r = Rectangle<float> (lassoStart, e.position);
+    lasso.rect = r.toNearestInt();
+    lasso.setVisible (true);
+    lasso.repaint();
+    auto at = [] (Component& c, Rectangle<float> local) { return local.translated ((float) c.getX(), (float) c.getY()); };
+    const std::pair<Component*, Rectangle<float>> items[] = {
+        { &spill, spill.getBounds().toFloat() }, { &rider, at (rider, rider.capBounds()) },
+        { &rangeMax, at (rangeMax, rangeMax.capBounds()) }, { &rangeMin, at (rangeMin, rangeMin.capBounds()) },
+        { &output, at (output, output.capBounds()) }, { &sensitivity, sensitivity.getBounds().toFloat() },
+        { &target, at (target, { target.thumbX (target.getValue()), 0.0f, 29.0f, 22.0f }) },
+        { &idleColumn, Rectangle<float> (35.0f, scaleY (proc.idleDb()) - 5.5f, 12.0f, 11.0f) },
+        { &responseSwitch, responseSwitch.getBounds().toFloat() }, { &artifacts, artifacts.getBounds().toFloat() } };
+    marks.group.clear();
+    for (auto& [c, b] : items)
+        if (b.intersects (r)) marks.group.push_back (c);
+    marks.selected = marks.group.empty() ? nullptr : marks.group.front();
+    if (marks.changed) marks.changed();
+}
+
+void WBassRideEditor::contentMouseUp (const MouseEvent&)
+{
+    lassoing = false;
+    lasso.setVisible (false);
+    if (marks.group.size() < 2) marks.group.clear();
+    if (marks.changed) marks.changed();
 }
 
 void WBassRideEditor::tick()
@@ -375,52 +565,56 @@ void WBassRideEditor::tick()
         rider.setValue (r, dontSendNotification);
     }
     content().repaint (120, 170, 190, 320);
+    idleColumn.repaint();
 }
 
-void WBassRideEditor::contentMouseDown (const MouseEvent& e)
-{
-    if (idleArrow().expanded (3.0f).contains (e.position))
-    {
-        draggingIdle = true;
-        idleGrabOffset = e.position.y - idleArrow().getCentreY();
-    }
-}
 
-void WBassRideEditor::contentMouseDrag (const MouseEvent& e)
-{
-    if (! draggingIdle) return;
-    const float lo = proc.get (wbassride::rangeMin), hi = proc.get (wbassride::rangeMax);
-    const float db = jlimit (lo, hi, dbAtY (e.position.y - idleGrabOffset));
-    auto* p = proc.apvts.getParameter (wbassride::idle);
-    p->setValueNotifyingHost (p->convertTo0to1 (jlimit (0.02f, 0.98f, (db - lo) / jmax (1.0f, hi - lo))));
-    content().repaint();
-}
-
-void WBassRideEditor::contentMouseUp (const MouseEvent&) { draggingIdle = false; }
 
 //==============================================================================
 // the static art, in design coordinates
 void WBassRideEditor::paintStatic (Graphics& g) const
 {
-    // the plug-in's name plate: a bass clef and the name in a serif, silver
+    // the plug-in's name plate (measured): fine light scratches on the leather, a bass clef (a ball at 20, 529, the
+    // stroke thick on its right, a thin tail down to 19, 545, two dots at x 34.5), the name in a bold serif, 12 px
+    // capitals from y 526, centred at x 159, silver with a dark edge
     {
+        Random rnd (20261025);
+        for (int i = 0; i < 260; ++i)
+        {
+            const float x = rnd.nextFloat() * 320.0f, y = 511.0f + rnd.nextFloat() * 48.0f;
+            const float ang = degreesToRadians ((rnd.nextBool() ? 62.0f : 118.0f) + (rnd.nextFloat() - 0.5f) * 30.0f);
+            const float len = 3.0f + rnd.nextFloat() * 16.0f;
+            g.setColour (Colours::white.withAlpha (0.04f + 0.10f * rnd.nextFloat()));
+            g.drawLine (x, y, x + len * std::cos (ang), jlimit (511.0f, 558.0f, y + len * std::sin (ang)), 0.6f);
+        }
         Path clef;
-        clef.startNewSubPath (16.0f, 528.0f);
-        clef.cubicTo (17.0f, 519.0f, 33.0f, 517.0f, 33.0f, 529.0f);
-        clef.cubicTo (33.0f, 539.0f, 25.0f, 545.0f, 16.0f, 549.0f);
-        g.setColour (Colour (228, 228, 228));
-        g.strokePath (clef, PathStrokeType (2.6f, PathStrokeType::curved, PathStrokeType::rounded));
-        g.fillEllipse (14.0f, 525.0f, 6.0f, 6.0f);
-        g.fillEllipse (36.0f, 522.5f, 3.2f, 3.2f);
-        g.fillEllipse (36.0f, 530.5f, 3.2f, 3.2f);
-        const Rectangle<float> name (60.0f, 518.0f, 200.0f, 32.0f);
+        clef.startNewSubPath (17.2f, 527.5f);
+        clef.cubicTo (17.0f, 522.5f, 21.5f, 521.0f, 24.8f, 521.4f);
+        clef.cubicTo (29.5f, 522.0f, 32.0f, 525.5f, 31.8f, 530.0f);
+        clef.cubicTo (31.5f, 536.0f, 26.5f, 541.0f, 19.5f, 545.5f);
+        clef.cubicTo (24.5f, 540.5f, 27.6f, 535.5f, 27.6f, 530.0f);
+        clef.cubicTo (27.6f, 525.5f, 25.5f, 523.4f, 22.8f, 523.4f);
+        clef.cubicTo (20.5f, 523.4f, 19.2f, 525.0f, 19.0f, 527.0f);
+        clef.closeSubPath();
+        clef.addEllipse (16.6f, 525.6f, 6.8f, 6.8f);
+        clef.addEllipse (32.9f, 524.4f, 3.2f, 3.2f);
+        clef.addEllipse (32.9f, 531.4f, 3.2f, 3.2f);
+        g.setColour (Colours::black.withAlpha (0.5f));
+        g.fillPath (clef, AffineTransform::translation (0.6f, 0.8f));
+        ColourGradient cg (Colour (238, 238, 238), 0.0f, 521.0f, Colour (200, 200, 200), 0.0f, 546.0f, false);
+        g.setGradientFill (cg);
+        g.fillPath (clef);
+
         GlyphArrangement ga;
-        ga.addFittedText (Font (FontOptions ("Georgia", 25.0f, Font::bold)), "WBass Ride", name.getX(), name.getY(), name.getWidth(), name.getHeight(), Justification::centred, 1);
+        ga.addLineOfText (Font (FontOptions ("Georgia", 20.0f, Font::bold)), "WBass Ride", 0.0f, 0.0f);
         Path text;
         ga.createPath (text);
-        g.setColour (Colours::black.withAlpha (0.6f));
-        g.fillPath (text, AffineTransform::translation (1.0f, 1.5f));
-        ColourGradient silver (Colour (238, 238, 238), 0.0f, 522.0f, Colour (150, 150, 150), 0.0f, 546.0f, false);
+        const auto tb = text.getBounds();
+        const float k = 13.8f / tb.getHeight();                         // the reference's lettering: capitals 526 .. 537
+        text.applyTransform (AffineTransform::scale (k).translated (159.0f - tb.getCentreX() * k, 537.6f - tb.getBottom() * k));
+        g.setColour (Colours::black.withAlpha (0.7f));
+        g.fillPath (text, AffineTransform::translation (0.8f, 1.0f));
+        ColourGradient silver (Colour (236, 236, 236), 0.0f, 526.0f, Colour (152, 152, 152), 0.0f, 538.0f, false);
         g.setGradientFill (silver);
         g.fillPath (text);
     }
@@ -461,6 +655,8 @@ void WBassRideEditor::paintStatic (Graphics& g) const
     g.setColour (kLabelLight);
     g.setFont (arial (12.0f, true));
     g.drawText ("Target", Rectangle<float> (13.0f, 48.0f, 50.0f, 14.0f), Justification::centredLeft);
+    g.setColour (kLabelLight.darker (0.08f));
+    g.setFont (arial (11.4f, true));
     g.drawText ("Sensitivity", Rectangle<float> (14.0f, 137.0f, 64.0f, 14.0f), Justification::centred);
     g.drawText ("Response", Rectangle<float> (92.0f, 137.0f, 62.0f, 14.0f), Justification::centred);
     g.drawText ("Spill", Rectangle<float> (178.0f, 137.0f, 44.0f, 14.0f), Justification::centred);
@@ -512,9 +708,14 @@ void WBassRideEditor::paintStatic (Graphics& g) const
     g.drawText ("Output", Rectangle<float> (231.0f, 185.0f, 52.0f, 14.0f), Justification::centred);
     for (float y : { 177.5f, 495.0f })
     {
-        g.setColour (Colour (30, 30, 26));
-        g.drawEllipse (155.0f, y - 4.5f, 9.0f, 9.0f, 1.3f);
-        g.fillEllipse (157.8f, y - 1.7f, 3.4f, 3.4f);
+        // a screw (measured): a dark ring, a light face, a dark cross
+        g.setColour (Colour (24, 24, 20));
+        g.drawEllipse (155.2f, y - 4.3f, 8.6f, 8.6f, 1.4f);
+        g.setColour (Colour (170, 166, 140));
+        g.fillEllipse (156.6f, y - 2.9f, 5.8f, 5.8f);
+        g.setColour (Colour (20, 20, 18));
+        g.fillRect (157.0f, y - 0.5f, 5.0f, 1.0f);
+        g.fillRect (159.0f, y - 2.5f, 1.0f, 5.0f);
     }
     for (float x : { 52.0f, 150.0f, 248.0f })                       // the wells behind the tracks
     {
@@ -525,32 +726,37 @@ void WBassRideEditor::paintStatic (Graphics& g) const
     g.fillRoundedRectangle (60.0f, 210.0f, 3.0f, 238.0f, 1.5f);         // Range
     g.fillRoundedRectangle (157.0f, 210.0f, 5.0f, 238.0f, 2.5f);        // Rider
     g.fillRoundedRectangle (256.0f, 215.0f, 3.0f, 227.0f, 1.5f);        // Output
-    // the Rider's scale on both sides, the Output's on its right: 6 dB marks with numbers, 3 dB marks, 0.5 dB ticks
-    g.setFont (arial (11.0f));
-    for (int half = -24; half <= 24; ++half)
+    // the scales (measured on the reference's 2x skin): a mark every 3 dB (2 px at +-12 and 0, else 1 px), five faint
+    // half-pixel ticks between marks at 5, 9, 13, 17 and 21 px below each; numbers every 6 dB centred at x 117.5 and
+    // 202 (the Rider) and at +-12 / 0 centred at 291 (the Output)
+    g.setFont (arial (10.0f));
+    for (int k = -4; k <= 4; ++k)
     {
-        const float db = (float) half * 0.5f, y = scaleY (db);
-        const bool six = half % 12 == 0, three = half % 6 == 0, thick = std::abs (half) == 24 || half == 0;   // 6 dB: numbered
+        const float db = 3.0f * (float) k, y = scaleY (db);
+        const bool thick = k == 0 || std::abs (k) == 4, numbered = k % 2 == 0;
         const float h = thick ? 2.0f : 1.0f;
-        g.setColour (kTick);
-        if (three) { g.fillRect (130.0f, y - h * 0.5f, 18.0f, h); g.fillRect (172.0f, y - h * 0.5f, 18.0f, h); }
-        else { g.fillRect (140.0f, y - 0.5f, 8.0f, 1.0f); g.fillRect (172.0f, y - 0.5f, 8.0f, 1.0f); }
-        if (six)
+        g.setColour (Colour (19, 19, 16));
+        g.fillRect (129.0f, y - h * 0.5f, 19.0f, h);
+        g.fillRect (172.0f, y - h * 0.5f, 19.0f, h);
+        g.fillRect (270.0f, y - h * 0.5f, thick ? 11.0f : 6.0f, h);
+        if (k < 4)
         {
-            const String t = db > 0.0f ? "+" + String ((int) db) : String ((int) db);
-            g.setColour (kLabelDark);
-            g.drawText (t, Rectangle<float> (104.0f, y - 7.0f, 23.0f, 14.0f), Justification::centredRight);
-            g.drawText (t, Rectangle<float> (193.0f, y - 7.0f, 24.0f, 14.0f), Justification::centredLeft);
+            g.setColour (Colour (101, 98, 80));
+            for (int t = 0; t < 5; ++t)
+            {
+                const float ty = y + 5.0f + 4.0f * (float) t;
+                g.fillRect (139.0f, ty - 0.25f, 9.0f, 0.5f);
+                g.fillRect (172.0f, ty - 0.25f, 8.0f, 0.5f);
+                g.fillRect (270.0f, ty - 0.25f, 4.0f, 0.5f);
+            }
         }
-        // the Output's scale: marks at +12 / 0 / -12, ticks every dB
-        g.setColour (kTick);
-        if (thick) { g.fillRect (270.0f, y - 1.0f, 10.0f, 2.0f); }
-        else g.fillRect (270.0f, y - 0.5f, 6.0f, 1.0f);
-        if (thick)
+        if (numbered)
         {
             const String t = db > 0.0f ? "+" + String ((int) db) : String ((int) db);
             g.setColour (kLabelDark);
-            g.drawText (t, Rectangle<float> (282.0f, y - 7.0f, 26.0f, 14.0f), Justification::centredLeft);
+            g.drawText (t, Rectangle<float> (97.5f, y - 7.5f, 40.0f, 14.0f), Justification::centred);
+            g.drawText (t, Rectangle<float> (182.0f, y - 7.5f, 40.0f, 14.0f), Justification::centred);
+            if (thick) g.drawText (t, Rectangle<float> (271.0f, y - 7.5f, 40.0f, 14.0f), Justification::centred);
         }
     }
 }
@@ -592,11 +798,7 @@ void WBassRideEditor::paintContent (Graphics& g)
                     else if (y >= 510.0f && y < 560.0f)
                     {
                         panelAt (sk::leatherPanel, x, y, rgb);
-                        grain = 7.0f;
-                        // scratches: thin, light, slanted
-                        const float u = x * 0.55f + y * 0.9f;
-                        const float sc = hashNoise ((int) (u / 3.0f), 7, 3);
-                        if (sc > 0.86f) grain += 18.0f * (sc - 0.86f) / 0.14f;
+                        grain = 5.0f;
                     }
                     const float n = grain * hashNoise ((int) x, (int) y, 1);
                     bd.setPixelColour (px, py, Colour ((uint8) jlimit (0.0f, 255.0f, rgb[0] + n), (uint8) jlimit (0.0f, 255.0f, rgb[1] + n),
@@ -617,14 +819,9 @@ void WBassRideEditor::paintContent (Graphics& g)
     const float lo = proc.get (wbassride::rangeMin), hi = proc.get (wbassride::rangeMax);
     g.setColour (Colours::white.withAlpha (0.22f));
     g.fillRect (Rectangle<float>::leftTopRightBottom (72.0f, scaleY (hi), 149.0f, scaleY (lo)));
-    const auto arrow = idleArrow();
     g.setColour (kIdleLine.withAlpha (0.8f));
-    g.fillRect (72.0f, arrow.getCentreY() - 0.5f, 77.0f, 1.0f);
-    Path tri;
-    tri.addTriangle (arrow.getX() + 2.0f, arrow.getY() + 1.0f, arrow.getX() + 2.0f, arrow.getBottom() - 1.0f, arrow.getRight() - 3.0f, arrow.getCentreY());
-    g.setColour (kIdleArrow);
-    g.fillPath (tri);
-    if (draggingIdle || idleHover) hoverBox (g, { 3.0f, arrow.getCentreY() - 6.5f, 27.0f, 13.0f }, String (proc.idleDb(), 1));
+    g.fillRect (72.0f, scaleY (proc.idleDb()) - 0.5f, 77.0f, 1.0f);
+    if (idleColumn.dragging || marks.hover == &idleColumn || marks.showsValue (&idleColumn)) hoverBox (g, { 3.0f, 323.0f, 27.0f, 13.0f }, String (proc.idleDb(), 1));
 
     // the clip LED
     {
@@ -637,9 +834,9 @@ void WBassRideEditor::paintContent (Graphics& g)
     }
 
     // value boxes
-    valueBox (g, { 44.0f, 469.0f, 34.0f, 14.0f }, String (hi - lo, 1));
-    valueBox (g, { 143.0f, 469.0f, 34.0f, 14.0f }, String (rider.getValue(), 2));
-    valueBox (g, { 241.0f, 469.0f, 34.0f, 14.0f }, String (output.getValue(), 1));
+    valueBox (g, { 44.0f, 468.0f, 34.0f, 15.0f }, String (hi - lo, 1));
+    valueBox (g, { 143.0f, 468.0f, 34.0f, 15.0f }, String (rider.getValue(), 2));
+    valueBox (g, { 241.0f, 468.0f, 34.0f, 15.0f }, String (output.getValue(), 1));
 
     // the values shown under the mouse (the reference's hover texts)
     if (target.isMouseButtonDown() || marks.showsValue (&target)) hoverBox (g, { 272.0f, 48.0f, 32.0f, 13.0f }, String (target.getValue(), 1));

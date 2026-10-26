@@ -136,6 +136,22 @@ def main():
         lines += ['inline constexpr float %sRows[] = { %s };' % (name, arr(rows)), 'inline constexpr float %sCols[] = { %s };' % (name, arr(cols, '%.3f')),
                   'inline constexpr float %sAlphaRows[] = { %s };' % (name, arr(ar, '%.2f')), 'inline constexpr float %sAlphaCols[] = { %s };' % (name, arr(ac, '%.2f')),
                   'inline constexpr Cap %s { %d, %d, %sRows, %sCols, %sAlphaRows, %sAlphaCols, { %s } };' % (name, len(cols), len(rows), name, name, name, name, arr(tint, '%.3f'))]
+    # the caps as the reference draws them at 1x (fitted on its editor's frame at the defaults, where Range Max sits at
+    # +12, Min at -12, the Rider and Output at 0): their outline and lip included; a colour per row (r, g, b) times a
+    # factor per column; x0 the left column (absolute), dy the top row relative to the value's y on the scale
+    frame = np.asarray(Image.open(os.path.join(ROOT, 'reference', 'wbassride', 'shot_default_start.png')).convert('RGB')).astype(float)
+    lines += ['// the caps fitted on the 1x frame of the reference editor: a colour per row (r, g, b) x a factor per column',
+              'struct FrameCap { int x0, dy, w, h; const float* rows; const float* cols; };']
+    for name, x0, x1, y0, y1, yref in (('riderFrame', 133, 187, 294, 363, 327), ('rangeMaxFrame', 41, 80, 200, 220, 222),
+                                       ('rangeMinFrame', 41, 80, 431, 451, 432), ('outputFrame', 238, 277, 319, 339, 327)):
+        reg = frame[y0:y1, x0:x1]
+        w = x1 - x0; core = slice(w // 5, w - w // 5)
+        rows = reg[:, core].mean(1)                                # (h, 3)
+        cols = np.median(reg.mean(2) / np.maximum(rows.mean(1)[:, None], 1), 0)
+        err = np.sqrt(np.mean((rows[:, None, :] * cols[None, :, None] - reg) ** 2))
+        print('%-14s %dx%d from the frame, separable rms %.1f' % (name, w, y1 - y0, err))
+        lines += ['inline constexpr float %sRows[] = { %s };' % (name, arr(rows.reshape(-1))), 'inline constexpr float %sCols[] = { %s };' % (name, arr(cols, '%.3f')),
+                  'inline constexpr FrameCap %s { %d, %d, %d, %d, %sRows, %sCols };' % (name, x0, y0 - yref, w, y1 - y0, name, name)]
     # the caps' cast shadows (the reference's Shadow images, black with alpha): under the cap a profile per row, from
     # the cap image's last row on; along its sides a thin line of alpha (left, right)
     lines += ['// the cast shadows of the caps: alpha per row below the cap (from the first strong row), the side lines alpha']
