@@ -1102,24 +1102,59 @@ screenshots now come from the same read-back), its skin in the git-ignored `refe
 
 ## WBass Rider: Phase 3 measurements (the reference's audio), 2026-10-26
 
-`nulltest/measure_bassrider.py` renders the reference (Bass Rider Mono, 48 kHz, a fresh instance per render) and
-reads the gain as output over input with the 42 ms latency removed (rms over the last second of 4 s tones).
+`nulltest/measure_bassrider.py` renders the reference (Bass Rider Mono / Live Mono / Stereo, 48 kHz, a fresh
+instance per render: it keeps note state between renders) and reads the applied gain as output over input, sample
+by sample (a least-squares ratio over 2 ms). pedalboard compensates the reported latency, so the output lines up
+with the input (cross-correlation lag 0). Each finding names its subcommand.
 
-- **Static law** (80 Hz sine, defaults): the gain is exactly `Target + 5.48 - level` (level = the sine's peak in
-  dBFS), so the output settles at Target + 5.48 dB peak (+2.47 dB rms) for any level, and is clamped at Range Max /
-  Min (+12 / −12 at the defaults). Checked at Targets −14, −24 and −4, 3 dB steps from −60 to 0 dBFS: the law holds
-  to 0.01 dB everywhere off the clamps.
-- **Below the gate**: at 80 Hz, peaks of −51 dBFS and lower get no ride at all (gain 0.00, the Idle value); −48 and
-  up are ridden. Spill (−40 by default) must therefore be compared with a level about 10 dB above the sine's peak,
-  or a differently weighted one: to be pinned down with a fine sweep against Spill.
-- **Weighting** (−8 dBFS sines, Target −14): the level the rider sees, relative to 80 Hz:
+### The level the rider reads (`static`, `weighting`, `envelope`)
+- **Static law**: a steady note gets `gain = Target − E + 0.68 dB`, clamped to Range Min / Max, where E is the
+  level read (below). For an 80 Hz sine that is `Target + 5.48 − peak`: checked at Targets −14, −24, −4 from −60
+  to 0 dBFS, to 0.01 dB everywhere off the clamps. The output therefore settles at Target + 0.68 dB of E.
+- **Weighting**: an RBJ low shelf, **31.35 Hz, −28.90 dB, Q 0.5075**, fits the reading against frequency (12 Hz to
+  1.8 kHz, 35 points, linear in level) to 0.023 dB rms, 0.06 dB max. The hidden parameters' "high-pass 30 Hz at −30
+  dB" is this shelf (with exactly 29.9 Hz / −30 dB and Q free: 0.065 dB rms). Above it the reading is flat; at 80 Hz
+  it is −4.81 dB, at 40 Hz −11.5, at 20 Hz −19.7.
+- **Envelope**: neither peak nor rms. Against a 1 kHz sine, two equal tones read +5.62 dB (rms would say +3.01, peak
+  +5.93), three tones +8.91, a low-passed square +4.75 (more than its own peak, +2.55), band noise of the same rms
+  +5.50. The **analytic (quadrature) envelope's power through a 2 ms attack / 100 ms release one-pole** (the hidden
+  PBAtt / PBRel) predicts all four to 0.18 dB rms; on the raw waveform it misses the square by 2.4 dB.
 
-  | Hz | 20 | 25 | 30 | 40 | 50 | 60 | 70 | 80 | 100 | 120 | 150 | 200 | 300 | 500 | 700 | 1000 | 1500 |
-  |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-  | dB | ≤ −12.5 (clamped) | −12.4 | −10.1 | −6.7 | −4.2 | −2.4 | −1.0 | 0 | +1.4 | +2.3 | +3.2 | +3.8 | +4.4 | +4.6 | +4.7 | +4.8 | +4.8 |
+### When riding starts and stops (`gate`, `noteoff`, `idle`)
+- **Spill has no effect on steady tones**: riding starts at the same level for Spill −50 … −3.
+- **Start**: below 300 Hz riding starts at −48.75 dBFS (peak); above, the threshold rises like a low-pass (+0.5 dB
+  at 500 Hz, +1.9 at 700, +4.8 at 1 kHz, +8.0 at 1.4 kHz, +10.9 at 1.8 kHz; a Butterworth-like 2nd-order low-pass at
+  830 … 1020 Hz fits to 0.15 … 0.26 dB: the hidden BADLpf, 998 Hz). Above about 1.85 kHz nothing is ridden (the
+  hidden IllegalHpf, 2 kHz).
+- **A note ends when the level falls 38 dB below its peak** (the hidden NoteOffGate −38): a legato drop of 36 dB
+  keeps the note, 38 ends it; a note at −30 dBFS that drops to −60 never ends. Response does not move this.
+- **Idle glide**: after a note ends the gain moves to the Idle value in a straight line, **32 dB/s**, starting
+  about 14 ms before the drop reaches the output.
 
-  A high-pass shape flattening above about 700 Hz, steeper than first order below 80 Hz (a first-order high-pass
-  matching 80 Hz would give −4.8 at 40 Hz, not −6.7). The hidden parameters name a 30 Hz high-pass and a 5.1 kHz
-  shelf; the fit comes next.
-- **Above about 1.7 kHz nothing is ridden** (2 and 5 kHz sines: gain 0, Idle): the note detector, on a low-passed
-  signal, never opens.
+### Within a note (`steps`)
+- **Look-ahead 42 ms**: the gain starts to move exactly 42 ms before a louder part reaches the output, and settles
+  in about 20 ms (at 2 / 4 / 6 / 10 / 22 ms: 17 / 41 / 59 / 81 / 98 % of the way, in linear gain): the 2 ms energy
+  attack in series with a ~5 ms gain smoother (the hidden OutAtt, 5 ms).
+- **The gain only goes down within a note**: a legato step up is followed; a legato step down is held, unchanged
+  for 8 s. A new note (after a 60 ms gap) gets its own gain at once.
+
+### New notes (`artifacts`, `release`)
+- **Artifacts** gates re-attacks against the earlier peak (the hidden note-on gate, −20 … −3 dB, 50 → −11.5): a
+  re-attack is a new note only if it comes within about 2 / 6 / 10 / 14 / 18 dB of the earlier note's peak at
+  Artifacts 100 / 75 / 50 / 25 / 0, whatever the floor it rises from.
+- **A note must be released first**: before a re-attack counts, the level must have dipped by a depth set by
+  Response and Sensitivity, for 20 … 30 ms (2 ms at Sensitivity 100):
+
+  | Response | Sens 0 | Sens 50 | Sens 75 | Sens 100 |
+  |---|---|---|---|---|
+  | Slow | 12 … 13 dB | 12 … 13 dB | 1 … 2 dB | < 1 dB |
+  | Fast | 4 … 5 dB | 1 … 2 dB | | < 1 dB |
+
+  The hidden values name note / slow / ref envelopes (1 / 1 ms, 30 / 1000 ms, 1 / 5000 ms) and a sustain threshold
+  (−1 dB): the release rule is theirs; its exact form is for Phase 4 to fit (the learned-block fallback stands).
+
+### Live and stereo (`live`, `stereo`)
+- **Live**: look-ahead about 5 ms (the gain starts 4 … 5 ms before the step; reported 221 samples), the same
+  smoothing and the same note detection (a dip and re-attack gives the same new note).
+- **Stereo**: one gain for both channels, read from the **mid, (L + R) / 2**: L −6 / R −30 dBFS (in phase) rides
+  at the mid's −11.5; R = −L reads silence (gain at Idle); L 1 kHz and R 1.2 kHz read as the two-tone sum.
