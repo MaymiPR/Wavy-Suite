@@ -136,6 +136,7 @@ def main():
         lines += ['inline constexpr float %sRows[] = { %s };' % (name, arr(rows)), 'inline constexpr float %sCols[] = { %s };' % (name, arr(cols, '%.3f')),
                   'inline constexpr float %sAlphaRows[] = { %s };' % (name, arr(ar, '%.2f')), 'inline constexpr float %sAlphaCols[] = { %s };' % (name, arr(ac, '%.2f')),
                   'inline constexpr Cap %s { %d, %d, %sRows, %sCols, %sAlphaRows, %sAlphaCols, { %s } };' % (name, len(cols), len(rows), name, name, name, name, arr(tint, '%.3f'))]
+    panels_out = panels()
     # the caps as the reference draws them at 1x (fitted on its editor's frame at the defaults, where Range Max sits at
     # +12, Min at -12, the Rider and Output at 0): their outline and lip included; a colour per row (r, g, b) times a
     # factor per column; x0 the left column (absolute), dy the top row relative to the value's y on the scale
@@ -152,34 +153,135 @@ def main():
         print('%-14s %dx%d from the frame, separable rms %.1f' % (name, w, y1 - y0, err))
         lines += ['inline constexpr float %sRows[] = { %s };' % (name, arr(rows.reshape(-1))), 'inline constexpr float %sCols[] = { %s };' % (name, arr(cols, '%.3f')),
                   'inline constexpr FrameCap %s { %d, %d, %d, %d, %sRows, %sCols };' % (name, x0, y0 - yref, w, y1 - y0, name, name)]
-    # the knobs' dome as the reference draws it (fitted on its frame, Artifacts and Sensitivity at 50, the pointer up and
-    # masked): per radius (0.5 px steps) a grey level and the first two harmonics in angle (0 = up, clockwise)
+    # the knobs' dome as the reference draws it (fitted on its frame, all three knobs, each pointer masked at its own
+    # angle): per radius (0.25 px steps, out to the black rim's outer edge) a grey level and four harmonics in angle
+    # (0 = up, clockwise); inside radius 3 the plain mean (the pointer's root would leave a spot)
     import math
-    radii = np.arange(0.0, 22.01, 0.5)
-    A = []; Y = []
-    centres = ((274.5, 111.0), (45.5, 111.0))
     gF = frame.mean(2)
     def bil(x, y):
         x0, y0 = int(math.floor(x)), int(math.floor(y)); fx, fy = x - x0, y - y0
         return (gF[y0, x0] * (1 - fx) * (1 - fy) + gF[y0, x0 + 1] * fx * (1 - fy) + gF[y0 + 1, x0] * (1 - fx) * fy + gF[y0 + 1, x0 + 1] * fx * fy)
+    knobs = ((46.0, 111.5, 0.0), (200.0, 111.5, -132.0 + 10.0 / 47.0 * 264.0), (275.0, 111.5, 0.0))   # centre, pointer angle
+    NH = 8
+    def basis(th): return [1.0] + sum(([math.cos(k * th), math.sin(k * th)] for k in range(1, NH + 1)), [])
+    radii = np.arange(0.0, 21.01, 0.25)
     coef = []
     for r in radii:
         rows = []; vals = []
-        for (cx, cy) in centres:
-            for ang in np.arange(0, 360, 4.0 if r > 3 else 15.0):
-                th = math.radians(ang)
-                if r < 19.5 and math.cos (th) > -0.05 and abs (r * math.sin (th)) < 2.6: continue   # the pointer
-                x = cx + 0.5 + r * math.sin(th); y = cy + 0.5 - r * math.cos(th)
-                rows.append([1, math.cos(th), math.sin(th), math.cos(2 * th), math.sin(2 * th)]); vals.append(bil(x - 0.5, y - 0.5))
-        c, *_ = np.linalg.lstsq(np.array(rows), np.array(vals), rcond=None)
+        for (cx, cy, pa) in knobs:
+            for ang in np.arange(0, 360, 3.0 if r > 3 else 20.0):
+                th = math.radians(ang); rel = math.radians(ang - pa)
+                if r < 19.0 and math.cos(rel) > -0.05 and abs(r * math.sin(rel)) < 2.8: continue      # the pointer
+                rows.append(basis(th)); vals.append(bil(cx + r * math.sin(th) - 0.5, cy - r * math.cos(th) - 0.5))
+        if r < 3.0:
+            c = np.zeros(1 + 2 * NH); c[0] = float(np.mean(vals))
+        else:
+            c, *_ = np.linalg.lstsq(np.array(rows), np.array(vals), rcond=None)
         coef.append(c)
     coef = np.array(coef)
-    print('knobDome: %d radii, centre grey %.0f, rim (r 20.5) %.0f' % (len(radii), coef[0, 0], coef[41, 0]))
-    lines += ['// the dome of the knobs (fitted on the frame, the pointer masked): per radius from the centre in 0.5 px steps, grey =',
-              '// c0 + c1 cos a + s1 sin a + c2 cos 2a + s2 sin 2a, a from straight up, clockwise; centred 0.5 px above the',
-              '// centre of the control rectangle',
-              'inline constexpr float knobDomeStep = 0.5f;', 'inline constexpr int knobDomeRadii = %d;' % len(radii),
+    print('knobDome: %d radii, centre grey %.0f, r 20: %.0f, r 21: %.0f' % (len(radii), coef[0, 0], coef[80, 0], coef[84, 0]))
+    lines += ['// the dome of the knobs (fitted on the frame, the pointers masked): per radius from the centre in 0.25 px steps,',
+              '// grey = c0 + sum over k = 1 .. 8 of (ck cos k a + sk sin k a), a from straight up, clockwise; centred 0.5 px above',
+              '// the centre of the control rectangle',
+              'inline constexpr float knobDomeStep = 0.25f;', 'inline constexpr int knobDomeRadii = %d, knobDomeHarmonics = %d;' % (len(radii), NH),
               'inline constexpr float knobDome[] = { %s };' % arr(coef.reshape(-1), '%.2f')]
+    # the bezel round Spill and Artifacts (fitted on the frame's own pixels, the ticks' angles masked): the black rim and a
+    # light metal ring outside it, as an offset over the panel with the knobs' cast shadow (the editor's knobShadowAt, so
+    # it holds for each knob's own panel grey); per radius (0.5 px knots from 18.5 to 24, linear between) an offset and
+    # eight harmonics in angle, one least-squares fit over every pixel of the ring
+    pm = {n: dict(y0=y0, x0=x0, rows=rows_.mean(1), cols=cols_, h=len(rows_), w=len(cols_)) for n, y0, x0, rows_, cols_, _ in panels_out}['top']
+    def panel_at(x, y):
+        return pm['rows'][min(max(y - pm['y0'], 0), pm['h'] - 1)] * pm['cols'][min(max(x - pm['x0'], 0), pm['w'] - 1)]
+    def shadow_at(x, y):   # WBassRiderEditor.cpp knobShadowAt
+        f = 1.0
+        for cx in (46.0, 200.0, 275.0):
+            dx, dy = x - cx, y - 111.5; r = math.hypot(dx, dy)
+            if r < 20.0 or abs(dx) > 24.0: continue
+            rim = 0.32 * math.exp(-(r - 20.5) / 2.3) * min(max(dy / 20.0, 0.0), 1.0)
+            sy = dy - min(max(dy, 0.0), 22.5); d = math.hypot(dx, sy)
+            cast = 0.21 * math.exp(-max(0.0, dy - 22.0) / 22.0) * min(max((21.8 - d) / 1.6 + 0.5, 0.0), 1.0)
+            f *= 1.0 - min(max(rim + cast, 0.0), 0.9)
+        return f
+    # the skin's background is off the frame row by row (a light band along the group frames' top line, brighter through
+    # the knobs' labels, by up to 15 %): each row of the top panel is scaled by the frame over the model, the median over
+    # the row between the knobs' columns (the Target track, the switch and the text left out); the rows the frame lines
+    # sit on take their neighbours' scale
+    top_rows = next(rows_ for n, y0, x0, rows_, cols_, _ in panels_out if n == 'top')
+    boxes = [(70, 44, 256, 66), (100, 100, 150, 126)]
+    ks = {}
+    for yi in range(36, 162):
+        rs = np.array([gF[yi, xi] / panel_at(xi, yi) for xi in range(8, 312)
+                       if min(abs(xi + 0.5 - cx) for cx in (46.0, 200.0, 275.0)) >= 26.0 and not any(b_[0] <= xi < b_[2] and b_[1] <= yi < b_[3] for b_ in boxes)])
+        rs = rs[rs < 1.15]; med = np.median(rs); k = np.median(rs[np.abs(rs - med) < 0.08])
+        if 0.75 < k < 1.12: ks[yi] = k
+    for yi in (74, 75, 76, 77, 78, 152, 153, 154, 155, 156): ks.pop(yi, None)
+    known = sorted(ks)
+    for yi in range(36, 162):
+        top_rows[yi - 36] *= float(np.interp(yi, known, [ks[k_] for k_ in known]))
+    pm['rows'] = top_rows.mean(1)
+    # what rows times columns can't say (the skin's panel darkens towards its ends and round the knobs, where the frame
+    # does not): the frame over the model on a coarse grid, 8 px cells over the top panel (linear between their centres),
+    # the knobs, their bezels, the text and the lines left out (a cell's median, then the pixels near it)
+    FX = 8
+    gxs = np.arange(6 + FX / 2, 314, FX); gys = np.arange(36 + FX / 2, 162, FX)
+    fix = np.full((len(gys), len(gxs)), np.nan)
+    for j, gy_ in enumerate(gys):
+        for i, gx_ in enumerate(gxs):
+            rs = []
+            for yi in range(int(gy_ - FX / 2), int(gy_ + FX / 2)):
+                for xi in range(max(int(gx_ - FX / 2), 8), min(int(gx_ + FX / 2), 312)):
+                    if min(math.hypot(xi + 0.5 - c, yi + 0.5 - 111.5) for c in (46.0, 200.0, 275.0)) < 25.0: continue
+                    rs.append(gF[yi, xi] / (panel_at(xi, yi) * shadow_at(xi + 0.5, yi + 0.5)))
+            if len(rs) < 12: continue
+            rs = np.array(rs); keep = rs[np.abs(rs - np.median(rs)) < 0.1]
+            if len(keep) >= 12: fix[j, i] = np.median(keep)
+    while np.isnan(fix).any():   # empty cells (under the knobs) take their neighbours' mean
+        f2 = fix.copy()
+        for j, i in zip(*np.where(np.isnan(fix))):
+            nb = [fix[jj, ii] for jj, ii in ((j - 1, i), (j + 1, i), (j, i - 1), (j, i + 1)) if 0 <= jj < len(gys) and 0 <= ii < len(gxs) and not np.isnan(fix[jj, ii])]
+            if nb: f2[j, i] = np.mean(nb)
+        fix = f2
+    fix = np.clip(fix, 0.7, 1.3)
+    print('topPanelFix: %d x %d cells, %.2f .. %.2f' % (len(gxs), len(gys), fix.min(), fix.max()))
+    def fix_at(x, y):
+        fx = min(max((x - gxs[0]) / FX, 0.0), len(gxs) - 1.001); fy = min(max((y - gys[0]) / FX, 0.0), len(gys) - 1.001)
+        i, j = int(fx), int(fy); tx, ty = fx - i, fy - j
+        return (fix[j, i] * (1 - tx) + fix[j, i + 1] * tx) * (1 - ty) + (fix[j + 1, i] * (1 - tx) + fix[j + 1, i + 1] * tx) * ty
+    panel_at_rc = panel_at
+    def panel_at(x, y): return panel_at_rc(x, y) * fix_at(x + 0.5, y + 0.5)
+    lines += ["// the top panel's correction: the frame over rows times columns on 8 px cells (centres from x 10, y 40), linear between",
+              'inline constexpr float topPanelFixX0 = %.1ff, topPanelFixY0 = %.1ff, topPanelFixStep = %d.0f;' % (gxs[0], gys[0], FX),
+              'inline constexpr int topPanelFixW = %d, topPanelFixH = %d;' % (len(gxs), len(gys)),
+              'inline constexpr float topPanelFix[] = { %s };' % arr(fix.reshape(-1), '%.3f')]
+    tick_angles = [0, 23, 46, 69, 91, 115, 135, -23, -46, -69, -91, -115, -135]
+    NB = 8
+    BSTEP = 0.5
+    def bbasis(th): return [1.0] + sum(([math.cos(k * th), math.sin(k * th)] for k in range(1, NB + 1)), [])
+    bradii = np.arange(18.5, 24.01, BSTEP)
+    nb = 1 + 2 * NB
+    rows = []; vals = []
+    for (cx, cy, pa) in knobs[1:]:
+        for yi in range(int(cy) - 25, int(cy) + 26):
+            for xi in range(int(cx) - 25, int(cx) + 26):
+                dx, dy = xi + 0.5 - cx, yi + 0.5 - cy
+                r = math.hypot(dx, dy)
+                if r < bradii[0] or r > bradii[-1]: continue
+                th = math.atan2(dx, -dy)
+                if min(abs(math.degrees(th) - t) for t in tick_angles) < 5.0: continue
+                fi = min((r - bradii[0]) / BSTEP, len(bradii) - 1 - 1e-6); i = int(fi); t = fi - i
+                row = np.zeros(len(bradii) * nb); bb = np.array(bbasis(th))
+                row[i * nb:(i + 1) * nb] = bb * (1 - t); row[(i + 1) * nb:(i + 2) * nb] = bb * t
+                rows.append(row); vals.append(gF[yi, xi] - panel_at(xi, yi) * shadow_at(xi + 0.5, yi + 0.5))
+    A = np.array(rows); y = np.array(vals)
+    lam = 2.0   # a little ridge on the harmonics, so sparse angles stay smooth
+    R = np.diag([0.0 if (k % nb) == 0 else lam for k in range(A.shape[1])])
+    bcoef = np.linalg.solve(A.T @ A + R.T @ R, A.T @ y).reshape(len(bradii), nb)
+    print('knobBezel: %d pixels, rms %.1f' % (len(y), np.sqrt(np.mean((A @ bcoef.reshape(-1) - y) ** 2))))
+    print('knobBezel: r 21 offset at +-40 deg %.0f, +-100 %.0f, 180 %.0f' % (np.array(bbasis(math.radians(40))) @ bcoef[5], np.array(bbasis(math.radians(100))) @ bcoef[5], np.array(bbasis(math.pi)) @ bcoef[5]))
+    lines += ['// the bezel round the knobs, the black rim and the light ring outside it, as an offset over the shadowed panel: per',
+              '// radius from 18.5 in 0.5 px steps (linear between), an offset and eight harmonics in angle (fitted on the frame)',
+              'inline constexpr float knobBezelR0 = 18.5f, knobBezelStep = %.2ff;' % BSTEP, 'inline constexpr int knobBezelRadii = %d, knobBezelHarmonics = %d;' % (len(bradii), NB),
+              'inline constexpr float knobBezel[] = { %s };' % arr(bcoef.reshape(-1), '%.2f')]
     # the Response switch (fitted on the frame at Slow): its block (20 x 15 at x 105, y 107) as a rank-2 model, the
     # slot's grey by distance from the block (15 columns), the frame's grey; Fast has the block 15 px right, the slot
     # mirrored
@@ -242,7 +344,7 @@ def main():
               'inline constexpr float thumbShadow[] = { %s };' % arr(shadow, '%.3f'), 'inline constexpr float thumbFrame = %.1ff;' % frame]
     lines += ['// the panels: from y0 / x0 (1x), a colour per row (r, g, b) times a factor per column, and the grain (rms grey)',
               'struct Panel { int y0, x0, h, w; const float* rows; const float* cols; float grain; };']
-    for name, y0, x0, rows, cols, grain in panels():
+    for name, y0, x0, rows, cols, grain in panels_out:
         lines += ['inline constexpr float %sPanelRows[] = { %s };' % (name, arr(rows.reshape(-1))),
                   'inline constexpr float %sPanelCols[] = { %s };' % (name, arr(cols, '%.3f')),
                   'inline constexpr Panel %sPanel { %d, %d, %d, %d, %sPanelRows, %sPanelCols, %.1ff };' % (name, y0, x0, len(rows), len(cols), name, name, grain)]

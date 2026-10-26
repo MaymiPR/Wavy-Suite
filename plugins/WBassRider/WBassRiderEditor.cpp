@@ -8,7 +8,7 @@ using wavy::ren::arial;
 namespace
 {
 // colours measured on the reference's editor (reference/wbassrider, git-ignored)
-const Colour kLabelLight (177, 177, 177), kLabelDim (153, 153, 153), kFrame (104, 104, 104), kLabelDark (38, 36, 30),
+const Colour kLabelLight (177, 177, 177), kLabelDim (153, 153, 153), kFrame (132, 132, 132), kLabelDark (38, 36, 30),
     kTick (34, 33, 28), kValueBox (0, 0, 0), kValueText (236, 236, 236), kAmberTop (255, 205, 60), kAmberBottom (231, 150, 0),
     kIdleLine (205, 120, 105), kIdleArrow (36, 52, 84), kMarkSelected (241, 227, 7), kMarkMember (7, 150, 229);
 
@@ -170,13 +170,19 @@ const Image& Knob::dome (float scale)
         {
             const float x = ((float) px + 0.5f) / scale - 22.0f, y = ((float) py + 0.5f) / scale - 21.5f;
             const float r = std::sqrt (x * x + y * y);
-            const float alpha = jlimit (0.0f, 1.0f, (21.9f - r) / 0.8f);
+            const float alpha = jlimit (0.0f, 1.0f, (19.6f - r) / 0.4f);   // the bezel (drawn with the panel) carries the black rim
             if (alpha <= 0.0f) continue;
             const float a = std::atan2 (x, -y);
             const float fi = jlimit (0.0f, (float) (sk::knobDomeRadii - 1) - 1.0e-3f, r / sk::knobDomeStep);
             const int i = (int) fi;
             const float f = fi - (float) i;
-            auto at = [a] (int k) { const float* c = sk::knobDome + k * 5; return c[0] + c[1] * std::cos (a) + c[2] * std::sin (a) + c[3] * std::cos (2.0f * a) + c[4] * std::sin (2.0f * a); };
+            auto at = [a] (int k)
+            {
+                const float* c = sk::knobDome + k * (1 + 2 * sk::knobDomeHarmonics);
+                float v = c[0];
+                for (int h = 1; h <= sk::knobDomeHarmonics; ++h) v += c[2 * h - 1] * std::cos ((float) h * a) + c[2 * h] * std::sin ((float) h * a);
+                return v;
+            };
             const float v = jlimit (0.0f, 255.0f, at (i) * (1.0f - f) + at (i + 1) * f);
             bd.setPixelColour (px, py, Colour::greyLevel (v / 255.0f).withAlpha (alpha));
         }
@@ -718,38 +724,34 @@ void WBassRiderEditor::paintStatic (Graphics& g) const
         g.fillPath (text);
     }
 
-    // ---- top panel: the group frames (2 px, measured on x 7-8 / 311-312, y 76 and 154-155; joined at x 161)
-    g.setColour (kFrame);
-    const PathStrokeType frameStroke (1.8f);
-    // each group: its title gap in the top line, round outer corners; at the junction (x 161) the top and bottom
-    // lines curve into short stems (y 76 .. 86 and 145 .. 155) and the side stays open (measured)
-    auto group = [&] (float xOuter, float xJoin, float gapOuter, float gapJoin)    // the title gap's ends
+    // ---- top panel: the group frames (2 px of grey 132 at 0.69, measured on x 7-8 / 311-312, y 75-77 and 154-155 over
+    // three panel greys), stroked as one path so the shared stems are not drawn twice
+    const PathStrokeType frameStroke (2.0f);
+    // each group: its title gap in the top line, round outer corners; at the junction (x 162) the top and bottom
+    // lines run in straight arms 6.5 px long into short stems (y 82 .. 87 and 144.3 .. 150), the side open (measured)
+    Path frames;
+    auto group = [&frames] (float xOuter, float gapOuter, float gapJoin)    // the title gap's ends
     {
-        const float top = 76.5f, bottom = 155.0f, r = 8.0f, j = 5.0f, dir = xJoin > xOuter ? 1.0f : -1.0f;
-        Path p;
-        p.startNewSubPath (gapOuter, top);
-        p.lineTo (xOuter + dir * r, top);
-        p.quadraticTo (xOuter, top, xOuter, top + r);
-        p.lineTo (xOuter, bottom - r);
-        p.quadraticTo (xOuter, bottom, xOuter + dir * r, bottom);
-        p.lineTo (xJoin - dir * j, bottom);
-        p.quadraticTo (xJoin, bottom, xJoin, bottom - 9.0f);
-        g.strokePath (p, frameStroke);
-        Path q;
-        q.startNewSubPath (gapJoin, top);
-        q.lineTo (xJoin - dir * j, top);
-        q.quadraticTo (xJoin, top, xJoin, top + 10.0f);
-        g.strokePath (q, frameStroke);
+        const float top = 76.5f, bottom = 155.0f, r = 8.0f, xJoin = 162.0f, dir = xJoin > xOuter ? 1.0f : -1.0f;
+        frames.startNewSubPath (gapOuter, top);
+        frames.lineTo (xOuter + dir * r, top);
+        frames.quadraticTo (xOuter, top, xOuter, top + r);
+        frames.lineTo (xOuter, bottom - r);
+        frames.quadraticTo (xOuter, bottom, xOuter + dir * r, bottom);
+        frames.lineTo (xJoin - dir * 7.0f, bottom);
+        frames.lineTo (xJoin, 150.0f);
+        frames.lineTo (xJoin, 144.3f);
+        frames.startNewSubPath (gapJoin, top);
+        frames.lineTo (xJoin - dir * 6.5f, top);
+        frames.lineTo (xJoin, 82.0f);
+        frames.lineTo (xJoin, 87.0f);
     };
-    group (8.0f, 161.0f, 58.0f, 105.0f);
-    group (312.0f, 161.0f, 262.0f, 214.0f);
-    // the panel's darker discs under the knobs
-    for (float cx : { 46.0f, 200.0f, 275.0f })
-    {
-        ColourGradient sh (Colours::black.withAlpha (0.22f), cx, 140.0f, Colours::transparentBlack, cx + 24.0f, 140.0f, true);
-        g.setGradientFill (sh);
-        g.fillEllipse (cx - 24.0f, 116.0f, 48.0f, 48.0f);
-    }
+    group (8.0f, 58.0f, 105.0f);
+    group (312.0f, 262.0f, 214.0f);
+    g.beginTransparencyLayer (0.69f);
+    g.setColour (kFrame);
+    g.strokePath (frames, frameStroke);
+    g.endTransparencyLayer();
 
     g.setColour (kLabelLight);
     g.setFont (arial (12.0f, true));
@@ -770,8 +772,8 @@ void WBassRiderEditor::paintStatic (Graphics& g) const
         g.drawText ("Lo", Rectangle<float> (cx - 34.0f, 126.0f, 14.0f, 12.0f), Justification::centred);
         g.drawText ("Hi", Rectangle<float> (cx + 20.0f, 126.0f, 14.0f, 12.0f), Justification::centred);
     }
-    g.drawText ("Slow", Rectangle<float> (78.0f, 108.0f, 24.0f, 12.0f), Justification::centred);
-    g.drawText ("Fast", Rectangle<float> (143.0f, 108.0f, 24.0f, 12.0f), Justification::centred);
+    g.drawText ("Slow", Rectangle<float> (76.0f, 108.0f, 24.0f, 12.0f), Justification::centred);
+    g.drawText ("Fast", Rectangle<float> (141.5f, 108.0f, 24.0f, 12.0f), Justification::centred);
 
     // the knobs' scales, measured on the reference's frame round the domes' centres (x 46 / 200 / 275, y 111.5):
     // Sensitivity: 12 dashes centred at +-(11.3 + 22.67 k) degrees, 16 degrees long, 4 px deep, from radius 20 at the
@@ -868,6 +870,65 @@ void WBassRiderEditor::paintStatic (Graphics& g) const
     }
 }
 
+// the knobs' cast shadow (measured on the reference's frame against its panel; the light comes from straight above): the
+// knob's disc (radius 21.8) swept 22.5 px down, its corners rounding off at the panel's foot, with a 1.6 px edge: 0.80 of
+// the panel just under the knob, lifting to 0.92 at the panel's foot; and a darker band right under the lower half of the
+// rim (0.32 deep, fading over 2.3 px)
+static float knobShadowAt (float x, float y)
+{
+    float f = 1.0f;
+    for (float cx : { 46.0f, 200.0f, 275.0f })
+    {
+        const float dx = x - cx, dy = y - 111.5f, r = std::sqrt (dx * dx + dy * dy);
+        if (r < 20.0f || std::abs (dx) > 24.0f) continue;
+        const float rim = 0.32f * std::exp (-(r - 20.5f) / 2.3f) * jlimit (0.0f, 1.0f, dy / 20.0f);
+        const float sy = dy - jlimit (0.0f, 22.5f, dy), d = std::sqrt (dx * dx + sy * sy);
+        const float cast = 0.21f * std::exp (-jmax (0.0f, dy - 22.0f) / 22.0f) * jlimit (0.0f, 1.0f, (21.8f - d) / 1.6f + 0.5f);
+        f *= 1.0f - jlimit (0.0f, 0.9f, rim + cast);
+    }
+    return f;
+}
+
+// the bezel round each knob (WBassRiderSkinData.h, fitted on the reference's frame between the ticks): the black rim,
+// then a light metal ring lit from above (about +75 over the panel at the sides, lost in the shadow at the foot), as an
+// offset over the shadowed panel that dies out by radius 24
+// the top panel's correction over rows times columns (WBassRiderSkinData.h: the frame over the model on 8 px cells,
+// linear between their centres)
+static float topPanelFixAt (float x, float y)
+{
+    namespace sk = wbassrider::skin;
+    const float fx = jlimit (0.0f, (float) sk::topPanelFixW - 1.001f, (x - sk::topPanelFixX0) / sk::topPanelFixStep);
+    const float fy = jlimit (0.0f, (float) sk::topPanelFixH - 1.001f, (y - sk::topPanelFixY0) / sk::topPanelFixStep);
+    const int i = (int) fx, j = (int) fy;
+    const float tx = fx - (float) i, ty = fy - (float) j;
+    auto at = [] (int jj, int ii) { return sk::topPanelFix[jj * sk::topPanelFixW + ii]; };
+    return (at (j, i) * (1.0f - tx) + at (j, i + 1) * tx) * (1.0f - ty) + (at (j + 1, i) * (1.0f - tx) + at (j + 1, i + 1) * tx) * ty;
+}
+
+static void knobBezelAt (float x, float y, float rgb[3])
+{
+    namespace sk = wbassrider::skin;
+    for (float cx : { 46.0f, 200.0f, 275.0f })
+    {
+        const float dx = x - cx, dy = y - 111.5f, r = std::sqrt (dx * dx + dy * dy);
+        if (r >= 24.0f) continue;
+        const float a = std::atan2 (dx, -dy);
+        const float fi = jlimit (0.0f, (float) (sk::knobBezelRadii - 1) - 1.0e-3f, (r - sk::knobBezelR0) / sk::knobBezelStep);
+        const int i = (int) fi;
+        const float t = fi - (float) i;
+        auto at = [a] (int k)
+        {
+            const float* c = sk::knobBezel + k * (1 + 2 * sk::knobBezelHarmonics);
+            float v = c[0];
+            for (int h = 1; h <= sk::knobBezelHarmonics; ++h) v += c[2 * h - 1] * std::cos ((float) h * a) + c[2 * h] * std::sin ((float) h * a);
+            return v;
+        };
+        const float v = at (i) * (1.0f - t) + at (i + 1) * t;
+        for (int k = 0; k < 3; ++k) rgb[k] = jlimit (0.0f, 255.0f, rgb[k] + v);
+        return;
+    }
+}
+
 void WBassRiderEditor::paintContent (Graphics& g)
 {
     namespace sk = wbassrider::skin;
@@ -894,7 +955,13 @@ void WBassRiderEditor::paintContent (Graphics& g)
                     if (y >= 36.0f && y < 162.0f)
                     {
                         // the top panel, its edges at x 6 / 313 (one px wider at its foot)
-                        if (x >= 6.5f - (y - 36.0f) / 126.0f && x < 314.0f) { panelAt (sk::topPanel, x, y, rgb); grain = 3.2f; }
+                        if (x >= 6.5f - (y - 36.0f) / 126.0f && x < 314.0f)
+                        {
+                            panelAt (sk::topPanel, x, y, rgb); grain = 3.2f;
+                            const float f = knobShadowAt (x, y) * topPanelFixAt (x, y);
+                            for (auto& v : rgb) v *= f;
+                            knobBezelAt (x, y, rgb);
+                        }
                     }
                     else if (y >= 162.0f && y < 510.0f)
                     {
