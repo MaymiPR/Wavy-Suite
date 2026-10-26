@@ -175,7 +175,8 @@ public:
             // the LFO, as the reference makes it: a float triangle between -1 and +1, from 0 rising, a step of 4 rate / fs,
             // held at each end (the overshoot is lost: up to a sample per turn, and the float steps drift at low rates)
             const double tri = (double) lfoValue;
-            const float step = (float) (4.0 * (double) s.rateHz / fs);
+            // (above 48 kHz the step is the factor times larger: the reference's LFO runs twice as fast at 96 kHz)
+            const float step = (float) (4.0 * (double) s.rateHz * (double) hifi.factor / fs);
             lfoValue = lfoUp ? lfoValue + step : lfoValue - step;
             if (lfoValue >= 1.0f) { lfoValue = 1.0f; lfoUp = false; }
             else if (lfoValue <= -1.0f) { lfoValue = -1.0f; lfoUp = true; }

@@ -50,6 +50,11 @@ static void testTexts()
     CHECK (wdelay::rateText (0.1f) == "0.10 Hz");
     CHECK (wdelay::rateText (24.5f) == "24.5 Hz");
     CHECK (wdelay::rateText (6000.0f) == "6.00k Hz");
+    // the DSP takes Rate as shown: three significant digits, at least 0.01 (measured)
+    CHECK (std::abs (wdelay::atResolution (wdelay::rate, 3074.0f) - 3070.0f) < 1e-3f);
+    CHECK (std::abs (wdelay::atResolution (wdelay::rate, 281.7f) - 282.0f) < 1e-4f);
+    CHECK (std::abs (wdelay::atResolution (wdelay::rate, 47.84f) - 47.8f) < 1e-4f);
+    CHECK (std::abs (wdelay::atResolution (wdelay::rate, 0.537f) - 0.54f) < 1e-5f);
 }
 
 // defaults as a fresh reference instance; an impulse through the processor comes back after 1/8D at 120 BPM

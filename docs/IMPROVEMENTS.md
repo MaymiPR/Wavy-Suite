@@ -83,10 +83,13 @@ When part of a reference resists identification, keep everything that *is* ident
   the glide; neither double nor float32 variants of the update reproduce it.
 - **The interpolator's window** is not quite Kaiser (up to 4e-4). LoFi shows it (−70 dB). It needs a clean
   measurement of the window at every phase: the sweep during a glide is too smeared.
-- **Modulation:** the LFO's phase law (0.25 + rate × (t + 0.4805 s)) and the delay curve agree to a few samples, not
-  to the sample (−5 … −16 dB on modulated material). Its fine structure is still to be identified (a control rate?
-  float phase?).
-- **96 kHz:** the first echo matches (−78 dB), the passes round the feedback loop do not (−28 dB).
-- **Analog modes 1–3:** −40 … −55 dB including their noise. Mode 3 is the weakest (−40 dB); more fitting rounds or
-  more data at low frequencies.
+- **Self-oscillating loops with the filters** (Feedback > 100 % with HiPass / LoPass, the preset Fast Siren) are
+  chaotic and null only for their first fraction of a second. Only a bit-exact loop (the reference's exact float
+  operations in the filters and the gain stage) could follow them further.
+- **96 kHz:** the kernel's band above 20 kHz (round its 24 kHz cutoff) differs from the reference's; below 20 kHz the
+  delay path nulls at −46 … −61 dB, high-Feedback loops at −31 … −44 dB. Needs the 96 kHz kernel measured on its own.
+- **Analog modes 1–3:** −40 … −56 dB including their noise. Mode 3 is the weakest (−40 dB): its low-level response
+  below 1 kHz is off by −18 … −40 dB and depends on the level (still nonlinear at −60 dBFS), so neither more fitting
+  of the same structure nor a correction EQ fixes it. A candidate for a learned block (as WComp's gain net), trained
+  on mode 3's renders at low levels and low frequencies.
 

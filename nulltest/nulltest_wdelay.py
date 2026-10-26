@@ -3,7 +3,7 @@
 reference starts at 375 ms and glides to the settings during it; its first block runs at the default Analog
 Mod2, whose noise enters the delay line: 3 s let it die away). Analog Off unless a case names a mode.
 
-    python -I nulltest_wdelay.py [--quick] [--out report.md] [--fs 48000]
+    python -I nulltest_wdelay.py [--quick] [--out report.md] [--fs 48000] [--band 20000]
 
 Residual = 20 log10( rms(ours - reference) / rms(reference) ) over the input (the pre-roll is not written). Numbers
 are reported as they come.
@@ -20,6 +20,12 @@ TMP = os.path.join(HERE, "renders"); os.makedirs(TMP, exist_ok=True)
 EXTRA = []                                               # more WDelayRender arguments (fitting)
 _T = 1.0 - 3.0e-9                                        # the reference's triplets, a hair short (as WDelayProcessor.cpp)
 BEATS = [_T / 24, 1 / 16, 3 / 32, _T / 12, 1 / 8, 3 / 16, _T / 6, 1 / 4, 3 / 8, _T / 3, 1 / 2, 3 / 4, 2 * _T / 3, 1, 1.5, 4 * _T / 3, 2, 3, 4, 8]
+
+
+def rate_res(v):
+    """Rate at the reference's resolution: three significant digits, at least 0.01 (as WDelayProcessor.cpp)"""
+    step = 10.0 if v >= 1000 else 1.0 if v >= 100 else 0.1 if v >= 10 else 0.01
+    return round(v / step) * step
 
 
 class State:
@@ -44,7 +50,7 @@ class State:
     def rate(self):
         """the LFO's rate: in Host / BPM sync Rate counts cycles per beat at 60 BPM (measured)"""
         s = self.v["sync"]
-        return round(float(self.v["rate"]), 2) * (1.0 if s == "ms" else (float(round(float(self.v["bpm"]))) if s == "BPM" else self.host) / 60.0)
+        return rate_res(float(self.v["rate"])) * (1.0 if s == "ms" else (float(round(float(self.v["bpm"]))) if s == "BPM" else self.host) / 60.0)
 
 
 def our_args(k, v):
@@ -86,10 +92,19 @@ def theirs(x, fs=48000, **kw):
     return H.render(x, fs, **kw)
 
 
-def residual_db(a, b, seg=None):
+BAND = None                                              # Hz: the residual below this frequency only (--band)
+
+
+def residual_db(a, b, seg=None, fs=None):
     seg = seg or slice(0, a.shape[-1])
-    e = a[..., seg] - b[..., seg]
-    return 20 * np.log10(np.sqrt((e ** 2).mean()) / max(np.sqrt((b[..., seg] ** 2).mean()), 1e-20) + 1e-20)
+    a, b = a[..., seg], b[..., seg]
+    if BAND and fs and BAND < fs / 2:                    # brick-wall: what is heard of a 96 kHz render
+        def lp(v):
+            V = np.fft.rfft(v, axis=-1); V[..., np.fft.rfftfreq(v.shape[-1], 1.0 / fs) >= BAND] = 0
+            return np.fft.irfft(V, v.shape[-1], axis=-1)
+        a, b = lp(a), lp(b)
+    e = a - b
+    return 20 * np.log10(np.sqrt((e ** 2).mean()) / max(np.sqrt((b ** 2).mean()), 1e-20) + 1e-20)
 
 
 CASES = [  # (name, settings); times are set inside the pre-roll, after Sync (a time set with Sync is not taken)
@@ -123,6 +138,8 @@ def main():
     quick = "--quick" in a
     fs = int(a[a.index("--fs") + 1]) if "--fs" in a else 48000
     out_md = a[a.index("--out") + 1] if "--out" in a else None
+    global BAND
+    BAND = float(a[a.index("--band") + 1]) if "--band" in a else None
     S = signals(fs, quick)
     lines = ["| case | " + " | ".join(S) + " |", "|---|" + "---|" * len(S)]
     for name, kw in (CASES[:4] if quick else CASES):
@@ -135,7 +152,7 @@ def main():
             kw2["changes"] = list(kw2.get("changes", ())) + [(0.0, "feedback", kw2.pop("feedback", 60))]
             kw2["feedback"] = 0
             r = theirs(x2, fs, **kw2); o = ours(x2, fs, **kw2)
-            row.append("%.1f" % residual_db(o, r))
+            row.append("%.1f" % residual_db(o, r, fs=fs))
         lines.append("| %s | %s |" % (name, " | ".join(row)))
         print(lines[-1], flush=True)
     if out_md: open(out_md, "w").write("\n".join(lines) + "\n")

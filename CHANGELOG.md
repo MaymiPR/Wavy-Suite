@@ -23,8 +23,12 @@
     Modulation nulls went from −5 … −16 dB to −56 … −84 dB.
   - **Filters:** HiPass / LoPass act on the line's output, which matters once the delay moves.
   - **Resolutions:** parameters are used at the reference's resolution (Delay, Feedback, Mix, BPM, Depth and the
-    filters in whole units, Output in 0.1 dB, Rate in 0.01 Hz). Triplet notes are a hair short, as the reference has
-    them.
+    filters in whole units, Output in 0.1 dB, Rate to three significant digits as shown, at least 0.01 Hz: 3074 Hz
+    acts as 3070). Triplet notes are a hair short, as the reference has them. The Rate rounding took fast-modulation
+    settings from −10 … −54 dB to −67 … −84 dB, and the presets Wide Echo and Broken Machine from −19 / −36 dB to
+    −43 / −71 dB.
+  - **Analog 1** refitted: −50 → −54 dB in the null suite.
+  - **96 kHz:** the LFO runs twice as fast there, as the reference's (modulation +2.6 → −48 dB below 20 kHz).
   - **Presets:** the reference's 88 presets, with Wavy names (`tools/make_presets.py`), and their null test
     (`nulltest/nulltest_wdelay_presets.py`).
 - **WDelay DSP** (Phase 4, `plugins/WDelay/WDelayDsp.h`):

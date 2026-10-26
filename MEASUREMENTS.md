@@ -966,14 +966,15 @@ host (`nulltest/nulltest_wdelay.py`).
     window under a sinc at 6277 Hz, shows it: LoFi nulls at −70 dB.
 - **Gain stage:** the recovery is a one-pole of exactly 10 ms. Nulls went from −50 to −100 dB with it.
 - **Glide.**
-  - d' = max(−1, (T − d) / (T + 16)), each sample's step taken before its read. The offset is sharp: 15.5 or 16.5
+  - d' = max(−1, (T − d) / (T + 16)), each sample's step taken before its read (with the LFO: on D = d + 16, below). The offset is sharp: 15.5 or 16.5
     lose 30 dB on a falling glide.
   - Glides that run inside the input null at −60 … −83 dB. In the slow tail of a glide the delay drifts across a
     1/32 phase every many samples, and a sample's difference in when that happens leaves −40 … −50 dB on broadband
     material. Double- or float-precision variants of the update do not reproduce the reference's steps; this stays a
     known limit.
 - **Filters.**
-  - RBJ biquads, HiPass Q 0.8 and LoPass Q 0.95, on the line's input after the gain stage.
+  - RBJ biquads, HiPass Q 0.8 and LoPass Q 0.95, on the line's OUTPUT (after the read; with a moving delay the two
+    places differ, and only the output nulls).
   - Their frequency is warped: w0 = 2 atan(π f / fs), so LoPass 4000 sits at 3912 Hz and 15000 at 11 859 Hz.
   - Nulls −90 … −100 dB.
 - **Phase L / R** invert the side's input to the delay.
@@ -981,21 +982,45 @@ host (`nulltest/nulltest_wdelay.py`).
   - The left line feeds the right at gain 1, the right the left at Feedback²; (±L ± R) / √2 goes into the start
     side's line.
   - Nulls −97 … −100 dB, either start side.
-- **Modulation.**
-  - The LFO is a triangle on the target time, with the depth factor 0.5 confirmed.
-  - Its phase is 0.25 + rate × (time since the start + 0.4805 s), computed from time × the current rate.
-  - Delay curves agree within 3 … 15 samples on swings of ±1300 … 2000 samples. The fine structure is not resolved,
-    and the null on modulated material is −5 … −16 dB.
+- **Modulation** (second round, from the user's feedback "the modulation depth does not null").
+  - The LFO is a float triangle between ±1, from 0 rising, a step of (float)(4 rate / fs) a sample, clamped at each
+    end where it turns (the overshoot is lost). Each half-cycle is therefore a whole number of steps, ceil(2 / step):
+    rates whose half-period falls just under a whole number are the sensitive ones.
+  - It moves the target: Tm = (T + 16)(1 + 0.5 depth tri), and the glide runs on D = d + 16:
+    D' = max(−1, (Tm − D) / Tm), the step before the read.
+  - In Host / BPM sync Rate counts cycles per beat at 60 BPM: the LFO runs at Rate × tempo / 60.
+  - Rate is taken as shown, to three significant digits and at least 0.01: 3074 acts as 3070, 1537.24 as 1540,
+    281.7 as 282, 47.84 as 47.8, 0.537 as 0.54. Found by rate scans (`nulltest/probe_hd_mod.py`) and the delay trace
+    of a steady sine (`probe_hd_lfo_trace.py`, the period over 85 cycles): before the rounding 3074 Hz nulled at
+    −10 … −54 dB, after it −76 … −84 dB, as every other rate.
+  - Nulls on modulated material −67 … −84 dB (Depth 39 / 100, Rate 1 … 6000 Hz, delays 30 / 750 ms).
+- **Parameter resolutions** (ParamXML; the DSP takes the shown value): Delay, Feedback, Mix, BPM, Depth and the
+  filters whole units (Depth 0.69 acts as 1), Output 0.1 dB, Rate as above. Triplet notes are a hair short
+  (× (1 − 3e-9)): 1/8T at 120 BPM is 7999 samples, not 8000.
+- **Self-oscillation with the filters** (Feedback above 100 % with HiPass and/or LoPass on, as in the preset Fast
+  Siren) is chaotic: in WDelay's own model a 1e-6 change of the input grows to −4 dB within 3 s. Such a loop nulls
+  for its first fraction of a second and then cannot, by any model short of a bit-exact one. Without the filters the
+  same loop nulls at −62 … −73 dB.
 - **Other rates.**
   - 44.1 kHz behaves as 48 kHz (−95 dB).
   - At 96 kHz the delay settles one sample short (an echo at T − 1 + 1/16). The interpolator has 62 taps, cut off at
-    24 kHz. The first echo nulls at −78 dB, but the passes round the loop differ (−28 dB); not identified.
+    24 kHz. An impulse's first echo nulls at −78 dB.
+  - At 96 kHz the LFO runs twice as fast: its step is 4 rate × factor / fs (factor 2, the interpolator's). Found
+    from the delay trace (a 0.6 s period at Rate 0.8); the modulated case went from +2.6 to −48 dB.
+  - The 96 kHz nulls are dominated by the band above 20 kHz, round the kernel's 24 kHz cutoff, where the kernels
+    differ (`nulltest_wdelay.py --fs 96000 --band 20000` measures below 20 kHz): the delay path −46 … −61 dB below
+    20 kHz, against −28 … −60 dB over the whole band; loops at high Feedback −31 … −44 dB.
 - **Analog** colours the input. Mode 4 is H-Comp's. Modes 1–3 are fitted with WComp's model on H-Delay's own data
   (`nulltest/ident_hd_analog.py`, `fit_hc_analog2.py` with ANALOG_PREFIX=hd), exported by
   `tools/export_wdelay_tables.py`.
-  - Fitted nulls (median over the 54-case probe set): mode 1 −50.2 dB (its low dip fitted as a band-pass at
-    0.7 Hz, Q 0.006, before H1), mode 2 −41.6, mode 3 −41.3 (band-pass 71 Hz, Q 0.41). The quietest probes are
+  - Fitted nulls (median over the 54-case probe set): mode 1 −53.0 dB (refitted in the second round; its low dip
+    as a band-pass before H1), mode 2 −41.6, mode 3 −41.3 (band-pass 71 Hz, Q 0.41). The quietest probes are
     limited by the modes' own noise.
+  - Low-level transfer functions (`nulltest/probe_hd_analog_tf.py`, a multitone at −60 dBFS per tone, Mix 0):
+    modes 1 and 2 agree with the reference to −50 … −85 dB at every frequency. Mode 3 is off by −18 … −40 dB below
+    1 kHz (the reference 1 dB lower below 20 Hz, up to 1 dB higher around 100 Hz), and the ratio is not a smooth
+    filter: mode 3 is still nonlinear at these levels (its single-sine response at −50 dBFS differs from the
+    multitone's), so a correction EQ cannot fix it. It needs a different structure (docs/IMPROVEMENTS.md).
   - Noise with silence in, Mix 0: −102.7 / −85.5 / −106.0 / −108.9 dBFS; independent per channel.
-  - In the null suite: Analog 1 −48 … −51 dB, 2 −51 … −55, 3 −40 … −42 (the noise included), 4 −83 … −90.
+  - In the null suite: Analog 1 −53 … −56 dB, 2 −51 … −55, 3 −40 … −42 (the noise included), 4 −83 … −90.
 - **CPU:** about 1.6 % of one core for stereo at 48 kHz (`WDelayRender`, Feedback 60, Analog 2).

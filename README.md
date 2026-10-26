@@ -33,8 +33,26 @@ The installers are not code-signed or notarized; see [packaging/](packaging) for
 | **WBass** | psychoacoustic bass enhancer (harmonic generator) | ready for the next release: close, not a null (median −36.8 dB, see below) |
 | **WBassX** | psychoacoustic bass enhancer with harmonics compressor, filters and monitor modes | ready for the next release: close, not a null (median −48.5 dB, see below) |
 | **WComp** | hybrid compressor with punch, tempo-synced release, analog modes and limiter | ready for the next release: close, not a null on every material (median −47.0 dB, see below) |
-| **WDelay** | hybrid delay with tape-style time changes, ping-pong, modulation, filters, LoFi and analog modes | in development: the editor and the DSP (Phase 4; null −95 … −104 dB on the delay path, docs/NULL_RESULTS_WDELAY.md) |
+| **WDelay** | hybrid delay with tape-style time changes, ping-pong, modulation, filters, LoFi and analog modes | ready for the next release: nulls on the delay path (−84 … −104 dB), close with modulation and Analog (see below) |
 | WBass Ride, WVox Ride, WVox Chain, WVox Bend | | planned, one at a time |
+
+### WDelay null test (honest numbers)
+
+Residual of WDelay against the reference, lower is better. The delay path nulls: defaults, ms and synced times,
+the filters, Ping Pong from either side and Feedback up to 200 % at **−84 … −104 dB**; modulation at **−61 … −81 dB**;
+the reference's 88 factory presets (each on drums, bass and voice, with its own Analog mode): **median −53.0 dB**.
+
+- Analog modes: mode 4 nulls at −80 … −90 dB; modes 1–3 add random noise as the reference does, which no null can
+  remove, and mode 3's model is the weakest part (about −41 dB).
+- Limits: the slow tail of a glide (−40 … −80 dB while it settles), LoFi (−70 dB), and Feedback above 100 % with the
+  filters on, where the loop self-oscillates chaotically (the preset Fast Siren): such a loop nulls only for its first
+  fraction of a second, in any model short of a bit-exact one. At 96 kHz the audible band nulls at −46 … −61 dB.
+- How: H-Delay's interpolator (a 32-phase Kaiser sinc), its tape glide, the gain stage in the loop, its float
+  triangle LFO, the filters, Ping Pong's routing and every parameter's resolution were identified on the reference
+  by nulling; the Analog modes are fitted models (mode 4 is H-Comp's). Details:
+  [docs/NULL_RESULTS_WDELAY.md](docs/NULL_RESULTS_WDELAY.md),
+  [docs/NULL_RESULTS_WDELAY_PRESETS.md](docs/NULL_RESULTS_WDELAY_PRESETS.md),
+  [MEASUREMENTS.md](MEASUREMENTS.md#wdelay-model-phase-4-identification-2026-10-25).
 
 ### WComp null test (honest numbers)
 

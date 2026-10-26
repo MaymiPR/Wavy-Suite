@@ -156,7 +156,11 @@ float wdelay::atResolution (const char* id, float v)
     const String p (id);
     if (p == delay || p == delayR || p == feedback || p == mix || p == bpm || p == depth || p == hipass || p == lopass) return std::round (v);
     if (p == output) return std::round (v * 10.0f) / 10.0f;
-    if (p == rate) return std::round (v * 100.0f) / 100.0f;
+    if (p == rate)                                                 // three significant digits, at least 0.01 (measured:
+    {                                                              // 3074 acts as 3070, 281.7 as 282, 47.84 as 47.8)
+        const float step = v >= 1000.0f ? 10.0f : v >= 100.0f ? 1.0f : v >= 10.0f ? 0.1f : 0.01f;
+        return std::round (v / step) * step;
+    }
     return v;
 }
 
