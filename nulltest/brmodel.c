@@ -17,7 +17,7 @@ enum {
     BR_OFF, BR_ART, BR_REL_DEPTH, BR_REL_MS, BR_GLIDE,
     BR_SMOOTH, BR_REF_ATT, BR_REF_REL, BR_HP_FC, BR_ILLEGAL,
     BR_ON_RISE, BR_SLOW_ATT, BR_SLOW_REL, BR_MODE, BR_SLOW_REL_FAST,
-    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_HOLD_MIN, BR_WIN_LATCH, BR_FAST, BR_NPARAMS
+    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_HOLD_MIN, BR_WIN_LATCH, BR_FAST, BR_BLOCK_RISE, BR_F_HI, BR_F_LO, BR_GATE_BLOCK, BR_NPARAMS
 };
 
 typedef struct { double b0, b1, b2, a1, a2, z1, z2; } Biquad;
@@ -122,6 +122,9 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
     SMax qs[3]; for (int k = 0; k < 3; ++k) smax_init (&qs[k], qv + k * SMAX_CAP, qt + k * SMAX_CAP, SMAX_CAP);
     const int wlen[3] = { (int) (1024 * fs / 48000.0 + 0.5), (int) (2048 * fs / 48000.0 + 0.5), (int) (4096 * fs / 48000.0 + 0.5) };
     double prevXl = 0.0, period = 0.01 * fs, cyclePos = 0.0, cycleNeg = 0.0, lastN = 0.0; int lastCross = -1, wsel = 0;
+    /* the block level (block rise 1): the highest positive peak of the low-passed input in each block of a quarter
+       of the window, held from the block's end; a rise is read on it */
+    double blockMax = 0.0, Nb = -300.0; int blockPos = 0;
     int inNote = 0, released = 0, relCount = 0, below = 0, settle = 0, under = 0;
     double peakN = -300.0, g = 0.0, minN = 300.0;
     double raw = p[BR_IDLE], out = p[BR_IDLE], gts = p[BR_RMAX];
@@ -151,11 +154,20 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
             const double want = p[BR_PITCH_C] * period;
             /* the window follows the pitch between notes and in a note's attack, then stays for the note (latch 1) */
             if (p[BR_WIN_LATCH] < 0.5 || ! inNote || under < settleN)
-                wsel = want <= wlen[0] ? 0 : (want <= wlen[1] ? 1 : 2);
+            {
+                if (p[BR_F_HI] > 0.0)       /* the windows by pitch band: over f_hi 1024, over f_lo 2048, else 4096 */
+                {
+                    const double fz = fs / period;
+                    wsel = fz > p[BR_F_HI] ? 0 : (fz > p[BR_F_LO] ? 1 : 2);
+                }
+                else wsel = want <= wlen[0] ? 0 : (want <= wlen[1] ? 1 : 2);
+            }
             double m[3];
             for (int k = 0; k < 3; ++k) m[k] = smax_push (&qs[k], i, xl * xl, wlen[k]);
             lastN = m[wsel];
             N = db_pow (m[wsel]);
+            if (xl > blockMax) blockMax = xl;
+            if (++blockPos >= wlen[wsel] / 4) { Nb = 20.0 * log10 (blockMax + 1e-15); blockMax = 0.0; blockPos = 0; }
         }
         else N = db_pow (follow (&Np, dp, cna, cnr));
         const double H = db_pow (follow (&Hp, quad_pow (&qh, bq (&hp, xi)), cna, cnr));
@@ -181,16 +193,19 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
             {
                 /* released: under the slow envelope by the depth for long enough */
                 relCount = N < S - p[BR_REL_DEPTH] ? relCount + 1 : 0;
-                if (relCount >= relN) { released = 1; minN = N; if (p[BR_FAST] >= 0.5) { start = 1; Sl = pow (10.0, N / 10.0); } }   /* Fast: a release re-rides at once, from here */
+                if (relCount >= relN) { released = 1; minN = p[BR_BLOCK_RISE] >= 0.5 ? Nb : N; if (p[BR_FAST] >= 0.5) { start = 1; Sl = pow (10.0, N / 10.0); } }   /* Fast: a release re-rides at once, from here */
                 /* or still sounding: a rising crossing of the slow envelope by the threshold */
                 if (N < S + p[BR_THR_U] - p[BR_HYST]) below = 1;
                 if (! released && below && open && N > S + p[BR_THR_U]) start = 1;
             }
             else
             {
-                /* released: a rise from the lowest since is a new note (within the gates) */
-                if (N < minN) minN = N;
-                if (open && N > minN + p[BR_ON_RISE]) start = 1;
+                /* released: a rise from the lowest since is a new note (within the gates); read on the block level
+                   (block rise 1) or the note level */
+                const double Nr = p[BR_BLOCK_RISE] >= 0.5 ? Nb : N;
+                if (Nr < minN) minN = Nr;
+                const int openR = (p[BR_BLOCK_RISE] >= 0.5 && p[BR_GATE_BLOCK] >= 0.5) ? (Nr > p[BR_FLOOR] && legal && Nr > R - p[BR_ART]) : open;
+                if (openR && Nr > minN + p[BR_ON_RISE]) start = 1;
             }
         }
         if (start) { inNote = 1; released = 0; relCount = 0; below = 0; peakN = N; g = gt; settle = settleN; under = 0; offCount = 0; }

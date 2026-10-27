@@ -1266,3 +1266,32 @@ reference R (a peak follower) has fallen 1.5 dB less than the reference's. The C
 | synthetic part 6 (held out) | -34.3 | 0.123 | 0.468 |
 | synthetic part 7, Fast (held out) | -21.3 | 0.166 | 4.325 |
 | synthetic part 8, range -6 .. +6 (held out) | -28.3 | 0.031 | 2.419 |
+
+### Phase 4, fourth pass: Response Fast and pitch-band re-rides, 2026-10-26
+
+- **Fast re-rides on a pitch change**: a note followed legato by a quieter note is ridden afresh at Response Fast only
+  when the new note is at 40 .. 45 or 80 .. 90 Hz (from 60, 100 and 150 Hz alike; 35, 50 .. 75 and 95 Hz up hold; at
+  Slow the same happens once the drop passes the release depth, e.g. 100 -> 85 Hz 14 dB down). These are the bands
+  just over each window boundary, where a period is longer than a quarter window: the re-attack is read on a block
+  level (the highest positive peak in each quarter-window block), which wobbles there, and any rise after a release
+  counts (the fitted threshold is 0.002 dB). The model reproduces the map but for 35 Hz (it re-rides, the reference
+  does not).
+- **Window bands** set by pitch, measured: 1024 samples over 172 Hz, 2048 over 78 Hz, 4096 under.
+- **The block level also gates** the re-attack against the long reference (a ghost after a gap no longer passes on
+  the windowed level still holding the note before).
+- **Open**: two overlapping notes beating (a 4 dB rise) are not a new note in the reference, though they are here.
+- **The null now**:
+
+| case | residual (dB) | gain error median (dB) | 90 % (dB) |
+|---|---|---|---|
+| steady 80 Hz -20 dBFS | -42.3 | 0.067 | 0.067 |
+| steps 1 kHz | -48.6 | 0.029 | 0.030 |
+| bass line | -30.6 | 0.062 | 0.171 |
+| bass line, Target -24 | -30.4 | 0.063 | 0.220 |
+| bass line, Sensitivity 80 | -27.7 | 0.218 | 0.646 |
+| bass line, Artifacts 20 | -30.7 | 0.062 | 0.204 |
+| synthetic part 6 (held out) | -33.2 | 0.074 | 0.536 |
+| synthetic part 7, Fast (held out) | -21.1 | 0.169 | 1.961 |
+| synthetic part 8, range -6 .. +6 (held out) | -34.1 | 0.007 | 0.378 |
+
+  Fresh synthetic parts (seeds 13, 14 Fast, 15 Sensitivity 75, from the gain traces): -18.7 / -20.1 / -17.0 dB.

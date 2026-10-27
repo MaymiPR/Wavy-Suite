@@ -11,9 +11,10 @@
 //   the level read: E = 10 log10 of the analytic envelope's power of the input through a low shelf (31.35 Hz, -28.9 dB,
 //                   Q 0.51), followed 2 ms up / 100 ms down; the law: Target - E + 0.68 dB, clamped to the range
 //   the detector:   the note level N, the peak of the input low-passed near 1 kHz over the last 1024 / 2048 / 4096
-//                   samples (at 48 kHz; the window picked by the pitch: the shortest spanning ~3.5 periods, as the
-//                   reference's timings step with pitch), the envelope of the band over 2 kHz (an illegal note), and
-//                   two peak followers of N: a long reference R and a slow envelope S
+//                   samples (at 48 kHz; the window by pitch band, over 172 / 78 Hz, as the reference's timings step
+//                   with pitch), a block level (the peak in each quarter window, for re-attacks), the envelope of the
+//                   band over 2 kHz (an illegal note), and two peak followers of N: a long reference R and a slow
+//                   envelope S
 //   a note:         starts over the floor, legal and within the Artifacts gate under R (for a moment
 //                   after a note has ended: legal and within 38 dB of its peak); while it rises over S (and for a
 //                   moment after) the gain follows the law, then it holds; it is released when it stays under S
@@ -67,7 +68,7 @@ public:
     {
         shelf.clear(); lp.clear(); hp.clear(); qe.clear(); qh.clear();
         for (auto& w : win) w.clear();
-        prevXl = 0.0; period = 0.01 * fs; lastCross = -1; now = 0; cyclePos = cycleNeg = lastNp = 0.0;
+        prevXl = 0.0; period = 0.01 * fs; lastCross = -1; now = 0; cyclePos = cycleNeg = lastNp = 0.0; blockMax = 0.0; Nb = -300.0; blockPos = 0;
         P = Np = Hp = Rf = Sl = 0.0;
         inNote = released = below = false; relCount = under = offCount = 0; sinceOff = 1 << 30;
         peakN = -300.0; minN = 300.0; g = 0.0; raw = out = idleNow; energy = -300.0;
@@ -90,12 +91,18 @@ public:
             lastCross = now; cyclePos = cycleNeg = 0.0;
         }
         prevXl = xl;
-        const double want = pitchPeriods * period;
+        // the window by pitch band (measured: 1024 samples over 172 Hz, 2048 over 78 Hz, 4096 under)
+        const double fz = fs / period;
+        const int wsel = fz > bandHi ? 0 : (fz > bandLo ? 1 : 2);
         double m[3];
         for (int w = 0; w < 3; ++w) m[w] = win[w].push (now, xl * xl);
         ++now;
-        const double np = want <= win[0].length ? m[0] : (want <= win[1].length ? m[1] : m[2]);
+        const double np = m[wsel];
         lastNp = np;
+        // the block level: the highest positive peak in each block of a quarter of the window, held from its end (it
+        // wobbles where a period is longer than a block: the reference's re-rides just over each band's edge)
+        blockMax = std::max (blockMax, xl);
+        if (++blockPos >= win[wsel].length / 4) { Nb = 20.0 * std::log10 (blockMax + 1.0e-15); blockMax = 0.0; blockPos = 0; }
         const double N = db (np);
         const double H = db (follow (Hp, qh.power (hp.process (x)), cna, cnr));
         const double R = db (peak (Rf, np, cra, krr));
@@ -113,15 +120,16 @@ public:
             else if (! released)
             {
                 relCount = N < S - releaseDepth (s) ? relCount + 1 : 0;
-                if (relCount >= relN) { released = true; minN = N; }
+                if (relCount >= relN) { released = true; minN = Nb; }
                 const double thr = onThreshold (s);
                 if (N < S + thr - hyst) below = true;
                 if (! released && below && open && N > S + thr) start = true;
             }
             else
             {
-                minN = std::min (minN, N);
-                if (open && N > minN + onRise) start = true;
+                minN = std::min (minN, Nb);                    // (a rise is read, and gated, on the block level)
+                const bool openB = Nb > floorDb && H < N && Nb > R - (20.0 - 0.17 * s.artifacts);
+                if (openB && Nb > minN + onRise) start = true;
             }
         }
         if (start) { inNote = true; released = below = false; relCount = under = offCount = 0; peakN = N; g = gt; }
@@ -141,11 +149,11 @@ public:
     double energy = -300.0;          // the level read (dB), what the Energy meter shows
 
     // the note detector's constants (nulltest/br_fit.py, measurements/wbassrider/detector_fit.json; br_export.py)
-    double slowAtt = 16.9039, slowRel = 1132.0171, refRel = 5449.6525, hyst = 0.0142, relMs = 4.2350, holdMs = 68.6612, onRise = 1.9455,
-           pitchPeriods = 3.3000, offMs = 20.2554, offRelMs = 11.2688, winMs = 8.9094, floorDb = -48.75;
+    double slowAtt = 24.6083, slowRel = 935.7370, refRel = 5282.5319, hyst = 0.0029, relMs = 1.0433, holdMs = 64.5301, onRise = 0.0051,
+           bandHi = 172.0, bandLo = 78.0, offMs = 27.9549, offRelMs = 6.8865, winMs = 1.2121, floorDb = -48.75;
     // at Sensitivity 0 .. 100 by 25: the rise over S that is a new note, and the margin over S that keeps the attack
-    double onThr[5] { 1.5004, 1.0169, 2.9563, 2.1331, -2.0923 }, margin[5] { 2.3209, 1.2145, 1.3010, 1.4667, -1.5680 };
-    double depthSlow[5] { 12.8979, 12.2184, 12.1950, 5.1859, 0.4790 }, depthFast[5] { 4.3095, 1.2090, 4.9238, 5.2127, 0.1640 };
+    double onThr[5] { 2.1744, 1.6697, 3.7672, 2.4820, -1.0506 }, margin[5] { 2.0318, 1.8026, 1.2982, 0.8393, -0.9482 };
+    double depthSlow[5] { 10.5448, 10.6038, 12.9173, 12.7777, 0.5545 }, depthFast[5] { 6.9591, 1.3578, 3.0453, 3.9933, 0.0425 };
 
 private:
     struct Biquad
@@ -236,7 +244,8 @@ private:
     Biquad shelf, lp, hp;
     Quad qe, qh;
     SlidingMax win[3];
-    double prevXl = 0.0, period = 480.0, cyclePos = 0.0, cycleNeg = 0.0, lastNp = 0.0;
+    double prevXl = 0.0, period = 480.0, cyclePos = 0.0, cycleNeg = 0.0, lastNp = 0.0, blockMax = 0.0, Nb = -300.0;
+    int blockPos = 0;
     long long lastCross = -1, now = 0;
     double cpa = 0, cpr = 0, cna = 0, cnr = 0, cra = 0, krr = 0, csa = 0, ksr = 0, csm = 0, glide = 0;
     int relN = 0, holdN = 0, offN = 0, offRelN = 0, winN = 0, sinceOff = 1 << 30;
