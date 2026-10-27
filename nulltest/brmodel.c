@@ -17,7 +17,7 @@ enum {
     BR_OFF, BR_ART, BR_REL_DEPTH, BR_REL_MS, BR_GLIDE,
     BR_SMOOTH, BR_REF_ATT, BR_REF_REL, BR_HP_FC, BR_ILLEGAL,
     BR_ON_RISE, BR_SLOW_ATT, BR_SLOW_REL, BR_MODE, BR_SLOW_REL_FAST,
-    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_HOLD_MIN, BR_WIN_LATCH, BR_FAST, BR_BLOCK_RISE, BR_F_HI, BR_F_LO, BR_GATE_BLOCK, BR_ATT_MODE, BR_F_ATT, BR_F_REL, BR_BAND_HYST, BR_HOLD_LATCH, BR_REL_REF, BR_PITCH_LP, BR_ATT_MIN, BR_ATT_SRC, BR_LOCK, BR_LOCK_THR, BR_SENS_IN, BR_FAST_IN, BR_NPARAMS
+    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_HOLD_MIN, BR_WIN_LATCH, BR_FAST, BR_BLOCK_RISE, BR_F_HI, BR_F_LO, BR_GATE_BLOCK, BR_ATT_MODE, BR_F_ATT, BR_F_REL, BR_BAND_HYST, BR_HOLD_LATCH, BR_REL_REF, BR_PITCH_LP, BR_ATT_MIN, BR_ATT_SRC, BR_LOCK, BR_LOCK_THR, BR_SENS_IN, BR_FAST_IN, BR_REL_RESET, BR_RR_BAND, BR_RR_LO1, BR_RR_HI1, BR_RR_LO2, BR_RR_HI2, BR_RR_DEPTH, BR_NPARAMS
 };
 
 typedef struct { double b0, b1, b2, a1, a2, z1, z2; } Biquad;
@@ -159,7 +159,7 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
     /* the block level (block rise 1): the highest positive peak of the low-passed input in each block of a quarter
        of the window, held from the block's end; a rise is read on it */
     double blockMax = 0.0, Nb = -300.0; int blockPos = 0;
-    int inNote = 0, released = 0, relCount = 0, below = 0, settle = 0, under = 0;
+    int inNote = 0, released = 0, relCount = 0, below = 0, settle = 0, under = 0, rrCount = 0;
     double peakN = -300.0, g = 0.0, minN = 300.0, Nh = 300.0;
     /* the learned lock's state: 1 ms histories of E and N, the note's start and peaks */
     const int lkStep = (int) (fs / 1000.0 + 0.5); double lkE[64] = { 0 }, lkN[64] = { 0 }; int lkPos = 0, lkSince = 0;
@@ -240,31 +240,48 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
                was still sounding, at once if it had been released */
             offCount = (N < peakN - p[BR_OFF] || N < p[BR_FLOOR] - 3.0) ? offCount + 1 : 0;
             if (offCount > (released ? offRelN : offN)) { inNote = 0; sinceOff = 0; }
-            else if (! released)
-            {
-                /* released: under the slow envelope by the depth for long enough */
-                /* (rel ref 1: under the level where the gain was held, by the depth; S until it holds) */
-                const double Sr = (p[BR_REL_REF] >= 0.5 && under >= settleN) ? Nh : S;
-                relCount = N < Sr - p[BR_REL_DEPTH] ? relCount + 1 : 0;
-                if (relCount >= relN) { released = 1; minN = p[BR_BLOCK_RISE] >= 0.5 ? Nb : N; if (p[BR_FAST] >= 0.5) { start = 1; Sl = pow (10.0, N / 10.0); } }   /* Fast: a release re-rides at once, from here */
-                /* or still sounding: a rising crossing of the slow envelope by the threshold */
-                if (N < S + p[BR_THR_U] - p[BR_HYST]) below = 1;
-                if (! released && below && open && N > S + p[BR_THR_U]) start = 1;
-            }
             else
             {
-                /* released: a rise from the lowest since is a new note (within the gates); read on the block level
-                   (block rise 1) or the note level */
-                const double Nr = p[BR_BLOCK_RISE] >= 0.5 ? Nb : N;
-                if (Nr < minN) minN = Nr;
-                const int openR = (p[BR_BLOCK_RISE] >= 0.5 && p[BR_GATE_BLOCK] >= 0.5) ? (Nr > p[BR_FLOOR] && legal && Nr > R - p[BR_ART]) : open;
-                if (openR && Nr > minN + p[BR_ON_RISE]) start = 1;
+                /* (rr band 1: a release at a pitch in either band re-rides at once, from here; elsewhere it waits for a rise;
+                   2: so at Response Fast only; 3: and once the gain holds; 4: as 3, but at its own depth under S, rr_depth,
+                   whatever the release depth, released or not, within the gates; 5: as 4, at the release depth where that is deeper) */
+                const double fz = fs / period;
+                const int inBand = (p[BR_RR_BAND] >= 1.5 ? p[BR_FAST_IN] >= 0.5 : p[BR_RR_BAND] >= 0.5) && (p[BR_RR_BAND] < 2.5 || under >= settleN)
+                                   && ((fz >= p[BR_RR_LO1] && fz <= p[BR_RR_HI1]) || (fz >= p[BR_RR_LO2] && fz <= p[BR_RR_HI2]));
+                if (p[BR_RR_BAND] >= 3.5)
+                {
+                    rrCount = (inBand && open && N < S - (p[BR_RR_BAND] >= 4.5 ? fmax (p[BR_RR_DEPTH], p[BR_REL_DEPTH]) : p[BR_RR_DEPTH])) ? rrCount + 1 : 0;
+                    if (rrCount >= relN) { start = 1; Sl = pow (10.0, N / 10.0); rrCount = 0; }
+                }
+                if (! released)
+                {
+                    /* released: under the slow envelope by the depth for long enough */
+                    /* (rel ref 1: under the level where the gain was held, by the depth; S until it holds) */
+                    const double Sr = (p[BR_REL_REF] >= 0.5 && under >= settleN) ? Nh : S;
+                    relCount = N < Sr - p[BR_REL_DEPTH] ? relCount + 1 : 0;
+                    if (relCount >= relN) { released = 1; minN = p[BR_BLOCK_RISE] >= 0.5 ? Nb : N; if (p[BR_FAST] >= 0.5 || (inBand && p[BR_RR_BAND] < 3.5)) { start = 1; Sl = pow (10.0, N / 10.0); } }   /* Fast: a release re-rides at once, from here */
+                    /* or still sounding: a rising crossing of the slow envelope by the threshold */
+                    if (N < S + p[BR_THR_U] - p[BR_HYST]) below = 1;
+                    if (! released && below && open && N > S + p[BR_THR_U]) start = 1;
+                }
+                else
+                {
+                    /* released: a rise from the lowest since is a new note (within the gates); read on the block level
+                       (block rise 1) or the note level */
+                    const double Nr = p[BR_BLOCK_RISE] >= 0.5 ? Nb : N;
+                    if (Nr < minN) minN = Nr;
+                    const int openR = (p[BR_BLOCK_RISE] >= 0.5 && p[BR_GATE_BLOCK] >= 0.5) ? (Nr > p[BR_FLOOR] && legal && Nr > R - p[BR_ART]) : open;
+                    if (openR && Nr > minN + p[BR_ON_RISE]) start = 1;
+                }
             }
         }
         if (++lkSince >= lkStep) { lkSince = 0; lkPos = (lkPos + 1) & 63; lkE[lkPos] = E; lkN[lkPos] = N; }
         if (start)
         {
-            inNote = 1; released = 0; relCount = 0; below = 0; peakN = N; g = gt; settle = settleN; under = 0; offCount = 0;
+            /* (rel reset 1: a released note ridden afresh starts its slow envelope from here, so the next release needs a
+               new drop by the depth) */
+            if (p[BR_REL_RESET] >= 0.5 && inNote && released) Sl = pow (10.0, N / 10.0);
+            inNote = 1; released = 0; relCount = 0; rrCount = 0; below = 0; peakN = N; g = gt; settle = settleN; under = 0; offCount = 0;
             locked = 0; lkFollow = 1; lkHeld = 0; startAt = i; peakE = E; Estart = E; Ebefore = lkE[(lkPos - 10) & 63];
             while (schedPtr < lk_nsched && lk_sched[2 * schedPtr] < i) ++schedPtr;
             schedLock = (schedPtr < lk_nsched && lk_sched[2 * schedPtr] == i) ? lk_sched[2 * schedPtr + 1] : -2;

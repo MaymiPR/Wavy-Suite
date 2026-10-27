@@ -19,7 +19,8 @@
 //                   after a note has ended: legal and within 38 dB of its peak); while it stays over F less a margin
 //                   (Sensitivity; and for a moment after) the gain follows the law, then it holds (a slow fade is
 //                   followed throughout); it is released when it stays under S
-//                   by a depth (Response, Sensitivity) for a while, and a rise from there is a new note, as is (still
+//                   by a depth (Response, Sensitivity) for a while, and a rise from there (Sensitivity) is a new note
+//                   (at Response Fast, 39 .. 47 Hz, a held note 4.4 dB under S is ridden afresh at once), as is (still
 //                   sounding) a rise over S by a threshold (Sensitivity); it ends when it stays 38 dB under its peak, and
 //                   the gain glides to the Idle value at 32 dB/s, held where it is while an ignored note sounds
 namespace wbassrider
@@ -71,7 +72,7 @@ public:
         for (auto& w : win) w.clear();
         prevXl = 0.0; period = 0.01 * fs; lastCross = -1; now = 0; cyclePos = cycleNeg = lastNp = 0.0; blockMax = 0.0; Nb = -300.0; blockPos = 0;
         P = Np = Hp = Rf = Sl = Fp = 0.0;
-        inNote = released = below = false; relCount = under = offCount = 0; sinceOff = 1 << 30;
+        inNote = released = below = false; relCount = under = offCount = reRideCount = 0; sinceOff = 1 << 30;
         peakN = -300.0; minN = 300.0; g = 0.0; raw = out = idleNow; energy = -300.0;
     }
 
@@ -119,22 +120,30 @@ public:
             peakN = std::max (peakN, N);
             offCount = (N < peakN - 38.0 || N < floorDb - 3.0) ? offCount + 1 : 0;
             if (offCount > (released ? offRelN : offN)) { inNote = false; sinceOff = 0; }   // (a released note: its own delay)
-            else if (! released)
-            {
-                relCount = N < S - releaseDepth (s) ? relCount + 1 : 0;
-                if (relCount >= relN) { released = true; minN = Nb; }
-                const double thr = onThreshold (s);
-                if (N < S + thr - hyst) below = true;
-                if (! released && below && open && N > S + thr) start = true;
-            }
             else
             {
-                minN = std::min (minN, Nb);                    // (a rise is read, and gated, on the block level)
-                const bool openB = Nb > floorDb && H < N && Nb > R - (20.0 - 0.17 * s.artifacts);
-                if (openB && Nb > minN + onRise) start = true;
+                // at Response Fast (Sensitivity 50 and up), a held note just over the 4096-sample window's edge is ridden
+                // afresh once it is reRideDepth under S, released or not, within the gates (its slow envelope restarts)
+                const bool band = s.fast && s.sensitivity >= 37.5 && under >= holdN && fz >= reRideLo && fz <= reRideHi;
+                reRideCount = (band && open && N < S - reRideDepth) ? reRideCount + 1 : 0;
+                if (reRideCount >= relN) { start = true; Sl = np; reRideCount = 0; }
+                if (! released)
+                {
+                    relCount = N < S - releaseDepth (s) ? relCount + 1 : 0;
+                    if (relCount >= relN) { released = true; minN = Nb; }
+                    const double thr = onThreshold (s);
+                    if (N < S + thr - hyst) below = true;
+                    if (! released && below && open && N > S + thr) start = true;
+                }
+                else
+                {
+                    minN = std::min (minN, Nb);                    // (a rise is read, and gated, on the block level)
+                    const bool openB = Nb > floorDb && H < N && Nb > R - (20.0 - 0.17 * s.artifacts);
+                    if (openB && Nb > minN + bySensitivity (onRise, s.sensitivity)) start = true;
+                }
             }
         }
-        if (start) { inNote = true; released = below = false; relCount = under = offCount = 0; peakN = N; g = gt; }
+        if (start) { inNote = true; released = below = false; relCount = under = offCount = reRideCount = 0; peakN = N; g = gt; }
         else if (inNote)
         {
             under = N > F + bySensitivity (margin, s.sensitivity) ? 0 : under + 1;
@@ -151,11 +160,12 @@ public:
     double energy = -300.0;          // the level read (dB), what the Energy meter shows
 
     // the note detector's constants (nulltest/br_fit.py, measurements/wbassrider/detector_fit.json; br_export.py)
-    double slowAtt = 8.9595, slowRel = 1278.0703, refRel = 5678.4626, hyst = 0.0033, relMs = 1.1049, holdMs = 67.3689, onRise = 0.0030,
-           followAtt = 6.5472, followRel = 365.3028, bandHi = 172.0, bandLo = 78.0, offMs = 27.0968, offRelMs = 7.0273, winMs = 1.1054, floorDb = -48.75;
-    // at Sensitivity 0 .. 100 by 25: the rise over S that is a new note, and the margin over F that keeps the attack
-    double onThr[5] { 1.3976, 0.4913, 1.4605, 3.2098, -0.8084 }, margin[5] { 1.5000, 1.9344, 0.2314, 0.0099, -0.8320 };
-    double depthSlow[5] { 12.7293, 12.7678, 13.0000, 12.1833, 6.1958 }, depthFast[5] { 4.6770, 5.7842, 4.3622, 4.0200, 3.6643 };
+    double slowAtt = 8.9595, slowRel = 1278.0703, refRel = 5678.4626, hyst = 0.0033, relMs = 1.1049, holdMs = 67.3689,
+           followAtt = 6.5472, followRel = 365.3028, bandHi = 172.0, bandLo = 78.0, reRideLo = 39.0000, reRideHi = 47.0000, reRideDepth = 4.4, offMs = 27.0968, offRelMs = 7.0273, winMs = 1.1054, floorDb = -48.75;
+    // at Sensitivity 0 .. 100 by 25: the rise over S that is a new note, the margin over F that keeps the attack, and a
+    // released note's rise that is a new note
+    double onThr[5] { 1.3976, 0.4913, 1.4605, 3.2098, -0.8084 }, margin[5] { 1.5000, 1.9344, 0.2314, 0.0099, -0.8320 }, onRise[5] { 3.5000, 1.5000, 3.5625, 1.0000, 1.0500 };
+    double depthSlow[5] { 12.7293, 12.7678, 13.0000, 12.1833, 6.1958 }, depthFast[5] { 7.7170, 7.5918, 4.3622, 4.0200, 3.6643 };
 
 private:
     struct Biquad
@@ -253,7 +263,7 @@ private:
     int relN = 0, holdN = 0, offN = 0, offRelN = 0, winN = 0, sinceOff = 1 << 30;
     double P = 0, Np = 0, Hp = 0, Rf = 0, Sl = 0, Fp = 0;
     bool inNote = false, released = false, below = false;
-    int relCount = 0, under = 0, offCount = 0;
+    int relCount = 0, under = 0, offCount = 0, reRideCount = 0;
     double peakN = -300.0, minN = 300.0, g = 0.0, raw = 0.0, out = 0.0, idleNow = 0.0;
 };
 }

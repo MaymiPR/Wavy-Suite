@@ -61,6 +61,7 @@ def main():
             r = residual(x, gm, gr, ok); table[s].append(r); row.append('%6.1f' % r)
             if events:
                 er, em = ride_starts(gr, ok), ride_starts(gm, ok)
+                er, em = er[er < len(x) - 2400], em[em < len(x) - 2400]
                 miss = [e for e in er if not len(em) or np.min(np.abs(em - e)) > 720]
                 extra = [e for e in em if not len(er) or np.min(np.abs(er - e)) > 720]
                 env = 10 * np.log10(np.convolve(x.astype(float) ** 2, np.ones(960) / 960, 'same') * 2 + 1e-30)

@@ -136,7 +136,7 @@ def part(k, secs=12.0):
     scale = [0, 2, 3, 5, 7, 8, 10, 12, -2, -5]
     style = rng.choice(['staccato', 'legato', 'ring', 'mixed'])
     n = int(secs * FS); out = np.zeros(n + 2 * FS); t = 0.15
-    desc = dict(voice=voice, bpm=round(float(bpm), 1), style=str(style))
+    desc = dict(voice=voice, bpm=round(float(bpm), 1), style=str(style)); notes = []
     while t < secs - 0.3:
         if rng.random() < 0.12: t += step * int(rng.integers(1, 4)); continue          # a rest
         length = step * int(rng.choice([1, 1, 2, 2, 3, 4, 6, 8]))
@@ -150,10 +150,11 @@ def part(k, secs=12.0):
         m = min(len(x), int(keep * FS) + int(0.015 * FS), len(out) - i0)
         env = np.ones(m); fade = int(0.012 * FS); env[-fade:] = np.linspace(1, 0, fade) if m > fade else env[-fade:]
         out[i0:i0 + m] += x[:m] * env * 10 ** (vel / 20)
+        notes.append((round(t, 6), midi, round(float(vel), 2), str(st), round(keep, 6)))
         t += length
     y = out[:n]
     y *= 10 ** (rng.uniform(-18, -6) / 20) / (np.max(np.abs(y)) + 1e-12)
-    desc['peak_dbfs'] = round(float(20 * np.log10(np.max(np.abs(y)))), 1)
+    desc['peak_dbfs'] = round(float(20 * np.log10(np.max(np.abs(y)))), 1); desc['notes'] = notes   # (onset s, midi, vel dB, style, kept s)
     return y.astype(np.float32), desc
 
 
@@ -161,4 +162,4 @@ if __name__ == '__main__':
     if not os.path.exists(os.path.join(CACHE, 'index.json')): decode()
     for k in list(TRAIN) + list(HELD):
         x, d = part(k)
-        print('part %2d %-5s %s  rms %.1f dBFS' % (k, 'train' if k in TRAIN else 'held', json.dumps(d), 10 * np.log10(np.mean(x.astype(float) ** 2) + 1e-20)), flush=True)
+        print('part %2d %-5s %s  rms %.1f dBFS' % (k, 'train' if k in TRAIN else 'held', json.dumps({a: b for a, b in d.items() if a != 'notes'}), 10 * np.log10(np.mean(x.astype(float) ** 2) + 1e-20)), flush=True)

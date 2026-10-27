@@ -94,6 +94,19 @@ def probes():
                     for X in (1, 2, 3, 4.5, 6, 8):
                         add([('gap', 0, 0, 0.2), ('ramp', -16, -16 - r * T, T, 100.0), ('ramp', -16 - r * T + X, -16 - r * 2.0 + X, 2.0 - T, 100.0)],
                             [0.2 + T - 0.1, 0.2 + T + 0.11], response=resp, sensitivity=sens, target=-20.0)
+    # a released note ridden afresh without a rise (Response Fast): plain decays from silence re-ride at the release just
+    # above the 4096-sample window's boundary (40 .. 48 Hz), and not elsewhere; read until shortly before the note ends
+    def rr_read(r): return [t for t in (0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.80, 0.90, 1.00, 1.10) if t < 0.15 + 34.0 / r]
+    for f in (36.0, 40.0, 42.0, 44.0, 46.0, 48.0, 50.0, 55.0, 69.0, 80.0, 85.0, 88.0, 92.0, 130.0, 176.0):
+        for r in (20, 30):
+            add([('gap', 0, 0, 0.2), ('ramp', -8, -8 - r * 1.6, 1.6, f)], rr_read(r), response='Fast')
+    for sens in (0.0, 100.0):
+        for f in (42.0, 46.0, 85.0):
+            for r in (20, 30, 45):
+                add([('gap', 0, 0, 0.2), ('ramp', -8, -8 - r * 1.6, 1.6, f)], rr_read(r), response='Fast', sensitivity=sens)
+    for f in (42.0, 55.0):
+        for r in (30, 45):
+            add([('gap', 0, 0, 0.2), ('ramp', -8, -8 - r * 1.6, 1.6, f)], rr_read(r))
     return P
 
 

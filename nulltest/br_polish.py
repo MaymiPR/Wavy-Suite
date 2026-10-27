@@ -3,8 +3,8 @@ threshold and attack margin (Sensitivity) on a grid around its value, keeping th
 probes and traces it changes). The narrow valleys between the detector's thresholds (a note released or not) are
 what the CMA-ES steps over.
 
-    python -I br_polish.py [passes] [globals]   updates measurements/wbassrider/detector_fit.json (globals: the global
-                                                 values too, on the whole cost)
+    python -I br_polish.py [passes] [globals[=a,b]]   updates measurements/wbassrider/detector_fit.json (globals: the
+                                                       global values too, or those named, on the whole cost)
 A value moves only for a gain over MIN_GAIN (smaller gains are noise that costs held-out material).
 """
 import sys, os
@@ -35,24 +35,25 @@ def part_cost(g, td, PI, TI, CI):
     return float(sum(pe)) + F.TW * float(sum(te)) + F.CW * float(sum(ce))
 
 
-def grid(kind, v):
-    if kind in ('depth', 'global'): return sorted(set([v] + [v * f for f in (0.5, 0.7, 0.8, 0.9, 0.95, 1.05, 1.1, 1.25, 1.5, 2.0)]))
+def grid(kind, v, name=None):
+    if name in ('rr_lo1', 'rr_hi1'): return sorted(set([v] + [v + d for d in (-3.0, -2.0, -1.0, -0.5, 0.5, 1.0, 2.0, 3.0)]))
+    if kind in ('depth', 'global', 'rise'): return sorted(set([v] + [v * f for f in (0.5, 0.7, 0.8, 0.9, 0.95, 1.05, 1.1, 1.25, 1.5, 2.0)]))
     return sorted(set([v] + [v + d for d in (-1.0, -0.5, -0.25, -0.1, -0.05, 0.05, 0.1, 0.25, 0.5, 1.0)]))
 
 
-def main(passes, with_globals=False):
+def main(passes, with_globals=False, names=None):
     g, td = F.load_fit()
-    thr, depth, margin = td
-    keys = ([('global', n) for n, _, _ in F.GLOBAL] if with_globals else []) + [('depth', k) for k in F.SETTINGS]         + [('thr_u', s) for s in F.SENS] + [('margin', s) for s in F.SENS]
+    thr, depth, margin, rise = td
+    keys = ([('global', n) for n, _, _ in F.GLOBAL if not names or n in names] if with_globals else []) + [('depth', k) for k in F.SETTINGS]         + [('thr_u', s) for s in F.SENS] + [('margin', s) for s in F.SENS] + [('rise', s) for s in F.SENS]
     ALL = (list(range(len(F.PROBES))), list(range(len(F.TRACES))), list(range(len(F.CORPUS))))
     for n in range(passes):
         moved = 0
         for key in keys:
             kind, k = key
-            table = {'depth': depth, 'thr_u': thr, 'margin': margin, 'global': g}[kind]
+            table = {'depth': depth, 'thr_u': thr, 'margin': margin, 'rise': rise, 'global': g}[kind]
             PI, TI, CI = ALL if kind == 'global' else items(td, key)
             v0 = table[k]; base = part_cost(g, td, PI, TI, CI); best = (base, v0)
-            for v in grid(kind, v0):
+            for v in grid(kind, v0, k if kind == 'global' else None):
                 if v == v0: continue
                 table[k] = v; c = part_cost(g, td, PI, TI, CI)
                 if c < best[0] - (MIN_GAIN if best[1] == v0 else 1e-6): best = (c, v)
@@ -67,4 +68,5 @@ def main(passes, with_globals=False):
 
 
 if __name__ == '__main__':
-    main(int(sys.argv[1]) if len(sys.argv) > 1 else 3, len(sys.argv) > 2 and sys.argv[2] == 'globals')
+    a = sys.argv[2] if len(sys.argv) > 2 else ''
+    main(int(sys.argv[1]) if len(sys.argv) > 1 else 3, a.startswith('globals'), a.split('=')[1].split(',') if '=' in a else None)

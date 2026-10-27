@@ -1391,3 +1391,65 @@ reference R (a peak follower) has fallen 1.5 dB less than the reference's. The C
     -24.7 -> -26.1, Sensitivity 75 -21.6 -> -23.5, Artifacts 85 -21.1 -> -24.2, Target -24 -23.2 -> -24.3, Fast
     unchanged, Sensitivity 100 -22.0 -> -21.5, Fast 100 -23.7 -> -22.8; the original bass line loses ~6 dB at Fast
     0 / 25 (-30 -> -24). Not adopted: no clear win, and the plug-in keeps the rule.
+
+### Phase 4, seventh pass: which notes Response Fast rides afresh, 2026-10-27
+
+- **Where the error is**: on the corpus at Fast the decisions at a note's onset are mostly right (ridden or not on
+  93 % of 616 notes), but re-rides inside a note are not: the reference re-rides 74 times away from any onset, the
+  model 97 times, and only 22 coincide (`nulltest/br_corpus_eval.py --events` and per-note tables). The model re-rode
+  on every small wobble of a released note (a rise of 0.003 dB counted), in chains (its slow envelope stays up, so a
+  re-ridden decaying note is released again within a millisecond), where the reference holds through plain decays.
+- **Plain decays from silence** (`nulltest/br_probes.py`, 52 new probes; sines decaying 10 .. 45 dB/s at 34 .. 198 Hz,
+  Response Fast at Sensitivity 0 / 50 / 100 and Slow): the reference re-rides inside a smooth decay only at 40 .. 48 Hz
+  (and 85 .. 88 Hz at some rates and Sensitivities), never at 34 .. 38, 50 .. 80, 90 .. 198 Hz. At 40 .. 44 Hz the
+  re-ride comes exactly when the note is released (within +-7 ms of the model's release, at Fast 0 / 50 / 100: the
+  note 4.3 .. 4.8 dB under S), 12 .. 30 ms later at 46 .. 48 Hz, 30 .. 90 ms later at 85 .. 88 Hz (5.0 .. 5.6 dB under
+  S). Elsewhere a released note needs a real rise: the decay-and-step probes (200 Hz) put it at 3 .. 4.5 dB at
+  Sensitivity 0, 2 .. 3 at 50, 1 .. 2 at 100.
+- **What else separates the cases**: the 10 dB/s decays reach the depth only once the note is more than the Artifacts gap
+  under the long reference R (no re-ride: the gate applies); and the bass line's 42 Hz note at 5.15 s is ridden afresh
+  at Fast 50 / 75 / 100 (the reference's gain to +12 dB) but not at Fast 0 / 25, as the 20 dB/s probe at Fast 0 is not.
+- **Modelled** (`brmodel.c` `rr_band` 4, the plug-in's `reRide*`): at Response Fast and Sensitivity 50 and up, a held
+  note at a pitch in 39 .. 47 Hz is ridden afresh once it is 4.4 dB under S for the release time, released or not,
+  within the gates, and S restarts from the note; elsewhere a released note's rise on the block level must pass a
+  threshold by Sensitivity (`on_rise`, fitted 3.5 / 1.5 / 3.6 / 1.0 / 1.05 dB at 0 .. 100; it was 0.003 dB everywhere).
+  The Fast release depths at Sensitivity 0 / 25 are now 7.7 / 7.6 dB (were 4.7 / 5.8). Refit with `br_polish.py` on
+  the probes, traces and the training corpus; of its moves only these were kept: the attack margins, rise thresholds
+  over S and Slow depths it also moved (up to 1.5 dB, Slow 100's depth 6.2 -> 12.4) won 2 .. 3 dB on the training
+  parts but lost 1 .. 2 dB on held-out ones (Artifacts 85 -21.1 -> -18.9, Target -24 -23.2 -> -21.6, Fast 100 -1.3).
+- **The corpus** (median residual, held-out / training parts, dB):
+
+| setting | before | now |
+|---|---|---|
+| Fast | -20.0 / -13.6 | -22.0 / -14.8 |
+| Fast 25 | -18.4 / -13.6 | -19.6 / -19.0 |
+| Fast 100 | -23.7 / -17.2 | -23.7 / -17.6 |
+| Sensitivity 100 | -22.0 / -15.1 | -22.0 / -16.5 |
+| default, Sensitivity 0 / 75, Artifacts 15 / 85, Target -24 | | unchanged |
+
+  The probe cost (1148 probes) is 819 against 1014 before. The worst held-out part at Fast (part 33, an 80s pick bass
+  ringing at 139 .. 156 Hz) goes from -6.1 to -19.5 dB.
+- **The bass line through the plug-in, every Sensitivity x Response** (residual, dB): Slow -30.2 / -30.6 / -30.2 /
+  -28.0 / -25.3, Fast -30.3 / -30.5 / -29.3 / -28.0 / -26.2 at 0 / 25 / 50 / 75 / 100 (fifth pass: Fast 50 -30.3,
+  75 -28.5, 100 -26.6). The C++ matches the model to 0.08 dB at 99 % (`check_wbassrider_port.py`, now also on a 42 Hz
+  decay at Fast and a corpus part at Fast 25).
+- **Not solved**: counted as events, the re-rides inside notes still mostly disagree on real bass (at Fast 20 of the
+  reference's 74 coincide with the model's 89): the pure-sine rule is right, but on the corpus most of the reference's
+  re-rides come from something these probes do not show (overlapping ringing notes ending, real notes' wobble at
+  pitches outside the band). Also open: the band at 85 .. 88 Hz (re-rides 30 .. 90 ms after the release, at some rates
+  and Sensitivities only), the reference's second re-ride in a long 42 Hz decay (20 .. 40 % sooner than the model's:
+  its slow envelope seems to hold after a re-ride), and the end of a fading note (about 42 dB under its peak in the
+  reference, 38 in the model: ~60 ms later). Synthetic part 7 at Fast loses 2 dB (-21.1 -> -19.0).
+- **The null now**:
+
+| case | residual (dB) | gain error median (dB) | 90 % (dB) |
+|---|---|---|---|
+| steady 80 Hz -20 dBFS | -41.5 | 0.074 | 0.074 |
+| steps 1 kHz | -48.6 | 0.029 | 0.030 |
+| bass line | -30.2 | 0.073 | 0.160 |
+| bass line, Target -24 | -30.2 | 0.103 | 0.200 |
+| bass line, Sensitivity 80 | -28.1 | 0.196 | 0.622 |
+| bass line, Artifacts 20 | -30.3 | 0.103 | 0.185 |
+| synthetic part 6 (held out) | -34.5 | 0.097 | 0.388 |
+| synthetic part 7, Fast (held out) | -19.0 | 0.131 | 1.874 |
+| synthetic part 8, range -6 .. +6 (held out) | -34.5 | 0.050 | 0.347 |
