@@ -1453,3 +1453,43 @@ reference R (a peak follower) has fallen 1.5 dB less than the reference's. The C
 | synthetic part 6 (held out) | -34.5 | 0.097 | 0.388 |
 | synthetic part 7, Fast (held out) | -19.0 | 0.131 | 1.874 |
 | synthetic part 8, range -6 .. +6 (held out) | -34.5 | 0.050 | 0.347 |
+
+### Phase 4, eighth pass: a released note's rise, and drops onto lower notes, 2026-10-27
+
+- **Where the error on real bass is**: per 10 ms block, 66 .. 77 % of the corpus's error energy is both sides holding
+  more than 1 dB apart, and 81 .. 99 % of that follows a different ride decision (not a different lock on the same
+  ride). On the sampled basses (not the 808, saw and swell voices) at Fast and Sensitivity 100, 66 % of it followed a
+  re-ride the model took inside a note and the reference did not; every such re-ride came from a released note's rise
+  read on the block level (the peak of each quarter window), which jumps with a real note's harmonics and phase.
+- **The rise is read on the note level N** (`block_rise` 0; the 4th pass's reason for the block level, re-rides at
+  40 .. 45 Hz, is now the band rule), **gated on the block level** (`gate_block` 2: a quiet note right after a gap,
+  while N still holds the note before, stays out; reading the gate on N too lost 3 dB on synthetic part 6). Rise
+  thresholds re-polished: 2.45 / 1.88 / 1.78 / 1.00 / 1.87 dB at Sensitivity 0 .. 100 (the decay-and-step probes:
+  3 .. 4.5 / 2 .. 3 / 1 .. 2).
+- **Legato drops at Fast** (64 new probes: a held note at 55 or 100 Hz, then one at 41 .. 130 Hz, 6 .. 20 dB lower)
+  and **overlapping notes** (A fading, B from 0.8 s at another pitch, -6 .. +4 dB, A stopping at 1.6 s; scratch probes):
+  - at 41 Hz every drop re-rides, 20 dB under the long reference too: the band re-ride is not gated by Artifacts
+    (`rr_band` 6, legal only);
+  - from 100 Hz onto 50 .. 78 Hz (the window doubles) a deep enough drop re-rides (10 dB at 78 Hz, 14 at 69, 20 at
+    50 / 62), always moving the gain +3.0 .. 3.3 dB; from 55 Hz onto 50 .. 78 Hz never. And at 90 Hz, from both,
+    +0.7 .. 3 dB. Neither is modelled yet;
+  - when the louder of two overlapping notes stops, the quieter one left is ridden afresh if it is lower in pitch
+    (100 -> 69 / 41, 55 -> 41, 78 -> 41 Hz) and not if higher.
+- **The corpus** (median residual, held-out / training, dB; before = the seventh pass):
+
+| setting | before | now |
+|---|---|---|
+| default | -24.7 / -23.6 | -24.7 / -23.6 |
+| Fast | -22.0 / -14.8 | -24.0 / -19.6 |
+| Fast 25 | -19.6 / -19.0 | -19.6 / -19.4 |
+| Fast 100 | -23.7 / -17.6 | -23.2 / -18.5 |
+| Sensitivity 100 | -22.0 / -16.5 | -22.9 / -18.3 |
+| Artifacts 15 | -23.6 / -23.6 | -24.7 / -23.6 |
+| Sensitivity 0 / 75, Artifacts 85, Target -24 | | within 0.1 |
+
+  Re-rides inside notes at Fast: the model's 89 -> 59, of which 24 match the reference's 74 (was 20); on the sampled
+  basses the model's false re-rides now carry 9 % of the held error at Fast (was 66 %); what remains is mostly
+  re-rides the reference takes and the model does not (at onsets 49 %, inside notes 33 %).
+- **The bass line through the plug-in**: Slow -30.2 / -30.6 / -30.2 / -28.0 / -25.3, Fast -30.3 / -30.5 / -29.3 /
+  -28.0 / -26.2 at Sensitivity 0 .. 100 (unchanged). The C++ matches the model to 0.08 dB at 99 %. The null table as
+  in the seventh pass but synthetic part 7, Fast -18.8 dB (was -19.0).

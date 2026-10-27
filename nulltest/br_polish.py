@@ -45,6 +45,7 @@ def main(passes, with_globals=False, names=None):
     g, td = F.load_fit()
     thr, depth, margin, rise = td
     keys = ([('global', n) for n, _, _ in F.GLOBAL if not names or n in names] if with_globals else []) + [('depth', k) for k in F.SETTINGS]         + [('thr_u', s) for s in F.SENS] + [('margin', s) for s in F.SENS] + [('rise', s) for s in F.SENS]
+    if os.environ.get('KINDS'): keys = [kk for kk in keys if kk[0] in os.environ['KINDS'].split(',')]
     ALL = (list(range(len(F.PROBES))), list(range(len(F.TRACES))), list(range(len(F.CORPUS))))
     for n in range(passes):
         moved = 0

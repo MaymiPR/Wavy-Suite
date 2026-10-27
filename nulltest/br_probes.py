@@ -107,6 +107,12 @@ def probes():
     for f in (42.0, 55.0):
         for r in (30, 45):
             add([('gap', 0, 0, 0.2), ('ramp', -8, -8 - r * 1.6, 1.6, f)], rr_read(r))
+    # legato drops at Response Fast: a held note, then one at another pitch d dB lower (the band's re-rides are not gated
+    # by Artifacts; a drop into a longer window re-rides once it is deep enough)
+    for f1 in (55.0, 100.0):
+        for f2 in (41.0, 50.0, 62.0, 69.0, 78.0, 90.0, 110.0, 130.0):
+            for d in (6, 10, 14, 20):
+                add([('hold', -6, 0, 0.6, f1), ('hold', -6 - d, 0, 1.0, f2)], [0.5, 0.75, 0.9, 1.1, 1.4], response='Fast')
     return P
 
 

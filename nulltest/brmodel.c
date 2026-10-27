@@ -250,7 +250,7 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
                                    && ((fz >= p[BR_RR_LO1] && fz <= p[BR_RR_HI1]) || (fz >= p[BR_RR_LO2] && fz <= p[BR_RR_HI2]));
                 if (p[BR_RR_BAND] >= 3.5)
                 {
-                    rrCount = (inBand && open && N < S - (p[BR_RR_BAND] >= 4.5 ? fmax (p[BR_RR_DEPTH], p[BR_REL_DEPTH]) : p[BR_RR_DEPTH])) ? rrCount + 1 : 0;
+                    rrCount = (inBand && (p[BR_RR_BAND] >= 5.5 ? legal : open) && N < S - ((p[BR_RR_BAND] >= 4.5 && p[BR_RR_BAND] < 5.5) ? fmax (p[BR_RR_DEPTH], p[BR_REL_DEPTH]) : p[BR_RR_DEPTH])) ? rrCount + 1 : 0;
                     if (rrCount >= relN) { start = 1; Sl = pow (10.0, N / 10.0); rrCount = 0; }
                 }
                 if (! released)
@@ -270,7 +270,7 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
                        (block rise 1) or the note level */
                     const double Nr = p[BR_BLOCK_RISE] >= 0.5 ? Nb : N;
                     if (Nr < minN) minN = Nr;
-                    const int openR = (p[BR_BLOCK_RISE] >= 0.5 && p[BR_GATE_BLOCK] >= 0.5) ? (Nr > p[BR_FLOOR] && legal && Nr > R - p[BR_ART]) : open;
+                    const int openR = ((p[BR_BLOCK_RISE] >= 0.5 && p[BR_GATE_BLOCK] >= 0.5) || p[BR_GATE_BLOCK] >= 1.5) ? (Nb > p[BR_FLOOR] && legal && Nb > R - p[BR_ART]) : open;   /* (gate block 2: the gate on the block level, the rise on either) */
                     if (openR && Nr > minN + p[BR_ON_RISE]) start = 1;
                 }
             }

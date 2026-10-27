@@ -12,15 +12,16 @@
 //                   Q 0.51), followed 2 ms up / 100 ms down; the law: Target - E + 0.68 dB, clamped to the range
 //   the detector:   the note level N, the peak of the input low-passed near 1 kHz over the last 1024 / 2048 / 4096
 //                   samples (at 48 kHz; the window by pitch band, over 172 / 78 Hz, as the reference's timings step
-//                   with pitch), a block level (the peak in each quarter window, for re-attacks), the envelope of the
-//                   band over 2 kHz (an illegal note), two peak followers of N: a long reference R and a slow
+//                   with pitch), a block level (the peak in each quarter window, which gates re-attacks), the
+//                   envelope of the band over 2 kHz (an illegal note), two peak followers of N: a long reference R and a slow
 //                   envelope S, and a one-pole follower F of N (which lags a decaying note by a bounded amount)
 //   a note:         starts over the floor, legal and within the Artifacts gate under R (for a moment
 //                   after a note has ended: legal and within 38 dB of its peak); while it stays over F less a margin
 //                   (Sensitivity; and for a moment after) the gain follows the law, then it holds (a slow fade is
 //                   followed throughout); it is released when it stays under S
 //                   by a depth (Response, Sensitivity) for a while, and a rise from there (Sensitivity) is a new note
-//                   (at Response Fast, 39 .. 47 Hz, a held note 4.4 dB under S is ridden afresh at once), as is (still
+//                   (at Response Fast and Sensitivity 50 and up, 39 .. 47 Hz, a held note 4.4 dB under S is ridden
+//                   afresh at once, ungated), as is (still
 //                   sounding) a rise over S by a threshold (Sensitivity); it ends when it stays 38 dB under its peak, and
 //                   the gain glides to the Idle value at 32 dB/s, held where it is while an ignored note sounds
 namespace wbassrider
@@ -101,8 +102,8 @@ public:
         ++now;
         const double np = m[wsel];
         lastNp = np;
-        // the block level: the highest positive peak in each block of a quarter of the window, held from its end (it
-        // wobbles where a period is longer than a block: the reference's re-rides just over each band's edge)
+        // the block level: the highest positive peak in each block of a quarter of the window, held from its end; a
+        // released note's rise is gated on it (a quiet note right after a gap, while N still holds the note before)
         blockMax = std::max (blockMax, xl);
         if (++blockPos >= win[wsel].length / 4) { Nb = 20.0 * std::log10 (blockMax + 1.0e-15); blockMax = 0.0; blockPos = 0; }
         const double N = db (np);
@@ -123,23 +124,24 @@ public:
             else
             {
                 // at Response Fast (Sensitivity 50 and up), a held note just over the 4096-sample window's edge is ridden
-                // afresh once it is reRideDepth under S, released or not, within the gates (its slow envelope restarts)
+                // afresh once it is reRideDepth under S, released or not, legal (no floor, no Artifacts gate; its slow
+                // envelope restarts)
                 const bool band = s.fast && s.sensitivity >= 37.5 && under >= holdN && fz >= reRideLo && fz <= reRideHi;
-                reRideCount = (band && open && N < S - reRideDepth) ? reRideCount + 1 : 0;
+                reRideCount = (band && H < N && N < S - reRideDepth) ? reRideCount + 1 : 0;
                 if (reRideCount >= relN) { start = true; Sl = np; reRideCount = 0; }
                 if (! released)
                 {
                     relCount = N < S - releaseDepth (s) ? relCount + 1 : 0;
-                    if (relCount >= relN) { released = true; minN = Nb; }
+                    if (relCount >= relN) { released = true; minN = N; }
                     const double thr = onThreshold (s);
                     if (N < S + thr - hyst) below = true;
                     if (! released && below && open && N > S + thr) start = true;
                 }
                 else
                 {
-                    minN = std::min (minN, Nb);                    // (a rise is read, and gated, on the block level)
+                    minN = std::min (minN, N);
                     const bool openB = Nb > floorDb && H < N && Nb > R - (20.0 - 0.17 * s.artifacts);
-                    if (openB && Nb > minN + bySensitivity (onRise, s.sensitivity)) start = true;
+                    if (openB && N > minN + bySensitivity (onRise, s.sensitivity)) start = true;
                 }
             }
         }
@@ -164,7 +166,7 @@ public:
            followAtt = 6.5472, followRel = 365.3028, bandHi = 172.0, bandLo = 78.0, reRideLo = 39.0000, reRideHi = 47.0000, reRideDepth = 4.4, offMs = 27.0968, offRelMs = 7.0273, winMs = 1.1054, floorDb = -48.75;
     // at Sensitivity 0 .. 100 by 25: the rise over S that is a new note, the margin over F that keeps the attack, and a
     // released note's rise that is a new note
-    double onThr[5] { 1.3976, 0.4913, 1.4605, 3.2098, -0.8084 }, margin[5] { 1.5000, 1.9344, 0.2314, 0.0099, -0.8320 }, onRise[5] { 3.5000, 1.5000, 3.5625, 1.0000, 1.0500 };
+    double onThr[5] { 1.3976, 0.4913, 1.4605, 3.2098, -0.8084 }, margin[5] { 1.5000, 1.9344, 0.2314, 0.0099, -0.8320 }, onRise[5] { 2.4500, 1.8750, 1.7812, 1.0000, 1.8703 };
     double depthSlow[5] { 12.7293, 12.7678, 13.0000, 12.1833, 6.1958 }, depthFast[5] { 7.7170, 7.5918, 4.3622, 4.0200, 3.6643 };
 
 private:
