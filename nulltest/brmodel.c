@@ -17,7 +17,7 @@ enum {
     BR_OFF, BR_ART, BR_REL_DEPTH, BR_REL_MS, BR_GLIDE,
     BR_SMOOTH, BR_REF_ATT, BR_REF_REL, BR_HP_FC, BR_ILLEGAL,
     BR_ON_RISE, BR_SLOW_ATT, BR_SLOW_REL, BR_MODE, BR_SLOW_REL_FAST,
-    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_HOLD_MIN, BR_WIN_LATCH, BR_FAST, BR_BLOCK_RISE, BR_F_HI, BR_F_LO, BR_GATE_BLOCK, BR_ATT_MODE, BR_F_ATT, BR_F_REL, BR_BAND_HYST, BR_HOLD_LATCH, BR_REL_REF, BR_PITCH_LP, BR_ATT_MIN, BR_ATT_SRC, BR_NPARAMS
+    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_HOLD_MIN, BR_WIN_LATCH, BR_FAST, BR_BLOCK_RISE, BR_F_HI, BR_F_LO, BR_GATE_BLOCK, BR_ATT_MODE, BR_F_ATT, BR_F_REL, BR_BAND_HYST, BR_HOLD_LATCH, BR_REL_REF, BR_PITCH_LP, BR_ATT_MIN, BR_ATT_SRC, BR_LOCK, BR_LOCK_THR, BR_SENS_IN, BR_FAST_IN, BR_NPARAMS
 };
 
 typedef struct { double b0, b1, b2, a1, a2, z1, z2; } Biquad;
@@ -98,6 +98,38 @@ static double smax_push (SMax* q, int now, double x, int w)
 
 __declspec(dllexport) int br_nparams (void) { return BR_NPARAMS; }
 
+/* the learned lock (lock 1): a small network on the detector's state, evaluated every millisecond of a note's attack;
+   the gain holds (until the next note) once its output passes the threshold. Lock 2 holds at given moments instead
+   (an oracle, for checking the labels), and a dump collects the inputs of every attack millisecond for training. */
+#define LK_IN 19
+#define LK_MAXH 64
+static double lk_w1[LK_MAXH * LK_IN], lk_b1[LK_MAXH], lk_w2[LK_MAXH], lk_b2 = 0.0; static int lk_h = 0;
+__declspec(dllexport) int br_lock_inputs (void) { return LK_IN; }
+__declspec(dllexport) void br_set_lock_net (int h, const double* w1, const double* b1, const double* w2, double b2)
+{
+    lk_h = h < LK_MAXH ? h : LK_MAXH;
+    for (int j = 0; j < lk_h * LK_IN; ++j) lk_w1[j] = w1[j];
+    for (int j = 0; j < lk_h; ++j) { lk_b1[j] = b1[j]; lk_w2[j] = w2[j]; }
+    lk_b2 = b2;
+}
+static double lk_eval (const double* f)
+{
+    double z = lk_b2;
+    for (int j = 0; j < lk_h; ++j)
+    {
+        double a = lk_b1[j];
+        for (int q = 0; q < LK_IN; ++q) a += lk_w1[j * LK_IN + q] * f[q];
+        z += lk_w2[j] * tanh (a);
+    }
+    return z;
+}
+/* (the oracle's schedule: pairs of a start's sample and its lock's sample, -1 for never; other starts use the rule) */
+static const int* lk_sched = 0; static int lk_nsched = 0;
+__declspec(dllexport) void br_set_lock_schedule (const int* t, int npairs) { lk_sched = t; lk_nsched = npairs; }
+static double* lk_dump = 0; static int lk_dmax = 0, lk_dn = 0;
+__declspec(dllexport) void br_set_lock_dump (double* buf, int maxframes) { lk_dump = buf; lk_dmax = maxframes; lk_dn = 0; }
+__declspec(dllexport) int br_lock_dumped (void) { return lk_dn; }
+
 __declspec(dllexport) void br_run (const float* x, int n, double fs, const double* p, float* gain, float* trace)
 {
     Biquad shelf, lp, hp;
@@ -129,6 +161,9 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
     double blockMax = 0.0, Nb = -300.0; int blockPos = 0;
     int inNote = 0, released = 0, relCount = 0, below = 0, settle = 0, under = 0;
     double peakN = -300.0, g = 0.0, minN = 300.0, Nh = 300.0;
+    /* the learned lock's state: 1 ms histories of E and N, the note's start and peaks */
+    const int lkStep = (int) (fs / 1000.0 + 0.5); double lkE[64] = { 0 }, lkN[64] = { 0 }; int lkPos = 0, lkSince = 0;
+    int locked = 0, startAt = -1, schedPtr = 0, schedLock = -2, lkFollow = 1, lkHeld = 0; double peakE = -300.0, Estart = -300.0, Ebefore = -300.0;
     double raw = p[BR_IDLE], out = p[BR_IDLE], gts = p[BR_RMAX];
     for (int i = 0; i < n; ++i)
     {
@@ -226,7 +261,14 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
                 if (openR && Nr > minN + p[BR_ON_RISE]) start = 1;
             }
         }
-        if (start) { inNote = 1; released = 0; relCount = 0; below = 0; peakN = N; g = gt; settle = settleN; under = 0; offCount = 0; }
+        if (++lkSince >= lkStep) { lkSince = 0; lkPos = (lkPos + 1) & 63; lkE[lkPos] = E; lkN[lkPos] = N; }
+        if (start)
+        {
+            inNote = 1; released = 0; relCount = 0; below = 0; peakN = N; g = gt; settle = settleN; under = 0; offCount = 0;
+            locked = 0; lkFollow = 1; lkHeld = 0; startAt = i; peakE = E; Estart = E; Ebefore = lkE[(lkPos - 10) & 63];
+            while (schedPtr < lk_nsched && lk_sched[2 * schedPtr] < i) ++schedPtr;
+            schedLock = (schedPtr < lk_nsched && lk_sched[2 * schedPtr] == i) ? lk_sched[2 * schedPtr + 1] : -2;
+        }
         else if (inNote)
         {
             /* the attack (the note over its slow envelope, which is still rising): the gain follows the law; then it
@@ -236,7 +278,42 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
                 under = Na > (p[BR_ATT_MODE] >= 0.5 ? Fa : S) + p[BR_THR_A] ? 0 : under + 1;
             if (under == settleN) Nh = N;                /* the level where the hold began */
             /* (att min 1: in the attack the gain only follows the law down, to its lowest) */
-            if (under < settleN) g = (p[BR_ATT_MIN] >= 0.5 && gt > g) ? g : gt;   /* (BR_SETTLE: how long under it before the hold, ms) */
+            if (E > peakE) peakE = E;
+            const int since = i - startAt;
+            /* the rule's own test, before its decision (an input of the learned one) */
+            const int ruleUnder = under;
+            if ((since % lkStep) == 0 && since / lkStep <= (p[BR_LOCK] >= 2.5 ? 1000 : 400) && (lk_dump || p[BR_LOCK] >= 0.5))
+            {
+                /* the lock's inputs, every millisecond of the attack */
+                const int k = since / lkStep; double f[LK_IN];
+                f[0] = k / 100.0; f[1] = log1p ((double) k) / 5.0; f[2] = (N - peakN) / 6.0; f[3] = (E - peakE) / 6.0;
+                f[4] = (E - Estart) / 10.0; f[5] = (N - Fa) / 6.0; f[6] = (N - S) / 6.0; f[7] = (E - lkE[(lkPos - 5) & 63]) / 3.0;
+                f[8] = (E - lkE[(lkPos - 20) & 63]) / 6.0; f[9] = (N - lkN[(lkPos - 10) & 63]) / 6.0; f[10] = p[BR_SENS_IN] / 100.0;
+                f[11] = p[BR_FAST_IN]; f[12] = wsel / 2.0; f[13] = (N - R) / 10.0; f[14] = (peakE - Ebefore) / 20.0; f[15] = (N + 25.0) / 15.0;
+                f[16] = ruleUnder < settleN ? 1.0 : 0.0; f[17] = fmin (ruleUnder, 4 * settleN) / (double) settleN / 4.0;
+                f[18] = (Na - (p[BR_ATT_MODE] >= 0.5 ? Fa : S) - p[BR_THR_A]) / 6.0;
+                if (lk_dump && lk_dn < lk_dmax) { double* d = lk_dump + (LK_IN + 2) * lk_dn++; d[0] = i; d[1] = k; for (int q = 0; q < LK_IN; ++q) d[2 + q] = f[q]; }
+                if (p[BR_LOCK] >= 0.5 && p[BR_LOCK] < 1.5 && ! locked && lk_h > 0 && lk_eval (f) > p[BR_LOCK_THR]) locked = 1;
+                if (p[BR_LOCK] >= 2.5 && lk_h > 0)
+                {
+                    /* (lock 3: follow or hold, every ms; once it has held, it follows again only where the rule does too) */
+                    const int want = lk_eval (f) > p[BR_LOCK_THR];
+                    if (! want) lkHeld = 1;
+                    lkFollow = want && (! lkHeld || p[BR_LOCK] >= 3.5 || ruleUnder < settleN);
+                }
+            }
+            if (p[BR_LOCK] >= 1.5 && schedLock != -2)
+            {
+                if (! locked && schedLock >= 0 && i >= schedLock) locked = 1;
+                if (! locked) g = gt;
+            }
+            else if (p[BR_LOCK] >= 0.5 && p[BR_LOCK] < 1.5) { if (! locked) g = gt; }
+            else if (p[BR_LOCK] >= 2.5)
+            {
+                if (since / lkStep > 1000) lkFollow = ruleUnder < settleN;   /* (after a second: the rule) */
+                if (lkFollow) g = gt;
+            }
+            else if (under < settleN) g = (p[BR_ATT_MIN] >= 0.5 && gt > g) ? g : gt;   /* (BR_SETTLE: how long under it before the hold, ms) */
             else if (p[BR_HOLD_MIN] >= 0.5 && gt < g) g = gt;   /* (hold_min 1: the hold only goes down; 0: constant) */
         }
         if (inNote)

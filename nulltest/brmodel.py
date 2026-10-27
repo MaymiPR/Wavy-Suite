@@ -13,12 +13,12 @@ _lib.br_run.argtypes = [ctypes.POINTER(ctypes.c_float), ctypes.c_int, ctypes.c_d
                         ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float)]
 NAMES = ['target', 'rmin', 'rmax', 'idle', 'c0', 'sh_fc', 'sh_g', 'sh_q', 'pb_att', 'pb_rel', 'lp_fc', 'lp_q', 'n_att', 'n_rel',
          'floor', 'off', 'art', 'rel_depth', 'rel_ms', 'glide', 'smooth', 'ref_att', 'ref_rel', 'hp_fc', 'illegal', 'on_rise',
-         'slow_att', 'slow_rel', 'mode', 'slow_rel_fast', 'thr_u', 'thr_a', 'hyst', 'settle', 'off_ms', 'win_ms', 'off_rel_ms', 'nmode', 'pitch_c', 'hold_min', 'win_latch', 'fast', 'block_rise', 'f_hi', 'f_lo', 'gate_block', 'att_mode', 'f_att', 'f_rel', 'band_hyst', 'hold_latch', 'rel_ref', 'pitch_lp', 'att_min', 'att_src']
+         'slow_att', 'slow_rel', 'mode', 'slow_rel_fast', 'thr_u', 'thr_a', 'hyst', 'settle', 'off_ms', 'win_ms', 'off_rel_ms', 'nmode', 'pitch_c', 'hold_min', 'win_latch', 'fast', 'block_rise', 'f_hi', 'f_lo', 'gate_block', 'att_mode', 'f_att', 'f_rel', 'band_hyst', 'hold_latch', 'rel_ref', 'pitch_lp', 'att_min', 'att_src', 'lock', 'lock_thr', 'sens_in', 'fast_in']
 assert len(NAMES) == _lib.br_nparams()
 DEFAULTS = dict(target=-14.0, rmin=-12.0, rmax=12.0, idle=0.0, c0=0.68, sh_fc=31.35, sh_g=-28.90, sh_q=0.5075, pb_att=2.0,
                 pb_rel=100.0, lp_fc=1020.0, lp_q=0.60, n_att=1.0, n_rel=1.0, floor=-48.75, off=38.0, art=11.5, rel_depth=12.4,
                 rel_ms=21.0, glide=32.0, smooth=5.0, ref_att=1.0, ref_rel=5000.0, hp_fc=2000.0, illegal=0.0, on_rise=0.3,
-                slow_att=30.0, slow_rel=1000.0, mode=0.0, slow_rel_fast=0.0, thr_u=1.25, thr_a=0.05, hyst=0.3, settle=20.0, off_ms=60.0, win_ms=75.0, off_rel_ms=60.0, nmode=1.0, pitch_c=3.3, hold_min=0.0, win_latch=0.0, fast=0.0, block_rise=1.0, f_hi=172.0, f_lo=78.0, gate_block=1.0, att_mode=1.0, f_att=2.0, f_rel=100.0, band_hyst=0.0, hold_latch=0.0, rel_ref=0.0, pitch_lp=0.0, att_min=0.0, att_src=0.0)
+                slow_att=30.0, slow_rel=1000.0, mode=0.0, slow_rel_fast=0.0, thr_u=1.25, thr_a=0.05, hyst=0.3, settle=20.0, off_ms=60.0, win_ms=75.0, off_rel_ms=60.0, nmode=1.0, pitch_c=3.3, hold_min=0.0, win_latch=0.0, fast=0.0, block_rise=1.0, f_hi=172.0, f_lo=78.0, gate_block=1.0, att_mode=1.0, f_att=2.0, f_rel=100.0, band_hyst=0.0, hold_latch=0.0, rel_ref=0.0, pitch_lp=0.0, att_min=0.0, att_src=0.0, lock=0.0, lock_thr=0.0, sens_in=50.0, fast_in=0.0)
 FS = 48000
 LOOKAHEAD = {False: 2016, True: 240}      # samples at 48 kHz: 42 ms, Live 5 ms
 
@@ -33,7 +33,7 @@ def release_depth(response, sensitivity):
 def params(artifacts=50.0, sensitivity=50.0, response='Slow', target=-14.0, range_min=-12.0, range_max=12.0, idle=0.0, **raw):
     p = dict(DEFAULTS)
     p.update(target=target, rmin=range_min, rmax=range_max, idle=idle, art=20.0 - 0.17 * artifacts,
-             rel_depth=release_depth(response, sensitivity) - 0.1)
+             rel_depth=release_depth(response, sensitivity) - 0.1, sens_in=float(sensitivity), fast_in=1.0 if response.strip() == 'Fast' else 0.0)
     p.update(raw)
     return p
 

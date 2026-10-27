@@ -1376,3 +1376,18 @@ reference R (a peak follower) has fallen 1.5 dB less than the reference's. The C
   improves the held-out corpus at Fast 25 (-18.4 -> -23.5), Sensitivity 0 (-24.4 -> -27.1) and 100 (-21.8 -> -22.7)
   and removes the worst cases (Fast worst -6.1 -> -13.4), but loses the original bass line at Fast (-30 -> -16 dB: one
   release at 5.16 s whose outcome flips on tiny parameter changes) and ~1 .. 3 dB on the synthetic seeds.
+- **A learned lock** (`nulltest/br_lock.py`; brmodel.c lock modes, off by default). Labels: on each note the model
+  starts and the reference rides, the reference's lock is where our law last meets the value it then holds. The
+  model writes its detector state every attack millisecond (19 inputs: time since the start, N and E against their
+  peaks and followers, slopes, window, Sensitivity, Response, the rule's own test); the lock does not feed back into
+  them, so they are exact.
+  - The ceiling (an oracle locking at the labelled moments, training corpus): default -23.6 -> -26.5, Sensitivity 0
+    -23.3 -> -28.6, Artifacts / Target settings +1 .. +3 dB, but Fast, Fast 25 and Sensitivity 100 barely gain (there
+    the reference rarely holds 30 ms between notes: the error is which notes are ridden, not when they lock).
+  - A one-shot lock network (hazard per millisecond) is worse than the rule everywhere: its lock times miss by a
+    median 10 .. 15 ms, mean ~40 ms, and it cannot resume following.
+  - A follow / hold network every millisecond (16 hidden units; 93.0 % of held-out milliseconds right against the
+    rule's 87.8 %; after its first hold it follows again only where the rule does) on the held-out corpus: default
+    -24.7 -> -26.1, Sensitivity 75 -21.6 -> -23.5, Artifacts 85 -21.1 -> -24.2, Target -24 -23.2 -> -24.3, Fast
+    unchanged, Sensitivity 100 -22.0 -> -21.5, Fast 100 -23.7 -> -22.8; the original bass line loses ~6 dB at Fast
+    0 / 25 (-30 -> -24). Not adopted: no clear win, and the plug-in keeps the rule.
