@@ -13,11 +13,12 @@
 //   the detector:   the note level N, the peak of the input low-passed near 1 kHz over the last 1024 / 2048 / 4096
 //                   samples (at 48 kHz; the window by pitch band, over 172 / 78 Hz, as the reference's timings step
 //                   with pitch), a block level (the peak in each quarter window, for re-attacks), the envelope of the
-//                   band over 2 kHz (an illegal note), and two peak followers of N: a long reference R and a slow
-//                   envelope S
+//                   band over 2 kHz (an illegal note), two peak followers of N: a long reference R and a slow
+//                   envelope S, and a one-pole follower F of N (which lags a decaying note by a bounded amount)
 //   a note:         starts over the floor, legal and within the Artifacts gate under R (for a moment
-//                   after a note has ended: legal and within 38 dB of its peak); while it rises over S (and for a
-//                   moment after) the gain follows the law, then it holds; it is released when it stays under S
+//                   after a note has ended: legal and within 38 dB of its peak); while it stays over F less a margin
+//                   (Sensitivity; and for a moment after) the gain follows the law, then it holds (a slow fade is
+//                   followed throughout); it is released when it stays under S
 //                   by a depth (Response, Sensitivity) for a while, and a rise from there is a new note, as is (still
 //                   sounding) a rise over S by a threshold (Sensitivity); it ends when it stays 38 dB under its peak, and
 //                   the gain glides to the Idle value at 32 dB/s, held where it is while an ignored note sounds
@@ -54,7 +55,7 @@ public:
         lp.lowPass (fs, 1020.0, 0.60);
         hp.highPass (fs, 2000.0, 0.7071);
         cpa = coef (2.0); cpr = coef (100.0); cna = coef (1.0); cnr = coef (1.0); cra = coef (1.0); krr = decay (refRel);
-        csa = coef (slowAtt); ksr = decay (slowRel); csm = coef (5.0);
+        csa = coef (slowAtt); ksr = decay (slowRel); csm = coef (5.0); cfa = coef (followAtt); cfr = coef (followRel);
         glide = 32.0 / fs;
         relN = (int) std::lround (relMs * 1.0e-3 * fs);
         holdN = (int) std::lround (holdMs * 1.0e-3 * fs);
@@ -69,7 +70,7 @@ public:
         shelf.clear(); lp.clear(); hp.clear(); qe.clear(); qh.clear();
         for (auto& w : win) w.clear();
         prevXl = 0.0; period = 0.01 * fs; lastCross = -1; now = 0; cyclePos = cycleNeg = lastNp = 0.0; blockMax = 0.0; Nb = -300.0; blockPos = 0;
-        P = Np = Hp = Rf = Sl = 0.0;
+        P = Np = Hp = Rf = Sl = Fp = 0.0;
         inNote = released = below = false; relCount = under = offCount = 0; sinceOff = 1 << 30;
         peakN = -300.0; minN = 300.0; g = 0.0; raw = out = idleNow; energy = -300.0;
     }
@@ -107,6 +108,7 @@ public:
         const double H = db (follow (Hp, qh.power (hp.process (x)), cna, cnr));
         const double R = db (peak (Rf, np, cra, krr));
         const double S = db (peak (Sl, np, csa, ksr));
+        const double F = db (follow (Fp, np, cfa, cfr));
         const bool open = N > floorDb && H < N && N > R - (20.0 - 0.17 * s.artifacts);
         bool start = false;
         // for a moment after a note ends, any legal note within 38 dB of its peak is a new note (no floor, no Artifacts
@@ -135,7 +137,7 @@ public:
         if (start) { inNote = true; released = below = false; relCount = under = offCount = 0; peakN = N; g = gt; }
         else if (inNote)
         {
-            under = N > S + bySensitivity (margin, s.sensitivity) ? 0 : under + 1;
+            under = N > F + bySensitivity (margin, s.sensitivity) ? 0 : under + 1;
             if (under < holdN) g = gt;                     // (then the gain holds where it is, whatever the level does)
         }
         if (inNote) raw = std::clamp (g, s.rangeMin, s.rangeMax);
@@ -149,11 +151,11 @@ public:
     double energy = -300.0;          // the level read (dB), what the Energy meter shows
 
     // the note detector's constants (nulltest/br_fit.py, measurements/wbassrider/detector_fit.json; br_export.py)
-    double slowAtt = 24.6083, slowRel = 935.7370, refRel = 5282.5319, hyst = 0.0029, relMs = 1.0433, holdMs = 64.5301, onRise = 0.0051,
-           bandHi = 172.0, bandLo = 78.0, offMs = 27.9549, offRelMs = 6.8865, winMs = 1.2121, floorDb = -48.75;
-    // at Sensitivity 0 .. 100 by 25: the rise over S that is a new note, and the margin over S that keeps the attack
-    double onThr[5] { 2.1744, 1.6697, 3.7672, 2.4820, -1.0506 }, margin[5] { 2.0318, 1.8026, 1.2982, 0.8393, -0.9482 };
-    double depthSlow[5] { 10.5448, 10.6038, 12.9173, 12.7777, 0.5545 }, depthFast[5] { 6.9591, 1.3578, 3.0453, 3.9933, 0.0425 };
+    double slowAtt = 8.9595, slowRel = 1278.0703, refRel = 5678.4626, hyst = 0.0033, relMs = 1.1049, holdMs = 67.3689, onRise = 0.0030,
+           followAtt = 6.5472, followRel = 365.3028, bandHi = 172.0, bandLo = 78.0, offMs = 27.0968, offRelMs = 7.0273, winMs = 1.1054, floorDb = -48.75;
+    // at Sensitivity 0 .. 100 by 25: the rise over S that is a new note, and the margin over F that keeps the attack
+    double onThr[5] { 1.3976, 0.4913, 1.4605, 3.2098, -0.8084 }, margin[5] { 1.5000, 1.9344, 0.2314, 0.0099, -0.8320 };
+    double depthSlow[5] { 12.7293, 12.7678, 13.0000, 12.1833, 6.1958 }, depthFast[5] { 4.6770, 5.7842, 4.3622, 4.0200, 3.6643 };
 
 private:
     struct Biquad
@@ -247,9 +249,9 @@ private:
     double prevXl = 0.0, period = 480.0, cyclePos = 0.0, cycleNeg = 0.0, lastNp = 0.0, blockMax = 0.0, Nb = -300.0;
     int blockPos = 0;
     long long lastCross = -1, now = 0;
-    double cpa = 0, cpr = 0, cna = 0, cnr = 0, cra = 0, krr = 0, csa = 0, ksr = 0, csm = 0, glide = 0;
+    double cpa = 0, cpr = 0, cna = 0, cnr = 0, cra = 0, krr = 0, csa = 0, ksr = 0, csm = 0, cfa = 0, cfr = 0, glide = 0;
     int relN = 0, holdN = 0, offN = 0, offRelN = 0, winN = 0, sinceOff = 1 << 30;
-    double P = 0, Np = 0, Hp = 0, Rf = 0, Sl = 0;
+    double P = 0, Np = 0, Hp = 0, Rf = 0, Sl = 0, Fp = 0;
     bool inNote = false, released = false, below = false;
     int relCount = 0, under = 0, offCount = 0;
     double peakN = -300.0, minN = 300.0, g = 0.0, raw = 0.0, out = 0.0, idleNow = 0.0;

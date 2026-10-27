@@ -1295,3 +1295,52 @@ reference R (a peak follower) has fallen 1.5 dB less than the reference's. The C
 | synthetic part 8, range -6 .. +6 (held out) | -34.1 | 0.007 | 0.378 |
 
   Fresh synthetic parts (seeds 13, 14 Fast, 15 Sensitivity 75, from the gain traces): -18.7 / -20.1 / -17.0 dB.
+
+### Phase 4, fifth pass: Sensitivity and the follow phase, 2026-10-27
+
+- **The mismatch**: through the plug-in, the bass line nulled at -30 dB at Sensitivity 0 .. 50 (Slow) and 0 / 50
+  (Fast) but -14 .. -19 dB at Fast 25 / 75 / 100 and Slow 100. The fit had music traces only at Fast 50, so the
+  per-Sensitivity release depths at Fast sat on the wrong side of the bass line's thresholds (Fast 25 needs over 4 dB,
+  Fast 50 between ~4 and 4.8); and at Sensitivity 100 the gain kept following a fading note too long.
+- **How long the gain follows a decaying note** (`followstop` probes: 100 Hz notes from silence decaying 6 .. 60 dB/s):
+  the same at Slow and Fast and at 50 / 100 / 200 Hz; the reference follows until the note is a margin under a
+  one-pole follower of the note level, so a slow fade is followed throughout (at Sensitivity 75 and 100: 9 dB/s and
+  slower never stop) and a faster decay holds after a fixed lag in dB (Sensitivity 75: 1.8 dB at 15 .. 45 dB/s, the
+  stop at 346 / 231 / 176 / 120 / 63 / 36 ms for 10 / 11 / 12 / 15 / 30 / 60 dB/s); at Sensitivity 0 it holds after
+  ~20 ms, at 25 after 20 .. 40 ms, at 50 after 26 .. 70 ms. The old criterion (over the rate-limited slow envelope S)
+  could not give both. Modelled: F, a one-pole follower of N's power (fitted 6.5 ms up, 365 ms down), and the attack
+  continues while N > F + margin (Sensitivity; fitted +1.5 / +1.9 / +0.2 / 0.0 / -0.8 dB at 0 .. 100).
+- **Refit** with 53 decay probes and 9 more traces (the bass line at Fast 25 / 75 / 100 and Slow 25 / 75 / 100,
+  synthetic parts at Fast 75, Slow 100, Fast 25), then `br_polish.py`: each per-setting value on a grid in turn (the
+  narrow valleys between release thresholds that the CMA-ES steps over). Two polish moves that gained under 0.5 % of
+  the cost but cost held-out parts were set back by hand (Slow 50 depth 13.0, Sensitivity 0 margin 1.5).
+- **The bass line through the plug-in, every Sensitivity x Response** (residual, dB):
+
+| Sensitivity | 0 | 25 | 50 | 75 | 100 |
+|---|---|---|---|---|---|
+| Slow, before | -29.8 | -30.5 | -30.6 | -27.7 | -15.3 |
+| Slow, now | -30.2 | -30.6 | -30.2 | -28.0 | -25.3 |
+| Fast, before | -29.9 | -14.0 | -30.5 | -16.5 | -19.2 |
+| Fast, now | -30.3 | -30.5 | -30.3 | -28.5 | -26.6 |
+
+  (these bass-line settings are now in the fit; held out: synthetic part 15 at Sensitivity 75 -15.2 -> -17.2 dB,
+  part 6 at Slow 75 -23.4 -> -24.5; parts 6 and 13 at Sensitivity 100 0.3 .. 1.9 dB worse).
+- **The null now**:
+
+| case | residual (dB) | gain error median (dB) | 90 % (dB) |
+|---|---|---|---|
+| steady 80 Hz -20 dBFS | -41.5 | 0.074 | 0.074 |
+| steps 1 kHz | -48.6 | 0.029 | 0.030 |
+| bass line | -30.2 | 0.073 | 0.160 |
+| bass line, Target -24 | -30.2 | 0.103 | 0.200 |
+| bass line, Sensitivity 80 | -28.1 | 0.196 | 0.622 |
+| bass line, Artifacts 20 | -30.3 | 0.103 | 0.185 |
+| synthetic part 6 (held out) | -34.5 | 0.097 | 0.388 |
+| synthetic part 7, Fast (held out) | -21.1 | 0.122 | 1.874 |
+| synthetic part 8, range -6 .. +6 (held out) | -34.5 | 0.050 | 0.347 |
+
+- **Open**: part 6 at Fast nulls at -16 dB at every Sensitivity from one passage: a 77 Hz note fading after its
+  release, where the pitch read wobbles over the 78 Hz band edge and the window switch reads as a rise (the reference
+  holds). Hysteresis on the band switch (`band_hyst`, kept at 0) helps part 7 (-21 -> -27.5 dB at 2 %) but not part 6
+  and breaks the bass line at Fast from 3 %. Notes right after a note-off (part 13, -15 .. -20 dB at every setting)
+  as before.

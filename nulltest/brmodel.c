@@ -17,7 +17,7 @@ enum {
     BR_OFF, BR_ART, BR_REL_DEPTH, BR_REL_MS, BR_GLIDE,
     BR_SMOOTH, BR_REF_ATT, BR_REF_REL, BR_HP_FC, BR_ILLEGAL,
     BR_ON_RISE, BR_SLOW_ATT, BR_SLOW_REL, BR_MODE, BR_SLOW_REL_FAST,
-    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_HOLD_MIN, BR_WIN_LATCH, BR_FAST, BR_BLOCK_RISE, BR_F_HI, BR_F_LO, BR_GATE_BLOCK, BR_NPARAMS
+    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_HOLD_MIN, BR_WIN_LATCH, BR_FAST, BR_BLOCK_RISE, BR_F_HI, BR_F_LO, BR_GATE_BLOCK, BR_ATT_MODE, BR_F_ATT, BR_F_REL, BR_BAND_HYST, BR_NPARAMS
 };
 
 typedef struct { double b0, b1, b2, a1, a2, z1, z2; } Biquad;
@@ -115,7 +115,8 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
     const int settleN = (int) (p[BR_SETTLE] * 1e-3 * fs + 0.5), offN = (int) (p[BR_OFF_MS] * 1e-3 * fs + 0.5);
     int offCount = 0, sinceOff = 1 << 30;
     const int winN = (int) (p[BR_WIN_MS] * 1e-3 * fs + 0.5), offRelN = (int) (p[BR_OFF_REL_MS] * 1e-3 * fs + 0.5);
-    double P = 0.0, Np = 0.0, Hp = 0.0, Rf = 0.0, Sl = 0.0;
+    double P = 0.0, Np = 0.0, Hp = 0.0, Rf = 0.0, Sl = 0.0, Fp = 0.0;
+    const double cfa = coef (p[BR_F_ATT], fs), cfr = coef (p[BR_F_REL], fs);
     /* the windowed note level (N mode 1): sliding maxima of the low-passed waveform's square over 1024 / 2048 / 4096
        samples (at 48 kHz), the window picked by the pitch (the smallest spanning pitch_c periods) */
     double* qv = (double*) malloc (sizeof (double) * 3 * SMAX_CAP); int* qt = (int*) malloc (sizeof (int) * 3 * SMAX_CAP);
@@ -157,8 +158,11 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
             {
                 if (p[BR_F_HI] > 0.0)       /* the windows by pitch band: over f_hi 1024, over f_lo 2048, else 4096 */
                 {
-                    const double fz = fs / period;
-                    wsel = fz > p[BR_F_HI] ? 0 : (fz > p[BR_F_LO] ? 1 : 2);
+                    /* (band hyst h: a band is left only once the pitch is past its edge by the factor 1 + h) */
+                    const double fz = fs / period, h = p[BR_BAND_HYST];
+                    const double fu = fz / (1.0 + h), fd = fz / (1.0 - h);
+                    const int up = fu > p[BR_F_HI] ? 0 : (fu > p[BR_F_LO] ? 1 : 2), dn = fd > p[BR_F_HI] ? 0 : (fd > p[BR_F_LO] ? 1 : 2);
+                    if (up < wsel) wsel = up; else if (dn > wsel) wsel = dn;
                 }
                 else wsel = want <= wlen[0] ? 0 : (want <= wlen[1] ? 1 : 2);
             }
@@ -176,6 +180,10 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
         const double pk = p[BR_NMODE] >= 1.0 ? pow (10.0, N / 10.0) : (p[BR_SLOW_REL_FAST] >= 1.0 ? xl * xl : dp);
         const double R = db_pow (peak (&Rf, pk, cra, krr));
         const double S = db_pow (peak (&Sl, pk, csa, ksr));
+        /* the attack's reference (att mode 1): a one-pole follower of the note level's power (it lags a decaying note
+           by a bounded amount, so a slow fade is followed throughout and a faster decay is held once it is the
+           margin under it) */
+        const double Fa = db_pow (follow (&Fp, pk, cfa, cfr));
         const int legal = H < N + p[BR_ILLEGAL];
         const int open = N > p[BR_FLOOR] && legal && N > R - p[BR_ART];
         int start = 0;
@@ -213,7 +221,7 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
         {
             /* the attack (the note over its slow envelope, which is still rising): the gain follows the law; then it
                only goes down */
-            under = N > S + p[BR_THR_A] ? 0 : under + 1;
+            under = N > (p[BR_ATT_MODE] >= 0.5 ? Fa : S) + p[BR_THR_A] ? 0 : under + 1;
             if (under < settleN) g = gt;                 /* (BR_SETTLE: how long under it before the hold, ms) */
             else if (p[BR_HOLD_MIN] >= 0.5 && gt < g) g = gt;   /* (hold_min 1: the hold only goes down; 0: constant) */
         }

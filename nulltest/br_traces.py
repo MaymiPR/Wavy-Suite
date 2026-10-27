@@ -26,7 +26,12 @@ CASES = [('bassline', {}), ('synth_3', {}), ('synth_4', {}), ('synth_5', {}),
          ('bassline', {'response': 'Fast'}), ('synth_4', {'response': 'Fast'}),
          ('bassline', {'sensitivity': 90.0}), ('synth_5', {'sensitivity': 20.0}),
          ('bassline', {'artifacts': 15.0}), ('synth_3', {'artifacts': 85.0}),
-         ('synth_9', {}), ('synth_10', {}), ('synth_11', {'response': 'Fast'}), ('synth_12', {'sensitivity': 70.0})]
+         ('synth_9', {}), ('synth_10', {}), ('synth_11', {'response': 'Fast'}), ('synth_12', {'sensitivity': 70.0}),
+         ('bassline', {'response': 'Fast', 'sensitivity': 25.0}), ('bassline', {'response': 'Fast', 'sensitivity': 75.0}),
+         ('bassline', {'response': 'Fast', 'sensitivity': 100.0}), ('bassline', {'sensitivity': 75.0}),
+         ('bassline', {'sensitivity': 100.0}), ('bassline', {'sensitivity': 25.0}),
+         ('synth_3', {'response': 'Fast', 'sensitivity': 75.0}), ('synth_4', {'sensitivity': 100.0}),
+         ('synth_9', {'response': 'Fast', 'sensitivity': 25.0})]
 
 
 def blocks(x, g):

@@ -72,6 +72,19 @@ def probes():
     for F in (-20, -30, -40):
         for L in (-10, -14, -16, -18, -20):
             if L > F + 1: add([('hold', -6, 0, 0.6), ('hold', F, 0, 0.3), ('hold', L, 0, 0.6)], [1.3])
+    # how long the gain follows a decaying note, by Sensitivity (the same at Slow and Fast, and at any pitch): notes
+    # from silence decaying r dB/s; a slow fade is followed throughout, a faster decay until it is a margin under a
+    # one-pole follower of the note level
+    DREAD = [0.33, 0.36, 0.40, 0.45, 0.55, 0.70, 0.90, 1.10]
+    for sens in (0.0, 25.0, 50.0, 75.0, 100.0):
+        for r in (6, 9, 10, 12, 15, 20, 30, 60):
+            add([('gap', 0, 0, 0.3), ('ramp', -14, -14 - r, 1.0, 100.0), ('gap', 0, 0, 0.2)], DREAD, sensitivity=sens)
+    for sens in (25.0, 75.0, 100.0):
+        for r in (10, 15, 30):
+            add([('gap', 0, 0, 0.3), ('ramp', -14, -14 - r, 1.0, 100.0), ('gap', 0, 0, 0.2)], DREAD, sensitivity=sens, response='Fast')
+    for f in (50.0, 200.0):
+        for r in (12, 30):
+            add([('gap', 0, 0, 0.3), ('ramp', -14, -14 - r, 1.0, f), ('gap', 0, 0, 0.2)], DREAD, sensitivity=75.0)
     return P
 
 

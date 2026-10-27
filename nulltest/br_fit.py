@@ -2,7 +2,7 @@
 gain traces on musical material (br_traces.py): CMA-ES on the sum over probes and read times of |model gain -
 reference gain| (clipped at 2 dB) plus 0.1 x the same over the traces' 10 ms blocks; prints the mismatches.
 
-    python -I br_fit.py [generations]      writes measurements/wbassrider/detector_fit.json
+    python -I br_fit.py [generations [sigma]]  writes measurements/wbassrider/detector_fit.json
     python -I br_fit.py check              the current fit's mismatches, probe by probe
 """
 import sys, os, json
@@ -18,10 +18,11 @@ OUT = os.path.join(HERE, '..', 'measurements', 'wbassrider', 'detector_fit.json'
 SETTINGS = [(r, s) for r in ('Slow', 'Fast') for s in (0.0, 25.0, 50.0, 75.0, 100.0)]
 # the free parameters: (name, start, transform) with 'log' kept positive
 GLOBAL = [('slow_att', 30.0, 'log'), ('slow_rel', 1000.0, 'log'), ('ref_rel', 5000.0, 'log'), ('hyst', 0.3, 'log'),
-          ('rel_ms', 21.0, 'log'), ('settle', 20.0, 'log'), ('on_rise', 1.0, 'log'), ('off_ms', 60.0, 'log'), ('win_ms', 75.0, 'log'), ('off_rel_ms', 60.0, 'log')]
+          ('rel_ms', 21.0, 'log'), ('settle', 20.0, 'log'), ('on_rise', 1.0, 'log'), ('off_ms', 60.0, 'log'), ('win_ms', 75.0, 'log'), ('off_rel_ms', 60.0, 'log'),
+          ('f_att', 5.0, 'log'), ('f_rel', 150.0, 'log')]
 SENS = (0.0, 25.0, 50.0, 75.0, 100.0)
 THR0 = {0.0: 1.25, 25.0: 1.25, 50.0: 1.25, 75.0: 1.0, 100.0: 0.5}
-MARGIN0 = {0.0: 0.3, 25.0: 0.3, 50.0: 0.3, 75.0: 0.0, 100.0: -1.0}     # the attack phase: N over S + margin
+MARGIN0 = {0.0: 0.25, 25.0: 0.0, 50.0: -0.25, 75.0: -1.25, 100.0: -1.75}   # the attack phase: N over its follower + margin
 DEPTH0 = {('Slow', 0.0): 12.4, ('Slow', 25.0): 12.4, ('Slow', 50.0): 12.4, ('Slow', 75.0): 1.5, ('Slow', 100.0): 0.5,
           ('Fast', 0.0): 4.5, ('Fast', 25.0): 3.0, ('Fast', 50.0): 1.5, ('Fast', 75.0): 1.0, ('Fast', 100.0): 0.5}
 PROBES = PR.load()
@@ -146,5 +147,5 @@ if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == 'check': check()
     else:
         g, depth = load_fit()
-        best = cma(cost, pack(g, depth), 0.3, int(sys.argv[1]) if len(sys.argv) > 1 else 40)
+        best = cma(cost, pack(g, depth), float(sys.argv[2]) if len(sys.argv) > 2 else 0.3, int(sys.argv[1]) if len(sys.argv) > 1 else 40)
         save(best[1], best[0]); check()
