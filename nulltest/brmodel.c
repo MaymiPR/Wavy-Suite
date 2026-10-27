@@ -17,7 +17,7 @@ enum {
     BR_OFF, BR_ART, BR_REL_DEPTH, BR_REL_MS, BR_GLIDE,
     BR_SMOOTH, BR_REF_ATT, BR_REF_REL, BR_HP_FC, BR_ILLEGAL,
     BR_ON_RISE, BR_SLOW_ATT, BR_SLOW_REL, BR_MODE, BR_SLOW_REL_FAST,
-    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_HOLD_MIN, BR_WIN_LATCH, BR_FAST, BR_BLOCK_RISE, BR_F_HI, BR_F_LO, BR_GATE_BLOCK, BR_ATT_MODE, BR_F_ATT, BR_F_REL, BR_BAND_HYST, BR_NPARAMS
+    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_HOLD_MIN, BR_WIN_LATCH, BR_FAST, BR_BLOCK_RISE, BR_F_HI, BR_F_LO, BR_GATE_BLOCK, BR_ATT_MODE, BR_F_ATT, BR_F_REL, BR_BAND_HYST, BR_HOLD_LATCH, BR_REL_REF, BR_PITCH_LP, BR_ATT_MIN, BR_ATT_SRC, BR_NPARAMS
 };
 
 typedef struct { double b0, b1, b2, a1, a2, z1, z2; } Biquad;
@@ -103,6 +103,7 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
     Biquad shelf, lp, hp;
     lowshelf (&shelf, fs, p[BR_SH_FC], p[BR_SH_G], p[BR_SH_Q]);
     lowpass (&lp, fs, p[BR_LP_FC], p[BR_LP_Q]);
+    Biquad lpp1, lpp2; lowpass (&lpp1, fs, p[BR_PITCH_LP] > 0.0 ? p[BR_PITCH_LP] : 1000.0, 0.7071); lpp2 = lpp1;
     highpass (&hp, fs, p[BR_HP_FC], 0.7071);
     Quad qe, qd, qh; memset (&qe, 0, sizeof qe); memset (&qd, 0, sizeof qd); memset (&qh, 0, sizeof qh);
     const double cpa = coef (p[BR_PB_ATT], fs), cpr = coef (p[BR_PB_REL], fs);
@@ -122,12 +123,12 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
     double* qv = (double*) malloc (sizeof (double) * 3 * SMAX_CAP); int* qt = (int*) malloc (sizeof (int) * 3 * SMAX_CAP);
     SMax qs[3]; for (int k = 0; k < 3; ++k) smax_init (&qs[k], qv + k * SMAX_CAP, qt + k * SMAX_CAP, SMAX_CAP);
     const int wlen[3] = { (int) (1024 * fs / 48000.0 + 0.5), (int) (2048 * fs / 48000.0 + 0.5), (int) (4096 * fs / 48000.0 + 0.5) };
-    double prevXl = 0.0, period = 0.01 * fs, cyclePos = 0.0, cycleNeg = 0.0, lastN = 0.0; int lastCross = -1, wsel = 0;
+    double prevXp = 0.0, prevXl = 0.0, period = 0.01 * fs, cyclePos = 0.0, cycleNeg = 0.0, lastN = 0.0; int lastCross = -1, wsel = 0;
     /* the block level (block rise 1): the highest positive peak of the low-passed input in each block of a quarter
        of the window, held from the block's end; a rise is read on it */
     double blockMax = 0.0, Nb = -300.0; int blockPos = 0;
     int inNote = 0, released = 0, relCount = 0, below = 0, settle = 0, under = 0;
-    double peakN = -300.0, g = 0.0, minN = 300.0;
+    double peakN = -300.0, g = 0.0, minN = 300.0, Nh = 300.0;
     double raw = p[BR_IDLE], out = p[BR_IDLE], gts = p[BR_RMAX];
     for (int i = 0; i < n; ++i)
     {
@@ -146,7 +147,12 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
             /* a rising zero crossing: the period since the last one, if both halves of the cycle reached within 12 dB
                of the note level (not a filter's ringing in silence, nor a note's last part cycle) */
             if (xl > 0.0) cyclePos = fmax (cyclePos, xl * xl); else cycleNeg = fmax (cycleNeg, xl * xl);
-            if (prevXl <= 0.0 && xl > 0.0)
+            /* (pitch lp f: the crossings are read on the input low-passed again at f, 4 poles, so a strong harmonic
+               does not cross; 0: on the note band itself) */
+            const double xp = p[BR_PITCH_LP] > 0.0 ? bq (&lpp2, bq (&lpp1, xl)) : xl;
+            const int crossed = prevXp <= 0.0 && xp > 0.0;
+            prevXp = xp;
+            if (crossed)
             {
                 if (lastCross >= 0 && fmin (cyclePos, cycleNeg) > 0.0631 * lastN) { const double pd = (double) (i - lastCross); if (pd > 0.0004 * fs) period = pd; }
                 lastCross = i; cyclePos = cycleNeg = 0.0;
@@ -183,7 +189,9 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
         /* the attack's reference (att mode 1): a one-pole follower of the note level's power (it lags a decaying note
            by a bounded amount, so a slow fade is followed throughout and a faster decay is held once it is the
            margin under it) */
-        const double Fa = db_pow (follow (&Fp, pk, cfa, cfr));
+        /* (att src 1: the follower and the test on the level read E instead of the note level N) */
+        const double Fa = db_pow (follow (&Fp, p[BR_ATT_SRC] >= 0.5 ? P : pk, cfa, cfr));
+        const double Na = p[BR_ATT_SRC] >= 0.5 ? E : N;
         const int legal = H < N + p[BR_ILLEGAL];
         const int open = N > p[BR_FLOOR] && legal && N > R - p[BR_ART];
         int start = 0;
@@ -200,7 +208,9 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
             else if (! released)
             {
                 /* released: under the slow envelope by the depth for long enough */
-                relCount = N < S - p[BR_REL_DEPTH] ? relCount + 1 : 0;
+                /* (rel ref 1: under the level where the gain was held, by the depth; S until it holds) */
+                const double Sr = (p[BR_REL_REF] >= 0.5 && under >= settleN) ? Nh : S;
+                relCount = N < Sr - p[BR_REL_DEPTH] ? relCount + 1 : 0;
                 if (relCount >= relN) { released = 1; minN = p[BR_BLOCK_RISE] >= 0.5 ? Nb : N; if (p[BR_FAST] >= 0.5) { start = 1; Sl = pow (10.0, N / 10.0); } }   /* Fast: a release re-rides at once, from here */
                 /* or still sounding: a rising crossing of the slow envelope by the threshold */
                 if (N < S + p[BR_THR_U] - p[BR_HYST]) below = 1;
@@ -221,8 +231,12 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
         {
             /* the attack (the note over its slow envelope, which is still rising): the gain follows the law; then it
                only goes down */
-            under = N > (p[BR_ATT_MODE] >= 0.5 ? Fa : S) + p[BR_THR_A] ? 0 : under + 1;
-            if (under < settleN) g = gt;                 /* (BR_SETTLE: how long under it before the hold, ms) */
+            /* (hold latch 1: once held, the gain stays held until a new note) */
+            if (! (p[BR_HOLD_LATCH] >= 0.5 && under >= settleN))
+                under = Na > (p[BR_ATT_MODE] >= 0.5 ? Fa : S) + p[BR_THR_A] ? 0 : under + 1;
+            if (under == settleN) Nh = N;                /* the level where the hold began */
+            /* (att min 1: in the attack the gain only follows the law down, to its lowest) */
+            if (under < settleN) g = (p[BR_ATT_MIN] >= 0.5 && gt > g) ? g : gt;   /* (BR_SETTLE: how long under it before the hold, ms) */
             else if (p[BR_HOLD_MIN] >= 0.5 && gt < g) g = gt;   /* (hold_min 1: the hold only goes down; 0: constant) */
         }
         if (inNote)
@@ -232,7 +246,7 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
         /* (an ignored note, within 38 dB of the last: the gain stays where it is) */
         out = raw + csm * (out - raw);
         gain[i] = (float) out;
-        if (trace) { float* t = trace + 6 * i; t[0] = p[BR_NMODE] >= 2.0 ? (float) (wsel * 100000 + period) : (float) E; t[1] = (float) N; t[2] = (float) (inNote + 2 * released + 4 * below + 8 * start); t[3] = (float) raw; t[4] = (float) S; t[5] = (float) R; }
+        if (trace) { float* t = trace + 6 * i; t[0] = p[BR_NMODE] >= 2.0 ? (float) (wsel * 100000 + period) : (float) E; t[1] = (float) N; t[2] = (float) (inNote + 2 * released + 4 * below + 8 * start); t[3] = p[BR_ATT_MODE] >= 0.5 ? (float) Fa : (float) raw; t[4] = (float) S; t[5] = (float) R; }
     }
     free (qv); free (qt);
 }

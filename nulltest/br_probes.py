@@ -85,6 +85,15 @@ def probes():
     for f in (50.0, 200.0):
         for r in (12, 30):
             add([('gap', 0, 0, 0.3), ('ramp', -14, -14 - r, 1.0, f), ('gap', 0, 0, 0.2)], DREAD, sensitivity=75.0)
+    # a new note on a decaying one (how real notes are re-attacked): a note from silence decaying r dB/s steps up X dB
+    # at T (Target -20 keeps the law inside the range); read 100 .. 50 ms before the step (the look-ahead moves the gain up to 40 ms early) and 110 .. 160 ms after
+    for resp in ('Slow', 'Fast'):
+        for sens in (0.0, 50.0, 100.0):
+            for r in (10, 30):
+                for T in (0.1, 0.2, 0.4, 0.8):
+                    for X in (1, 2, 3, 4.5, 6, 8):
+                        add([('gap', 0, 0, 0.2), ('ramp', -16, -16 - r * T, T, 100.0), ('ramp', -16 - r * T + X, -16 - r * 2.0 + X, 2.0 - T, 100.0)],
+                            [0.2 + T - 0.1, 0.2 + T + 0.11], response=resp, sensitivity=sens, target=-20.0)
     return P
 
 

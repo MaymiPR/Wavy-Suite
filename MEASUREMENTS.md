@@ -1344,3 +1344,35 @@ reference R (a peak follower) has fallen 1.5 dB less than the reference's. The C
   holds). Hysteresis on the band switch (`band_hyst`, kept at 0) helps part 7 (-21 -> -27.5 dB at 2 %) but not part 6
   and breaks the bass line at Fast from 3 %. Notes right after a note-off (part 13, -15 .. -20 dB at every setting)
   as before.
+
+### Phase 4, sixth pass: a corpus of real bass parts, 2026-10-27
+
+- **Material**: `nulltest/bass_corpus.py` builds 36 twelve-second bass parts from FL Studio's own pack samples (acoustic,
+  80s pick, Ibanez, slap, Temptated, a picked 5-string and a "Deeper Purple" pluck multisample: Ogg Vorbis in WAV,
+  decoded by `tools/OggDecode.cpp`, cached in the git-ignored `reference/`) and three synthetic voices (808 sub, filtered
+  saw, slow swells): bass lines with rhythms, accents, ghost notes, rests, staccato / legato / ringing notes; parts
+  0 .. 23 fit, 24 .. 35 are held out. `br_corpus_ref.py` records the reference's applied gain on every part at 10
+  settings (default, Fast, Sensitivity 0 / 75 / 100, Fast 25 / 100, Artifacts 15 / 85, Target -24);
+  `br_corpus_eval.py` compares.
+- **Where the committed model stands on it** (median residual over the held-out parts): default -24.7, Fast -20.0,
+  Sensitivity 0 -24.4, 100 -21.8, Fast 25 -18.4, Fast 100 -23.4, Sensitivity 75 -21.6 dB; the worst parts -6 .. -17 dB.
+  The level read is right (on 173 of 175 notes the reference's held value lies on our law's path over the attack);
+  85 % of the error energy is in holds at the wrong value (both sides holding, typically 0.3 .. 0.5 dB apart, 1 .. 4 dB at
+  the 90th percentile), the rest in rides taken or missed.
+- **Found**:
+  - Response Fast in the reference is the same as Slow over most of a part; it adds a few re-rides as notes decay,
+    and holds between them. The model crept up instead (re-riding on every flutter of a released note) because the
+    pitch read took strong harmonics (slap, plucks) for the pitch, flipping the window, and any rise of a released
+    note counted. A pitch read on the input low-passed again (4 poles near 200 .. 250 Hz) and a real rise threshold
+    for a released note (~2 dB; the decay-and-step probes show +2.6 dB at Fast after 12 dB of decay) bring the
+    corpus at Fast from -14 to -19 dB (both kept as model options, `pitch_lp` and `on_rise`, not yet in the plug-in).
+  - A new note on a decaying note (288 decay-and-step probes in `br_probes.py`): the threshold is a rise of ~1.7 ..
+    1.9 dB over a slow envelope falling at most ~8.7 dB/s (release ~1000 ms); Slow and Fast agree except after a
+    deep decay (Fast takes +2.6 dB after 12 dB, Slow nothing up to +9).
+  - The hold's moment after an attack: at the reference's lock the windowed note level has not yet fallen from its
+    peak; the energy read is 0.3 .. 0.5 dB under its peak; no fixed time, window, energy-window mean or follower on
+    N or E tested explains the held values better than the model already does (median 0.28 dB). Open.
+- **Not adopted yet**: refitting on the corpus (`br_fit.py` now includes it, weight `CW`; `br_polish.py globals`)
+  improves the held-out corpus at Fast 25 (-18.4 -> -23.5), Sensitivity 0 (-24.4 -> -27.1) and 100 (-21.8 -> -22.7)
+  and removes the worst cases (Fast worst -6.1 -> -13.4), but loses the original bass line at Fast (-30 -> -16 dB: one
+  release at 5.16 s whose outcome flips on tiny parameter changes) and ~1 .. 3 dB on the synthetic seeds.

@@ -40,3 +40,5 @@ nulltest/brmodel.dll
 nulltest/brmodel.obj
 nulltest/brmodel.exp
 nulltest/brmodel.lib
+# experiment builds of the WBass Rider model (BRMODEL_DLL)
+nulltest/brmodel_x.*

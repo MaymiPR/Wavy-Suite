@@ -3,12 +3,17 @@ threshold and attack margin (Sensitivity) on a grid around its value, keeping th
 probes and traces it changes). The narrow valleys between the detector's thresholds (a note released or not) are
 what the CMA-ES steps over.
 
-    python -I br_polish.py [passes]     updates measurements/wbassrider/detector_fit.json
+    python -I br_polish.py [passes] [globals]   updates measurements/wbassrider/detector_fit.json (globals: the global
+                                                 values too, on the whole cost)
+A value moves only for a gain over MIN_GAIN (smaller gains are noise that costs held-out material).
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
 import br_fit as F
+
+
+MIN_GAIN = 0.2
 
 
 def items(td, key):
@@ -19,35 +24,38 @@ def items(td, key):
         if kind == 'depth':
             return resp == k[0] and abs(sens - k[1]) < 25.0
         return abs(sens - k) < 25.0
-    return ([i for i, p in enumerate(F.PROBES) if hit(p['settings'])], [j for j, t in enumerate(F.TRACES) if hit(t['settings'])])
+    return ([i for i, p in enumerate(F.PROBES) if hit(p['settings'])], [j for j, t in enumerate(F.TRACES) if hit(t['settings'])],
+            [j for j, t in enumerate(F.CORPUS) if hit(t['settings'])])
 
 
-def part_cost(g, td, PI, TI):
+def part_cost(g, td, PI, TI, CI):
     pe = list(F.POOL.map(lambda i: np.minimum(np.abs(F.model_gains(i, g, td) - F.PROBES[i]['ref']), 2.0).sum(), PI))
     te = list(F.POOL.map(lambda j: np.minimum(np.abs(F.trace_gains(j, g, td) - F.TRACES[j]['ref']), 2.0).sum(), TI))
-    return float(sum(pe)) + F.TW * float(sum(te))
+    ce = list(F.POOL.map(lambda j: np.minimum(np.abs(F.corpus_gains(j, g, td) - F.CORPUS[j]['ref']), 2.0).sum(), CI))
+    return float(sum(pe)) + F.TW * float(sum(te)) + F.CW * float(sum(ce))
 
 
 def grid(kind, v):
-    if kind == 'depth': return sorted(set([v] + [v * f for f in (0.5, 0.7, 0.8, 0.9, 0.95, 1.05, 1.1, 1.25, 1.5, 2.0)]))
+    if kind in ('depth', 'global'): return sorted(set([v] + [v * f for f in (0.5, 0.7, 0.8, 0.9, 0.95, 1.05, 1.1, 1.25, 1.5, 2.0)]))
     return sorted(set([v] + [v + d for d in (-1.0, -0.5, -0.25, -0.1, -0.05, 0.05, 0.1, 0.25, 0.5, 1.0)]))
 
 
-def main(passes):
+def main(passes, with_globals=False):
     g, td = F.load_fit()
     thr, depth, margin = td
-    keys = [('depth', k) for k in F.SETTINGS] + [('thr_u', s) for s in F.SENS] + [('margin', s) for s in F.SENS]
+    keys = ([('global', n) for n, _, _ in F.GLOBAL] if with_globals else []) + [('depth', k) for k in F.SETTINGS]         + [('thr_u', s) for s in F.SENS] + [('margin', s) for s in F.SENS]
+    ALL = (list(range(len(F.PROBES))), list(range(len(F.TRACES))), list(range(len(F.CORPUS))))
     for n in range(passes):
         moved = 0
         for key in keys:
             kind, k = key
-            table = {'depth': depth, 'thr_u': thr, 'margin': margin}[kind]
-            PI, TI = items(td, key)
-            v0 = table[k]; base = part_cost(g, td, PI, TI); best = (base, v0)
+            table = {'depth': depth, 'thr_u': thr, 'margin': margin, 'global': g}[kind]
+            PI, TI, CI = ALL if kind == 'global' else items(td, key)
+            v0 = table[k]; base = part_cost(g, td, PI, TI, CI); best = (base, v0)
             for v in grid(kind, v0):
                 if v == v0: continue
-                table[k] = v; c = part_cost(g, td, PI, TI)
-                if c < best[0] - 1e-6: best = (c, v)
+                table[k] = v; c = part_cost(g, td, PI, TI, CI)
+                if c < best[0] - (MIN_GAIN if best[1] == v0 else 1e-6): best = (c, v)
             table[k] = best[1]
             if best[1] != v0:
                 moved += 1
@@ -59,4 +67,4 @@ def main(passes):
 
 
 if __name__ == '__main__':
-    main(int(sys.argv[1]) if len(sys.argv) > 1 else 3)
+    main(int(sys.argv[1]) if len(sys.argv) > 1 else 3, len(sys.argv) > 2 and sys.argv[2] == 'globals')

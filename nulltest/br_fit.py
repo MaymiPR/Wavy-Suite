@@ -1,6 +1,7 @@
 """Fits the note detector of WBass Rider's riding model (brmodel.c) to the reference's probe set (br_probes.py) and its
 gain traces on musical material (br_traces.py): CMA-ES on the sum over probes and read times of |model gain -
-reference gain| (clipped at 2 dB) plus 0.1 x the same over the traces' 10 ms blocks; prints the mismatches.
+reference gain| (clipped at 2 dB) plus 0.1 x the same over the traces' 10 ms blocks, plus CW x the same over the bass
+corpus's training parts at every recorded setting (bass_corpus.py, br_corpus_ref.py); prints the mismatches.
 
     python -I br_fit.py [generations [sigma]]  writes measurements/wbassrider/detector_fit.json
     python -I br_fit.py check              the current fit's mismatches, probe by probe
@@ -19,7 +20,7 @@ SETTINGS = [(r, s) for r in ('Slow', 'Fast') for s in (0.0, 25.0, 50.0, 75.0, 10
 # the free parameters: (name, start, transform) with 'log' kept positive
 GLOBAL = [('slow_att', 30.0, 'log'), ('slow_rel', 1000.0, 'log'), ('ref_rel', 5000.0, 'log'), ('hyst', 0.3, 'log'),
           ('rel_ms', 21.0, 'log'), ('settle', 20.0, 'log'), ('on_rise', 1.0, 'log'), ('off_ms', 60.0, 'log'), ('win_ms', 75.0, 'log'), ('off_rel_ms', 60.0, 'log'),
-          ('f_att', 5.0, 'log'), ('f_rel', 150.0, 'log')]
+          ('f_att', 5.0, 'log'), ('f_rel', 150.0, 'log'), ('pitch_lp', 200.0, 'log')]
 SENS = (0.0, 25.0, 50.0, 75.0, 100.0)
 THR0 = {0.0: 1.25, 25.0: 1.25, 50.0: 1.25, 75.0: 1.0, 100.0: 0.5}
 MARGIN0 = {0.0: 0.25, 25.0: 0.0, 50.0: -0.25, 75.0: -1.25, 100.0: -1.75}   # the attack phase: N over its follower + margin
@@ -30,6 +31,16 @@ SIGS = [PR.build(p['recipe']) for p in PROBES]
 TRACES = TR.load()
 TSIGS = {n: TR.material(n) for n in set(t['name'] for t in TRACES)}
 TW = 0.1
+# the bass corpus's training parts at every recorded setting, as 10 ms blocks (br_corpus_ref.py)
+import bass_corpus as KC, br_corpus_ref as CR
+CORPUS = []
+for _k in KC.TRAIN:
+    _x = KC.part(_k)[0]
+    for _s in CR.SETTINGS:
+        if os.path.exists(CR.path(_k, _s)):
+            _i, _v = TR.blocks(_x, CR.load(_k, _s)); CORPUS.append(dict(k=_k, name=_s, settings=CR.SETTINGS[_s], idx=_i, ref=_v))
+    TSIGS['corpus_%d' % _k] = _x
+CW = 0.01
 
 
 def setting_params(td, resp, sens):
@@ -63,6 +74,15 @@ def model_gains(i, g, depth):
     return np.array([np.median(gm[int(t * B.FS):int(t * B.FS) + w]) for t in p['read']])
 
 
+def corpus_gains(j, g, depth):
+    t = CORPUS[j]; st = t['settings']
+    resp = st.get('response', 'Slow'); sens = float(st.get('sensitivity', 50.0))
+    gm = B.ride(TSIGS['corpus_%d' % t['k']], artifacts=float(st.get('artifacts', 50.0)), sensitivity=sens, response=resp,
+                target=float(st.get('target', -14.0)), **dict(g, **setting_params(depth, resp, sens)))
+    h = TR.BLOCK // 2
+    return np.array([np.median(gm[c - h:c + h]) for c in t['idx']])
+
+
 def trace_gains(j, g, depth):
     t = TRACES[j]; st = t['settings']
     resp = st.get('response', 'Slow'); sens = float(st.get('sensitivity', 50.0))
@@ -81,8 +101,10 @@ def cost(q, detail=False):
     tres = list(POOL.map(lambda j: trace_gains(j, g, depth), range(len(TRACES))))
     errs = [np.abs(r - p['ref']) for r, p in zip(res, PROBES)]
     terrs = [np.abs(r - t['ref']) for r, t in zip(tres, TRACES)]
-    c = float(sum(np.minimum(e, 2.0).sum() for e in errs)) + TW * float(sum(np.minimum(e, 2.0).sum() for e in terrs))
-    return (c, res, errs, terrs) if detail else c
+    cres = list(POOL.map(lambda j: corpus_gains(j, g, depth), range(len(CORPUS))))
+    cerrs = [np.abs(r - t['ref']) for r, t in zip(cres, CORPUS)]
+    c = float(sum(np.minimum(e, 2.0).sum() for e in errs)) + TW * float(sum(np.minimum(e, 2.0).sum() for e in terrs))         + CW * float(sum(np.minimum(e, 2.0).sum() for e in cerrs))
+    return (c, res, errs, terrs, cerrs) if detail else c
 
 
 def cma(f, x0, sigma, gens, lam=16, seed=1):
@@ -122,6 +144,7 @@ def load_fit():
     if not os.path.exists(OUT): return {n: v for n, v, _ in GLOBAL}, (dict(THR0), dict(DEPTH0), dict(MARGIN0))
     d = json.load(open(OUT))
     g = {n: d['globals'].get(n, v) for n, v, _ in GLOBAL}
+    if 'pitch_lp' not in d['globals']: g['pitch_lp'] = 0.0      # (a fit from before the pitch low-pass: off)
     thr = {float(k): v for k, v in d['thr_u'].items()} if 'thr_u' in d else dict(THR0)
     depth = {(k.split()[0], float(k.split()[1])): v for k, v in d['rel_depth'].items()} if 'rel_depth' in d else dict(DEPTH0)
     margin = {float(k): v for k, v in d['margin'].items()} if 'margin' in d else {k: d['globals'].get('thr_a', 0.3) for k in SENS}
@@ -130,7 +153,7 @@ def load_fit():
 
 def check():
     g, depth = load_fit()
-    c, res, errs, terrs = cost(pack(g, depth), detail=True)
+    c, res, errs, terrs, cerrs = cost(pack(g, depth), detail=True)
     bad = 0
     for p, r, e in zip(PROBES, res, errs):
         if e.max() > 0.3:
@@ -141,6 +164,9 @@ def check():
         print('  trace %-10s %-28s median |d| %.3f  90%% %.3f  share > 1 dB %.3f' % (t['name'], json.dumps(t['settings']), np.median(e), np.percentile(e, 90), np.mean(e > 1)))
     print(json.dumps(g), json.dumps({'%g' % k: round(v, 3) for k, v in depth[0].items()}), json.dumps({'%s %g' % k: round(v, 3) for k, v in depth[1].items()}),
           json.dumps({'%g' % k: round(v, 3) for k, v in depth[2].items()}))
+    for name in CR.SETTINGS:
+        e = np.concatenate([ee for ee, t in zip(cerrs, CORPUS) if t['name'] == name] or [np.zeros(1)])
+        print('  corpus %-8s median |d| %.3f  90%% %.3f  share > 1 dB %.3f' % (name, np.median(e), np.percentile(e, 90), np.mean(e > 1)))
 
 
 if __name__ == '__main__':
