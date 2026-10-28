@@ -1658,3 +1658,69 @@ The detector's other constants were refitted with these held (`nulltest/br_fit.p
 2891). Results: docs/NULL_RESULTS_WBASSRIDER.md, "Third pass". Not taken from the binary: the octave-band high-passes
 (fs / 2^round(log2(fs / 20)) and three octaves up) that likely choose the window by pitch, and its 4 + 4 first-order
 allpass quadrature pair; both are leads for another pass.
+
+## WVox Chain: Phase 3 measurements (the reference's audio), 2026-10-28
+
+`nulltest/measure_voxchain.py` renders the reference CLA Vocals (Stereo component, 48 kHz) through
+`nulltest/cv_ref.py` (pedalboard, aligned for the 193-sample latency) and `tools/RefRender` (for a host tempo and the
+Mono/Stereo component). Each finding names its subcommand; the data (`.npz`, logs) is in the git-ignored
+`reference/wvoxchain/meas/`.
+
+**How the stages are reached.** The children's bypass slots (preset array 39–53) and the colours cannot be written into
+the state: the plug-in reads them back as 0. The colours and faders work as host parameters, so each stage is measured
+against the chain with **every colour clear**, where the wet stages are muted and the others hold their fixed settings.
+The state's Noise slot (67) does take, and is off in every measurement but its own. **Renders are deterministic**: two
+renders of the same input null to −200 dB, the reverb, delays and doubler included, so every stage can be nulled.
+
+### The chain with every colour clear (`base`, `deess`)
+- **Linear part**: L = R; the impulse response is mostly polarity-inverted (taps +0.278, −0.721, −0.130, then a positive
+  tail decaying by about 0.78 per sample), +0.55 dB at DC; the magnitude +0.54 dB at 30 Hz, +0.37 at 1 kHz, −0.12 at
+  10 kHz, −0.90 at 16 kHz, −1.71 at 20 kHz.
+- **The always-on de-esser**: nothing below 3 kHz; above about 4 kHz a tone is turned down from about −13 dBFS peak, by
+  nearly 1 dB per dB above that (6 kHz: −0.9 at −12, −6.2 at −6, −11.1 at 0 dBFS; 8–10 kHz down 13 dB at 0 dBFS). Attack
+  within 1 ms; after a drop it holds about 5 ms, then releases (−5.0 dB at 10 ms, −2.9 at 20, −0.8 at 50, 0 by 100 ms).
+  Noise at −12 dBFS rms is already 1.8 dB down at 5 kHz.
+
+### Gains, Balance, the Noise, Mono/Stereo (`gains`, `noise`)
+- **Sensitivity** and **Output** are plain gains, exactly the fader's dB (±5, ±10 → ±5.00, ±10.00 dB) at a linear level;
+  Sensitivity comes before the dynamic stages.
+- **Balance** turns down the far channel only: −6 → L 0, R −6.00 dB; +3 → L −3.00, R 0.
+- **Noise** (the state's slot 67, on by default): white, uncorrelated L / R, −108.3 dBFS rms with every colour clear
+  (−106.6 with the defaults, the Compress makeup lifting it); flat within ±2 dB from 30 Hz to 20 kHz.
+- **Mono/Stereo** (RefRender): L and R identical with every colour clear, the same response as the Stereo component's.
+
+### Bass and Treble (`eq`: each colour and fader −10 … +10 against every colour clear, −40 dBFS noise)
+Full curves in `eq.npz`; at fader 0 Treble's colours change nothing, Bass's set a subsonic high-pass.
+- **Bass Sub / Lower**: a low shelf / bump at about 50–100 Hz (Lower reaching higher), fader +10 → +11.8 / +12.6 dB at
+  50 Hz, −10 → −11.2 / −11.8; plus a subsonic high-pass (−2.2 dB at 30 Hz) at every setting.
+- **Bass Upper**: at 0 a steeper high-pass (−10 dB at 30 Hz, −2.9 at 50); boosts peak near 100 Hz (+10.1 at fader
+  +10) with a −1.3 dB dip at 1 kHz; cuts are a broad low shelf (−11.7 at 30–100 Hz) with a +1.4 dB bump at 1 kHz.
+- **Treble Bite**: a bell at about 5 kHz, ±12 / −10.4 dB at ±10. **Top**: a high shelf from about 2 kHz, +12.6 / −9.9 at
+  16 kHz. **Roof**: a high shelf from about 3–5 kHz, +11.3 / −13.5, its boosts with a −1.3 dB dip at 500 Hz.
+- **The fader law is not linear in dB** and differs between cut and boost (Bass Sub at 50 Hz: +2.5 → +2.8, +5 → +4.8,
+  +10 → +11.8; −2.5 → −2.3, −10 → −11.2): Phase 4 fits each colour's parameters per fader position.
+
+### Compress (`compress`: a 1 kHz tone stepping −45 … 0 dBFS, against every colour clear)
+- **Push**: a makeup gain and a ceiling: the gain below −9 dBFS is −3.9 / −2.1 / +1.4 / +5.5 / +8.9 dB at fader −10 / −5 /
+  0 / +5 / +10, and the output is held near the same level above (at 0 dBFS in, −6.2 … −4.1 dB). Timing (fader 0, a
+  −30 → −6 dBFS step): settles in about 72 ms; recovers within 1 ms after the drop.
+- **Spank**: more makeup (+1.5 / +3.3 / +7.0 / +10.7 / +13.7) and a softer knee from about −27 dBFS at fader +10; attack
+  t63 6 ms, release t63 104 ms.
+- **Wall**: makeup +1.5 / +3.3 / +6.7 / +10.8 / +14.2, a harder knee; attack 10 ms, release 17 ms.
+
+### The wet stages (`reverb`, `delay`, `pitch`: a −20 dBFS impulse, the output less the output with the colour clear)
+- **Every wet stage's level follows its fader linearly in dB, 1.2 dB per step**, and the fader leaves its shape alone.
+- **Reverb**: Tight T60 0.94 s, first arrival 28 ms, L 1.5 dB over R; Large T60 1.69 s, first 3.7 ms; Chamber T60
+  3.48 s, first 193 ms. L / R nearly uncorrelated (+0.01 … +0.08). Energy at fader 0: −19.9 / −20.4 / −15.4 dB.
+- **Delay** (synced to the host's tempo; pedalboard plays at 120 bpm): ping-pong, about 6 dB lower per bounce, R first.
+  Slap: one echo at a **1/16 note** (RefRender at 60 / 90 / 120 / 140 / 180 bpm: 249.2 / 166.7 / 125.0 / 107.1 /
+  83.4 ms). Eight: **1/8 note** bounces (120 bpm: 249, 507, 749 ms; at 60 bpm the first arrives at 481.5 instead of
+  500). Quarter: about a 1/4 note, its echoes spread (first arrivals read short of the note: 481 ms at 120 bpm).
+- **Pitch** (a doubler): one voice per side, delayed and slowly pitch-modulated (0.2 Hz): Stereo 9.2 ms L / 17.4 ms R,
+  ±7 cents; Wide 11.7 / 39.7 ms; Spreader 3.9 / 9.4 ms. Its level at fader +10 is about the dry level.
+
+### The Sensitivity LED (MeterCapture `gl=1`, a 1 kHz tone stepping −40 … +8 dBFS)
+The LED's frame (of 24) is **round(23 · (Y + 144) / 144)**, Y the state's curve (X −144 / −20 / −12 / −4 / 0 dB → Y −144 /
+−109.56 / −72 / −34.43 / 0; the ParamXML's defaults are not the live ones) applied, piecewise linearly, to the input's
+**rms** level (a sine's peak −3 dB): every step from −40 to +8 dBFS matches. It follows within a frame and falls to off
+within about 60 ms of silence.
