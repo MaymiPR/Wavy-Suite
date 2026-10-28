@@ -1724,3 +1724,24 @@ The LED's frame (of 24) is **round(23 · (Y + 144) / 144)**, Y the state's curve
 −109.56 / −72 / −34.43 / 0; the ParamXML's defaults are not the live ones) applied, piecewise linearly, to the input's
 **rms** level (a sine's peak −3 dB): every step from −40 to +8 dBFS matches. It follows within a frame and falls to off
 within about 60 ms of silence.
+
+### The control structure (behaviour analysis of the binary, checked against the audio)
+A behaviour analysis of `CLA Vocals.dll` with REA (notes and evidence in the git-ignored `reference/wvoxchain/`) and
+the chain's own presets (`nulltest/voxchain_children.py` names every child setting of `Presets/1010.xml` / `1011.xml`
+from the children's ParamXML) give the structure; each point below is also **measured** above unless marked:
+- Each fader sets **one child parameter on a straight line** (slope × fader + offset), per colour. The wet faders set
+  only the gain stage after their effect, 1.2 dB per step (measured: 1.2 dB per step, shape unchanged); a wet colour's
+  Clear mutes that gain stage while the effect keeps running.
+- **Bass** Sub / Lower: the SSL Channel's LF band at 1.2 dB per step, its high-pass at 45 Hz (measured: the subsonic
+  −2.2 dB at 30 Hz), the LF frequency 60 Hz (Sub) or 100 Hz (Lower; measured: Lower reaches higher). **Upper**: the
+  V-EQ3's LF gain, its high-pass switched in from fader 0 up (measured: the steep high-pass at 0 and above, none on cuts).
+- **Treble** Bite: the SSL's HMF bell (4.5 kHz in the chain's preset; measured bell near 5 kHz); Top: the SSL's HF shelf;
+  Roof: the V-EQ3's HF band.
+- **Compress**: Clear bypasses the L1 and the 1176; a colour loads their sub-presets; the fader moves the 1176's input
+  (the direction and the rest of the law to be fitted in Phase 4: measured, the gain rises with the fader).
+- With every colour clear the SSL Channel, the V-EQ3 and both de-essers stay in the path (measured: the fixed filter and
+  the high-frequency compression, matching the "Main" de-esser's 5 kHz crossover).
+- **Balance** turns down one side of the first gain stage (measured). The Sensitivity LED shows a child's own meter
+  through the X / Y curve (measured: the input's rms level).
+- Not settled by either: why the state rejects the bypass and colour slots, the Noise's source, the latency's split
+  (it adds up to 193 samples), and the tempo law of the Quarter delay (in the H-Delay / SuperTap children).
