@@ -98,11 +98,17 @@ int main (int argc, char** argv)
         return 1;
     }
 
-    // main stereo in / out, the side-chain bus (if any) enabled in stereo
+    // main in / out as the plug-in has them, the side-chain bus (if any) enabled with the main input's channels
     auto layout = plugin->getBusesLayout();
-    for (int b = 1; b < layout.inputBuses.size(); ++b) layout.inputBuses.getReference (b) = AudioChannelSet::stereo();
+    for (int b = 1; b < layout.inputBuses.size(); ++b)
+        layout.inputBuses.getReference (b) = layout.inputBuses[0].size() == 1 ? AudioChannelSet::mono() : AudioChannelSet::stereo();
     if (! plugin->setBusesLayout (layout)) std::printf ("could not enable the side-chain bus\n");
+    for (int b = 0; b < plugin->getBusCount (true); ++b)
+        if (auto* bus = plugin->getBus (true, b))
+            std::printf ("  input bus %d '%s': %d channels%s\n", b, bus->getName().toRawUTF8(), bus->getNumberOfChannels(),
+                         bus->isEnabled() ? "" : " (disabled)");
     const int nIn = plugin->getTotalNumInputChannels(), nOut = plugin->getTotalNumOutputChannels();
+    const int mainIn = jmin (2, plugin->getChannelCountOfBus (true, 0));
     plugin->setPlayConfigDetails (nIn, nOut, fs, block);
     FixedHead head;
     head.bpm = bpm; head.fs = fs;
@@ -180,9 +186,10 @@ int main (int argc, char** argv)
             const int k = pos + i;
             if (k < n)
             {
-                buf.setSample (0, i, in[(size_t) k * 2]);
-                if (nIn > 1) buf.setSample (1, i, in[(size_t) k * 2 + 1]);
-                if (nIn > 3 && (size_t) k * 2 + 1 < sc.size()) { buf.setSample (2, i, sc[(size_t) k * 2]); buf.setSample (3, i, sc[(size_t) k * 2 + 1]); }
+                // the main bus's channels first (a mono bus takes the left), then the side-chain's
+                for (int c = 0; c < mainIn; ++c) buf.setSample (c, i, in[(size_t) k * 2 + (size_t) c]);
+                if ((size_t) k * 2 + 1 < sc.size())
+                    for (int c = 0; c < nIn - mainIn && c < 2; ++c) buf.setSample (mainIn + c, i, sc[(size_t) k * 2 + (size_t) c]);
             }
         }
         head.pos = pos;

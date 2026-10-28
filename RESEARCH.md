@@ -27,7 +27,7 @@ Sources
 | H-Comp | **WComp** | WComp |
 | H-Delay | **WDelay** | WDelay |
 | Bass Rider | **WBass Rider** | WBassRider |
-| Vocal Rider | **WVox Ride** | WVoxRide |
+| Vocal Rider | **WVox Rider** (renamed from WVox Ride 2026-10-28 to match WBass Rider) | WVoxRider |
 | CLA Vocals | **WVox Chain** | WVoxChain |
 | Vocal Bender | **WVox Bend** | WVoxBend |
 
@@ -606,3 +606,140 @@ Wavy names, and their null test will load the reference's own preset states (as 
   linking.
 - **Nulls**: steady material should null once the static law and smoother are exact; the note detector is the hard
   part (a learned block is the fallback, as in WComp).
+
+## 7. WVox Rider (Vocal Rider)
+
+### Sources
+- **V1** Local manual `Plug-Ins V17\Documents\Vocal Rider.pdf` (11 pages, Vocal Rider User Guide; a copy is in the
+  bundle's `Resources`).
+- **V2** Local `ParamXML\1000.xml` (46 parameters; `nulltest/paramxml_table.py`), `GUIXML\1000.xml`, `ToolbarXML`,
+  `AlgXML\1001.xml`, `ProcessXML\1000.xml` / `1001.xml` (components `RDRM` / `RDRS` Vocal Rider Mono / Stereo, `LRDM`
+  / `LRDS` Vocal Rider Live Mono / Stereo; `RDLM` / `RDLS` name a 600 × 818 view with text boxes for every hidden
+  value, a lab view the shell does not offer), presets in `Presets\1000.xml` (13), skins in `Webp.zip` (380 2x
+  images) and `PNG_.zip`, `Skin\1001` (skin names: Side-Chain, D-Show). Extracted to git-ignored
+  `reference/wvoxrider/skin/`.
+- **V3** The installed VST3 (`WaveShell1-VST3 17.1`) as a host sees it (`nulltest/probe_voxrider.py`, and
+  `tools/RefRender`, which now prints the input buses and enables a mono side-chain on mono components): *Vocal Rider
+  Mono* (uid −510562340), *Vocal Rider Stereo* (−509086244), *Vocal Rider Live Mono* (989902242), *Vocal Rider Live
+  Stereo* (991378338).
+- **V4** Frames of the real editor read back from its OpenGL drawing (`tools/MeterCapture gl=1 in=…`, 320 × 598,
+  git-ignored `reference/wvoxrider/shots/`), with voice-like syllables (`reference/wvoxrider/syllables.f32`).
+
+### Documented behaviour (V1)
+- Rides vocal levels automatically in real time, like a hand on the fader, with **zero latency and no pre-scan**;
+  it does not colour the sound (gain only). Meant as the last plug-in on a vocal track or group.
+- Splits the mix into **vocals** (the track) and **music** (everything else, fed post-fader to the **side-chain**).
+- **Target** 0 … −42 dBFS (default −21): the vocal level the riding aims at; it also calibrates the Rider fader's 0.
+  A transparent screen over the vocal level meter.
+- **Vocal Sensitivity** −12 … +12 dB (default 0): the vocal detector's threshold, which tells vocal content from noise
+  floor, spill and ambience and finds the starts and ends of words. **Vocal activity display**: Ride / Idle LEDs.
+- **Attack** Fast / Slow (default Slow): the detection timing and the fader's riding speed.
+- **Music Sensitivity** −12 … +12 dB (default 0; the host shows an Off below −12): how much the riding follows
+  changes of the instrumental level (needs the side-chain). Its **LED** goes from soft to bright green as the music
+  affects the riding more.
+- **Spill** −12 … −48 dBFS (default −48), Live components only: signal below it is ambient stage noise, not vocal.
+- **Range Min** −12 … +11 dB (default −6), **Range Max** −11 … +12 dB (default +6), the **Effective Range** between
+  them (1 … 24 dB); the **Idle arrow** (−12 … +12, default 0) is the Rider fader's value when no vocal is detected.
+- **Rider fader** −12 … +12 dB: the automatic gain; grabbed with the mouse it is a manual gain, and riding resumes on
+  release (a control surface's Manual button does the same).
+- **Automation** Off / Write / Read: Off rides from the internal engine; Write sends the fader's movements to the
+  host's automation lane as if written by hand; Read plays the lane back and ignores the engine.
+- **Output** −12 … +12 dB (default 0) after the riding, with a clip LED.
+
+### Specifications (V3, V4, measured)
+- **Latency 0** on all four components (reported and real: cross-correlation lag 0). Studio and Live differ in the
+  Spill control (and a LIVE badge), not in latency.
+- **Buses**: every component has a side-chain bus (*Mono SideChain* 1 channel, *Stereo SideChain* 2) besides its
+  main input, though `ProcessXML` lists no side-chain inputs. A first offline check (a steady −21 dBFS buzz, music
+  a buzz stepping from −40 to −6 dBFS on the side-chain, Music Sensitivity −12 / 0 / +12) showed **no effect of the
+  side-chain** on the gain: Phase 3 checks it on the editor (the Music meter and LED) and with real music.
+- **Static level at the defaults** (a 180 Hz buzz, harmonics falling 6 dB / octave, after 4 s): gain +6.00 dB (the
+  Max range) at −48 and −36 dBFS rms, +0.69 at −27, −3.48 at −21, −6.00 (the Min range) at −15 and louder. So the
+  default Target −21 is not "−21 dBFS rms in, 0 dB gain", and the slope between −27 and −21 is not −1 dB / dB (the
+  riding may still be moving, or the law is not a full correction): Phase 3.
+- **VST3 parameters** (10 plus bypass; Spill only on Live): target (421 steps of 0.1 dB), vocal_sensitivity (±12,
+  0.1), music_sensitivity (Off, −12 … +12), range_max, range_min (0.1 dB), idle (shown in dB, ±11.5 as in WBass
+  Rider), **rider_fader** (±12 dB, 0.1: unlike Bass Rider the fader *is* a host parameter, which is how Write sends
+  automation), output, attack (Slow / Fast), spill (−48 … −12).
+
+### Parameters (V2), in preset-array order
+The presets store 44 values (0–43); 44 (Spill, `DontSaveToPreset`) and 45 (Attenuation, display only) are not in
+them. Hidden values are on no control of the shipped view.
+
+| # | ID | Label / control | Range | Initial (presets) |
+|---|---|---|---|---|
+| 0 | PARAM_RIDE_TARGET | Target | −42 … 0 dB, 0.1 | −21 |
+| 1 | PARAM_PLAYBACK_THRESH | Music Sensitivity | −12.1 (Off) … +12 dB, 0.1 | 0 |
+| 2, 3 | PARAM_RIDE_GAIN_MIN / MAX | Range Min / Max | −12 … +11 / −11 … +12 dB, 0.1 | −6 / +6 |
+| 4, 5 | PARAM_RIDE_GAIN_ATTACK / RELEASE | RideAtt / RideRel: the fader smoother | 0.01 … 100 / 1 … 1000 ms, log | 0.35 (Slow presets 0.55) / 1000 |
+| 6 | PARAM_VAD_THRESH | Vocal Sensitivity | ±12 dB, 0.1 | 0 |
+| 7, 43 | PARAM_VAD_ATT / PARAM_VAD_REL | VADAtt / VADRel | 0.01 … 1000 ms, log | 0.01 / 0.01 |
+| 8, 9 | PARAM_WEIGHT_HPF_FREQ / GAIN | weighting high-pass (shelf?) | 20 … 2000 Hz / −140 … 0 dB | 100 / −18 (−18.1) |
+| 10, 11 | PARAM_WEIGHT_LPF_FREQ / GAIN | weighting low-pass (shelf?) | 2 … 20 kHz / −140 … 0 dB | 6500 (6502) / −6 |
+| 12–15 | PARAM_VOCALS_BIAS / RMS_ATTACK / RELEASE / HOLD | the vocal level's rms follower | −100 … 0 dB; 5 … 500, 100 … 10 000, 200 … 20 001 ms | −42; 10 (Slow presets 50), 1009, 5000 (5001) |
+| 16–19 | PARAM_PLAYBACK_BIAS / RMS_ATTACK / RELEASE / HOLD | the music level's rms follower | as above | −42; 105 (104.9), 2013 (2014), 5000 (5001) |
+| 20 | PARAM_OUT_GAIN | Output | ±12 dB, 0.1 | 0 |
+| 21 | PARAM_RIDE | Rider fader | ±12 dB, 0.01 | 0 |
+| 22 | PARAM_VAD | the vocal activity (Ride / Idle LEDs, display only) | 0 / 1 | |
+| 23–25 | PARAM_VOICE_LOUDNESS (_RIDED), PLAYBACK_LOUDNESS | the vocal meter (before / after riding), the Music meter | −42 / −60 / −24 … 0 dB (display only) | |
+| 26–29 | PARAM_IN / OUT_VU L / R | meters (display only) | −48 … 0 dB | |
+| 30 | PARAM_RIDE_AUTOMATION_STATE | Automation Off / Write / Read | 0 … 2 | Off |
+| 31 | PARAM_PARK_ONOFF | Park (the idle glide on) | toggle | 1 |
+| 32 | PARAM_PARK_GAIN | Idle arrow (fraction of the range) | 0.02 … 0.98, 0.01 (presets also 0 and 1) | 0.5 |
+| 33, 34, 38 | PARAM_PARK_ATTACK / RELEASE / HOLD | the glide to the Idle value; the hold before it | 200 … 20 000 / 1 … 10 000 ms | 1205, 1205; 50 (Slow presets 500) |
+| 35, 36 | PARAM_OUT_GAIN_ATTACK / RELEASE | OutAtt / OutRel | 0.01 … 100 / 1 … 1000 ms | 10 (Slow presets 50) / 50 (49.9) |
+| 37 | PARAM_USER_RIDE_TOUCH | the fader grabbed (display only) | toggle | 0 |
+| 39 | PARAM_RIDE_RANGE | Effective range (display only) | 1 … 24 | |
+| 40 | PARAM_OUT_CLIP | clip LED (display only) | toggle | |
+| 41 | PARAM_PARK_DB | the Idle value in dB (display only) | ±12 | |
+| 42 | PARAM_RESPONCE | Attack Slow / Fast | 0 / 1 | Slow |
+| 44 | PARAM_VAD_ABS_THRESH | Spill (Live) | −48 … −12 dB | −48 |
+| 45 | PARAM_RIDE_GAIN | Attenuation (display only) | | |
+
+The hidden values sketch the design: a **voice activity detector** (VAD threshold, attack / release) on a weighted
+level (a 100 Hz high-pass at −18 dB and a 6.5 kHz low-pass at −6 dB, probably shelves as in Bass Rider's sheet);
+**rms followers** for the vocal and for the music (attack, release, hold, a −42 dB bias); a fader smoother (RideAtt
+/ RideRel 1000 ms); a **park** glide to the Idle value (1205 ms, hold 50 or 500 ms); an output smoother. The presets
+tie four hidden values to Attack: Slow presets have RideAtt 0.55, VocAtt 50, OutAtt 50, ParkHold 500 ms; Fast
+presets 0.35, 10, 10, 50 (the ParamXML initial values are the Fast ones while Attack starts Slow). Phase 3 checks
+whether switching Attack alone changes them.
+
+### GUI geometry (V2, V4)
+View **320 × 598 px** including the two-row toolbar (as Bass Rider's, 316 wide). The panel (V4,
+`reference/wvoxrider/shots/default_400.png`, `live_400.png`):
+- Dark top panel: **Target** slider 59, 42, 208 × 20 over the **vocal level** meter 71, 47, 184 × 12 (yellow bar);
+  the **Ride / Idle** LEDs, the **Fast / Slow** switch below them; a "Sensitivity" group with the **Vocal** and
+  **Music** knobs (71-frame strips, 0 at the top, − and + at the ends) and the Music LED (a round lens, right). Live
+  adds the small **Spill** knob 71, 111, 36 × 34 and moves Vocal / Music right.
+- Cream lower panel as Bass Rider's: **Range** column (Max 28, 204 and Min 28, 234 thumbs on 26 × 233 tracks; the
+  **Idle** marker 33, 230, 12 × 212 with a hover text; the Range box 41, 473), the **Rider** fader 114, 197, 72 × 279
+  (a wide thumb with red centre lines, ±12 scale on both sides; a "graph" area 65, 230, 84 × 212 shades the band
+  between Min and Max and draws the Idle line), a small lamp above it (UserTouch 114, 148), the **Output** fader
+  231, 219, 47 × 236 with a clip LED 280, 192, and value boxes below each fader.
+- **Automation** OFF / WRITE / READ radio buttons 94, 522, 132 × 26 (yellow, dark red, dark green), a lamp above.
+- A music level bar (PlaybackLoudnessBar 299, 251, 21 × 238, 103 frames) is listed in the GUIXML; Phase 2 checks
+  where (and whether) it shows.
+- Bottom: dark leather with the product name in large type (and a LIVE badge on Live).
+
+### Presets (V2)
+13 presets (Full Reset and 12 riding styles: smooth, moderate, fast, low, high, rocky, loud, a VCA, an attenuator, a
+hard-limit ride, a de-compression with the full ±12 range). Each stores Target, Music and Vocal Sensitivity, Range
+Min / Max, Output, Idle, Attack and the Attack-tied hidden values above; the rest are shared. They will be carried
+over by their values with Wavy names, and their null test will load the reference's own preset states.
+
+### Notes for the next phases
+- **UI (Phase 2)**: start from WBass Rider's editor (toolbar, Range column, Rider and Output faders, Idle marker,
+  value boxes, clip LED, the knob and switch looks) and add the Ride / Idle LEDs, the two Sensitivity knobs, the
+  Music LED, the Automation radio buttons, the wider Rider thumb and the Live layout with Spill; film behaviour with
+  MeterCapture drag scripts (text entry, Alt-reset, grabbing the Rider, Idle hover).
+- **Components**: Mono / Stereo by the bus layout, Studio / Live as the Mode switch (Spill shown only on Live); a
+  side-chain bus on both.
+- **Automation**: the Rider fader is a host parameter here; Write sets it from the engine (host automation then
+  records it), Read takes the host's value; grabbing it is a manual gain.
+- **Measurement (Phase 3)**: the gain is observable sample by sample (output / input, no latency; a pilot tone for
+  the quiet parts); the vocal level measure and its weighting; the static law (Target, Min / Max, Idle) and the
+  smoother (RideAtt / RideRel); the VAD (word starts and ends) against Vocal Sensitivity, Attack and Spill on
+  syllables, noise and breaths; the park glide and hold; Music Sensitivity with music on the side-chain; stereo
+  linking. Vocal material: synthetic syllables plus real vocal phrases (sample packs on this machine, if any).
+- **Nulls**: with zero latency there is no look-ahead, so the riding is causal; the VAD decisions are the likely hard
+  part (as Bass Rider's note decisions).
