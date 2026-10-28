@@ -516,6 +516,10 @@ WBassRiderEditor::WBassRiderEditor (WBassRiderProcessor& p)
     rangeMax.onValueChange = [this] { if (rangeMin.getValue() > rangeMax.getValue() - 1.0) rangeMin.setValue (rangeMax.getValue() - 1.0, sendNotificationSync); content().repaint(); };
     rangeMin.onValueChange = [this] { if (rangeMax.getValue() < rangeMin.getValue() + 1.0) rangeMax.setValue (rangeMin.getValue() + 1.0, sendNotificationSync); content().repaint(); };
     output.onValueChange = [this] { content().repaint (230, 460, 60, 30); };
+    // the knobs' and the Target's value boxes are painted by the panel, so they follow a drag only if it repaints them
+    for (auto* k : { &sensitivity, &spill, &artifacts })
+        k->onValueChange = [this, k] { content().repaint (k->getX(), 150, k->getWidth() + 20, 28); };
+    target.onValueChange = [this] { content().repaint (266, 42, 44, 26); };
     // the Idle arrow
     auto* idleParam = p.apvts.getParameter (wbassrider::idle);
     idleColumn.marks = &marks;
