@@ -5,3 +5,4 @@ WBass|WBass|Wbs1
 WBassX|WBassX|Wbx1
 WComp|WComp|Wcp1
 WDelay|WDelay|Wdl1
+WBassRider|WBass Rider|Wbr1

@@ -93,3 +93,23 @@ When part of a reference resists identification, keep everything that *is* ident
   of the same structure nor a correction EQ fixes it. A candidate for a learned block (as WComp's gain net), trained
   on mode 3's renders at low levels and low frequencies.
 
+## WBass Rider
+The remaining error is in which notes are ridden afresh (MEASUREMENTS.md, WBass Rider Phase 4, passes 7 .. 9):
+- **Drops onto lower notes at Response Fast:** a held note at 100 Hz (the 2048-sample window) followed by a quieter
+  one at 50 .. 78 Hz (the 4096-sample window) is ridden afresh once the drop is deep enough (10 dB at 78 Hz, 14 at
+  69, 20 at 50 / 62), the gain always moving +3.0 .. 3.3 dB; from 55 Hz never. Not modelled; it is most of the worst
+  preset's error ("Fast, Artifacts Ignored" on the bass line, -9.9 dB).
+- **90 Hz** (and 85 .. 88 Hz at some rates and Sensitivities): re-rides 30 .. 90 ms after a release, +0.7 .. 3 dB.
+- **Overlapping notes:** when the louder of two ringing notes stops, the quieter one left is ridden afresh if it is
+  lower in pitch, not if higher. Partly covered by the band rule (39 .. 47 Hz).
+- **Re-rides on real bass that the reference takes and the model does not** (at onsets and inside notes): now most
+  of the corpus error at Fast. The probes above are the leads.
+- **The second re-ride in a long 42 Hz decay** comes 20 .. 40 % sooner in the reference: its slow envelope seems to
+  hold after a re-ride.
+- **The end of a fading note:** about 42 dB under its peak in the reference, 38 in the model (~60 ms later on plain
+  decays).
+- **Before the first note**, silence is read on the level read E (-77.7 dB); the reference's own measure ignores a
+  -54 dBFS 3 kHz tone, which E does not (a band-limited level, probably the detector's low-passed input).
+- **The lock after an attack** (when the gain stops following): tried as a learned block on the corpus, not adopted
+  (`nulltest/br_lock.py`; no clear win, the bass line lost at Fast).
+

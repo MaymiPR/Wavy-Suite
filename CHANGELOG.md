@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **WBass Rider** (ready for the next release; Phases 4 and 5): the riding DSP, identified from about 1,200 probe
+  signals on the reference and its riding on a corpus of 36 bass parts: the weighted level read and the gain law
+  (Target - level + 0.68 dB), the 42 ms look-ahead (5 ms in the Live components), a note detector with a windowed
+  note level by pitch band, slow and long envelopes, follow and hold, release and re-attack rules by Response and
+  Sensitivity, the Artifacts gate, the note end and the 32 dB/s glide to the Idle value (also before the first note,
+  and following the arrow in silence), one gain for both channels from the mid. The reference's 17 factory presets
+  with Wavy names (Target left where it is, as the reference's). The knob and Target values follow a drag. Null:
+  steady tones and steps -41 .. -49 dB, a bass line -30 dB, real bass parts -20 .. -25 dB median (docs/
+  NULL_RESULTS_WBASSRIDER.md); pluginval, FocusCheck, 44.1 / 96 kHz checked; in the installers' plug-in list.
 - **WBass Rider** (Phase 2: the editor; the audio is delayed by the component's latency and passes at the Rider's idle
   gain plus Output until the riding DSP), a note-by-note bass level rider modelled on Bass Rider: its 320 x 560 editor
   drawn by Wavy (resizable) — the Target slider's glass thumb over the Energy meter, the Detect / Ignore groups with

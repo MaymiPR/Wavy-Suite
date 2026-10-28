@@ -1,5 +1,21 @@
 # Validation
 
+## WBass Rider
+
+| Check | Result |
+|---|---|
+| Unit tests (`WBassRiderTests`, 84 checks, 2026-10-27: the parameters as the reference's (ranges, defaults, texts, the Idle arrow's place in the range), the components' latency (42 / 5 ms), the audio path, the ride against the reference's measured law, look-ahead, hold, glide and stereo mid, the Idle value before and after notes, the state, the editor and its selection, the 17 factory presets and Target left alone) | all pass (Windows, local) |
+| pluginval, strictness level 10, `--skip-gui-tests`, on `WBass Rider.vst3` (Windows, local, 2026-10-27) | SUCCESS, exit code 0 |
+| The built VST3 (hosted by `tools/RefRender`) against the offline renderer, stereo, 3 settings at 48 and 96 kHz | identical |
+| The C++ ride against the fitted model (`nulltest/check_wbassrider_port.py`, 7 cases) | within 0.08 dB at 99 % |
+| FocusCheck (the space bar reaches the host after clicks on the knobs, the Response switch, Target, the faders and the Idle arrow; 2026-10-27) | PASS |
+| Null test against the reference, 48 kHz | [NULL_RESULTS_WBASSRIDER.md](NULL_RESULTS_WBASSRIDER.md): steady tones and level steps -41 .. -49 dB; the bass line -30 dB at most settings (-25 .. -28 at Sensitivity 75 / 100); real bass parts held out from the fit -20 .. -25 dB median |
+| Sample rates | 44.1 kHz -30.8 dB, 96 kHz -30.4 dB on the bass line |
+| Components | Live Mono -26.2 dB, Stereo (different bass on L / R) -27.0, Live Stereo -26.8 |
+| Factory presets against the reference's own (17; bass line and two corpus parts) | [NULL_RESULTS_WBASSRIDER_PRESETS.md](NULL_RESULTS_WBASSRIDER_PRESETS.md): median -24.8 dB |
+| CPU (stereo at 48 kHz through the offline renderer) | about 0.7 % of one core |
+| Tested by the user in FL Studio (2026-10-27) | good |
+
 ## WDelay
 
 | Check | Result |

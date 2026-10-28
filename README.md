@@ -34,8 +34,27 @@ The installers are not code-signed or notarized; see [packaging/](packaging) for
 | **WBassX** | psychoacoustic bass enhancer with harmonics compressor, filters and monitor modes | ready for the next release: close, not a null (median −48.5 dB, see below) |
 | **WComp** | hybrid compressor with punch, tempo-synced release, analog modes and limiter | ready for the next release: close, not a null on every material (median −47.0 dB, see below) |
 | **WDelay** | hybrid delay with tape-style time changes, ping-pong, modulation, filters, LoFi and analog modes | ready for the next release: nulls on the delay path (−84 … −104 dB), close with modulation and Analog (see below) |
-| **WBass Rider** | note-by-note bass level rider with target, note detection, range and idle controls | in development: the editor (Phase 2) |
+| **WBass Rider** | note-by-note bass level rider with target, note detection, range and idle controls | ready for the next release: close, not a null on every bass part (bass line −30 dB, real bass −20 … −25 dB, see below) |
 | WVox Ride, WVox Chain, WVox Bend | | planned, one at a time |
+
+### WBass Rider null test (honest numbers)
+
+Residual of WBass Rider against the reference, lower is better. The level read, the gain law, the 42 ms look-ahead,
+the smoothing and the hold null at **−41 … −49 dB** on steady tones and level steps; a bass line at **−30 dB** at
+nearly every Sensitivity × Response setting (−25 … −28 dB at Sensitivity 75 / 100), at 44.1 and 96 kHz alike.
+
+- Real bass parts (FL Studio's own bass samples played as bass lines) held out from the fit: **median −20 … −25 dB**
+  per setting, the worst parts −10 … −17 dB. Nearly all of that is a note ridden afresh by one side and not the
+  other, after which the two hold 1 … 4 dB apart until the next note; in a mix that is one note slightly louder or
+  quieter than with the reference, not an artefact. It is weakest at Response Fast and Sensitivity 100.
+- The reference's own 17 presets, set on both: **median −24.8 dB**; Live components −26 dB, Stereo −27 dB.
+- How: the reference's note detector (a windowed note level by pitch band, slow and long envelopes, follow and hold,
+  release and re-attack rules, the Idle glide) was identified from about 1,200 probe signals and its riding on a
+  corpus of 36 bass parts; its constants are fitted, and some rules (which notes are ridden afresh at Fast) are
+  matched to what the probes show rather than known. Details:
+  [docs/NULL_RESULTS_WBASSRIDER.md](docs/NULL_RESULTS_WBASSRIDER.md),
+  [docs/NULL_RESULTS_WBASSRIDER_PRESETS.md](docs/NULL_RESULTS_WBASSRIDER_PRESETS.md),
+  [MEASUREMENTS.md](MEASUREMENTS.md#wbass-rider-phase-4-the-riding-model-identified-2026-10-26).
 
 ### WDelay null test (honest numbers)
 
