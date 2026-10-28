@@ -9,8 +9,8 @@ namespace sk = wvoxrider::skin;
 namespace
 {
 // colours measured on the reference's editor (reference/wvoxrider, git-ignored)
-const Colour kValueBox (0, 0, 0), kValueText (255, 255, 255), kIdleLine (228, 125, 120), kMarkSelected (241, 227, 7),
-    kMarkMember (7, 150, 229), kScaleInk (51, 51, 51);
+const Colour kValueBox (0, 0, 0), kValueText (255, 255, 255), kIdleLine (228, 125, 120), kMarkSelected (255, 234, 0),
+    kMarkMember (0, 138, 255), kScaleInk (51, 51, 51);
 
 float physicalScale (Graphics& g)
 {
@@ -231,8 +231,8 @@ void wvoxrider::ui::drawMark (Graphics& g, Rectangle<float> r, Mark m, bool roun
 {
     if (m == Mark::None) return;
     g.setColour (m == Mark::Member ? kMarkMember : kMarkSelected);
-    if (round) g.drawEllipse (r, 1.5f);
-    else g.drawRoundedRectangle (r, 1.5f, 1.2f);
+    if (round) g.drawEllipse (r, 1.2f);
+    else g.drawRect (r, 1.0f);
 }
 
 //==============================================================================
@@ -287,6 +287,7 @@ void Knob::mouseEnter (const MouseEvent&) { setMarks (marks, this, true); }
 void Knob::mouseExit (const MouseEvent&) { setMarks (marks, this, false); }
 void Knob::mouseDown (const MouseEvent& e)
 {
+    if (disabledLook) { blocked = true; return; }               // (Music without a side-chain: no input)
     blocked = marks != nullptr && ! marks->click (this);
     if (blocked) return;
     if (! feel.down (*this, e, {}, nullptr)) Slider::mouseDown (e);
@@ -315,7 +316,10 @@ void Knob::paint (Graphics& g)
         const float angle = sk::knobAngle0 + (sk::knobAngle1 - sk::knobAngle0) * (float) f / 70.0f;
         drawSprite (g, sprite (frames[f], s, [&] (float sc) { return renderPolar (m, w, h, sc, angle, small ? 17.5f : 26.5f); }), s, 0.0f, 0.0f);
     }
-    drawMark (g, Rectangle<float> (small ? 31.0f : 44.0f, small ? 31.0f : 44.0f).withCentre ({ m.cx, m.cy }), marks != nullptr ? marks->of (this) : Mark::None, true);
+    // the selection ring (the reference's selection pictures: centred at 27, 28.5, radius 21.5; Spill 17, 16.5, 14)
+    const float rr = small ? 14.05f : 21.5f;
+    drawMark (g, Rectangle<float> (2.0f * rr, 2.0f * rr).withCentre (small ? Point<float> (17.0f, 16.5f) : Point<float> (27.0f, 28.5f)),
+              marks != nullptr ? marks->of (this) : Mark::None, true);
 }
 
 //==============================================================================
@@ -353,12 +357,14 @@ Rectangle<float> Fader::capBounds() const
 // the cap's visible part (its image has transparent margins)
 Rectangle<float> Fader::capCore() const
 {
+    // its selection frame (measured on the reference's selection pictures, from the cap image's top left)
     const auto b = capBounds();
     switch (kind)
     {
-        case Rider:    return b.reduced (8.0f, 3.0f);
-        case Output:   return b.reduced (5.0f, 2.0f);
-        default:       return b.reduced (7.0f, 2.0f);
+        case Rider:    return { b.getX() + 19.0f, b.getY(), 53.0f, 69.0f };
+        case Output:   return { b.getX() + 7.0f, b.getY() + 1.0f, 40.0f, 25.0f };
+        case RangeMax: return { b.getX() + 15.0f, b.getY() + 1.0f, 39.0f, 25.0f };
+        default:       return { b.getX() + 15.0f, b.getY() + 5.0f, 39.0f, 25.0f };
     }
 }
 
@@ -433,7 +439,7 @@ void TargetSlider::paint (Graphics& g)
     }
     const float x = thumbX (getValue());
     drawSprite (g, sprite (glass, s, [] (float sc) { return renderLowRank (sk::targetGlass, sc); }), s, x, 0.0f);
-    drawMark (g, Rectangle<float> (x, 0.0f, 31.0f, 20.0f), marks != nullptr ? marks->of (this) : Mark::None);
+    drawMark (g, Rectangle<float> (x, 0.0f, 31.0f, 19.0f), marks != nullptr ? marks->of (this) : Mark::None);
 }
 
 //==============================================================================
@@ -493,11 +499,7 @@ void Switch::paintButton (Graphics& g, bool, bool)
     const float s = physicalScale (g);
     const bool fast = getToggleState();
     drawSprite (g, sprite (states[fast ? 1 : 0], s, [fast] (float sc) { return renderLowRank (fast ? sk::switchFast : sk::switchSlow, sc); }), s, 0.0f, 0.0f);
-    if (marks != nullptr && marks->of (this) != Mark::None)
-    {
-        g.setColour (kMarkSelected);
-        g.drawRect (getLocalBounds(), 1);
-    }
+    drawMark (g, getLocalBounds().toFloat(), marks != nullptr ? marks->of (this) : Mark::None);
 }
 
 //==============================================================================
@@ -528,10 +530,12 @@ void AutomationButtons::paint (Graphics& g)
         g.setColour (Colour ((uint8) jlimit (0.0f, 255.0f, rgb[0]), (uint8) jlimit (0.0f, 255.0f, rgb[1]), (uint8) jlimit (0.0f, 255.0f, rgb[2])));
         g.fillPath (p);
     }
+    drawMark (g, { 1.0f, 1.0f, 130.0f, 20.0f }, marks != nullptr ? marks->of (this) : Mark::None);
 }
 
 void AutomationButtons::mouseDown (const MouseEvent& e)
 {
+    if (marks != nullptr && ! marks->click (this)) return;
     if (setMode) setMode (jlimit (0, 2, (int) (e.position.x / 44.0f)));
     repaint();
 }
@@ -651,11 +655,16 @@ void WVoxRiderEditor::openEntry (Slider* sl)
     closeEntry (false);
     entryFor = sl;
     entry = std::make_unique<TextEditor>();
-    entry->setFont (arial (11.0f));
+    // (the look's own text-editor colours would put the selected text in a pale highlight: black on white, the
+    // selection a clear blue with white text)
+    entry->setFont (arial (12.0f, true));
     entry->setJustification (Justification::centredLeft);
     entry->setIndents (2, 0);
     entry->setColour (TextEditor::backgroundColourId, Colours::white);
     entry->setColour (TextEditor::textColourId, Colours::black);
+    entry->setColour (TextEditor::highlightColourId, Colour (0, 90, 200));
+    entry->setColour (TextEditor::highlightedTextColourId, Colours::white);
+    entry->setColour (CaretComponent::caretColourId, Colours::black);
     entry->setColour (TextEditor::outlineColourId, Colours::black);
     entry->setColour (TextEditor::focusedOutlineColourId, Colours::black);
     entry->setText (sl->getTextFromValue (sl->getValue()).upToFirstOccurrenceOf (" ", false, false), false);
@@ -719,7 +728,7 @@ void WVoxRiderEditor::contentMouseDrag (const MouseEvent& e)
     std::vector<std::pair<Component*, Rectangle<float>>> items = {
         { &target, at (target, { target.thumbX (target.getValue()), 0.0f, 31.0f, 20.0f }) }, { &attackSwitch, attackSwitch.getBounds().toFloat() },
         { &vocal, vocal.getBounds().toFloat() }, { &music, music.getBounds().toFloat() },
-        { &rangeMax, at (rangeMax, rangeMax.capCore()) }, { &idleColumn, Rectangle<float> (33.0f, scaleY (proc.idleDb()) - 5.5f, 12.0f, 11.0f) },
+        { &rangeMax, at (rangeMax, rangeMax.capCore()) }, { &idleColumn, Rectangle<float> (32.0f, std::round (scaleY (proc.idleDb()) - 5.5f), 7.0f, 11.0f) },
         { &rangeMin, at (rangeMin, rangeMin.capCore()) }, { &rider, at (rider, rider.capCore()) }, { &output, at (output, output.capCore()) } };
     if (spill.isVisible()) items.insert (items.begin() + 2, { &spill, spill.getBounds().toFloat() });
     marks.group.clear();

@@ -81,8 +81,8 @@ public:
     void mouseDown (const juce::MouseEvent&) override;
     void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
-    void mouseDoubleClick (const juce::MouseEvent&) override { if (marks != nullptr && marks->enter) marks->enter (this); }
-    void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w) override { wavy::wavesWheel (*this, e, w, wheelAcc, false); }
+    void mouseDoubleClick (const juce::MouseEvent&) override { if (! disabledLook && marks != nullptr && marks->enter) marks->enter (this); }
+    void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w) override { if (! disabledLook) wavy::wavesWheel (*this, e, w, wheelAcc, false); }
     wavy::flat::WavesDrag feel { wavy::flat::WavesDrag::Rotary };
     const bool small;
     bool blocked = false, disabledLook = false;
