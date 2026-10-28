@@ -743,3 +743,99 @@ over by their values with Wavy names, and their null test will load the referenc
   linking. Vocal material: synthetic syllables plus real vocal phrases (sample packs on this machine, if any).
 - **Nulls**: with zero latency there is no look-ahead, so the riding is causal; the VAD decisions are the likely hard
   part (as Bass Rider's note decisions).
+
+---
+
+## 8. WVox Chain (CLA Vocals)
+
+### Sources
+- **C1** Local manual `Plug-Ins V17\Documents\CLA Vocals.pdf` (13 pages, CLA Vocals User Guide; a copy in the
+  git-ignored `reference/wvoxchain/`).
+- **C2** Local `ParamXML\1000.xml` (68 parameters; `nulltest/paramxml_table.py`), `GUIXML\1000.xml` (111 controls),
+  `ToolbarXML\1001.xml`, `AlgXML\1001.xml` (alg type `CLVO`, a tempo listener), `ProcessXML\1000.xml` / `1001.xml`
+  (components `CVOS` Stereo and `CVOX` Mono-to-Stereo, both a "static chainer" of other Waves processors, up to 96 kHz),
+  presets in `Presets\1000.xml` (43) and the chain's own sub-presets in `Presets\1010.xml` / `1011.xml` (below), skins
+  in `PNG_.zip` (179 images; extracted to git-ignored `reference/wvoxchain/skin/`), `PageTable\3950.xml` (control
+  surface pages only).
+- **C3** The installed VST3 (`WaveShell1-VST3 17.1`) as a host sees it (`nulltest/probe_voxchain.py`): *CLA Vocals
+  Stereo* (uid 1510537014) and *CLA Vocals Mono/Stereo* (1511767094; 1 in, 2 out: pedalboard cannot host it,
+  `tools/RefRender` can, loaded by `name@uid`: by name alone it loaded another sub-plugin of the shell).
+- **C4** Frames of the real editor read back from its OpenGL drawing (`tools/MeterCapture` with
+  `"CLA Vocals Stereo@1510537014" gl=1`, 738 × 474 including the toolbar, git-ignored `reference/wvoxchain/shots/`).
+
+### Documented behaviour (C1)
+- An artist-signature vocal chain: six faders, each driving one stage of a fixed chain designed by the engineer, each
+  with a **Color** selector (three flavours and a clear position). With every colour clear, some fixed processing is
+  still active. The EQ faders act only once moved (at 0 the EQ colours do nothing); the other faders are active at 0
+  and give the default sound there.
+- **Sensitivity** (input) ±10, 0.1 steps, default 0, with the **Sensitivity LED**: off (too low), green (good), yellow
+  (optimal), red (very hot). Input meter −26 … 0 dBFS peak with a clip LED (click to reset).
+- **Bass** ±10 (0.1), colour Clear (bypass) / **Sub** (default) / Lower / Upper. **Treble** ±10, Clear / **Bite** /
+  Top / Roof. **Compress** ±10, Clear / **Push** / Spank / Wall. **Reverb** ±10 (wet mix), Clear (mute) / **Tight** /
+  Large / Chamber. **Delay** ±10 (wet mix), Clear / **Slap** (1/16 note) / Eight (1/8) / Quarter (1/4), synced to the
+  session tempo. **Pitch** ±10 (wet mix of a pitch modulation: chorusing / doubling), Clear / **Stereo** / Wide /
+  Spreader. **Output** ±10 dB with a peak meter and clip LED. **Balance** ±6 dB (Stereo component only).
+
+### Parameters (C2) and the host's view (C3)
+68 ParamXML parameters, the preset array in this order: 0 Sensitivity (input gain, `IgnoreOnPresetLoad`), 1 Dry
+Output, 2 Wet Input, 3 Wet Output, 4 Output (`IgnoreOnPresetLoad`), 5 Sensitivity LED (display), 8–17 the Sensitivity
+LED's curve (X1..X5 −144 / −9 / −3 / 3 / 6 dB to Y1..Y5), 19 Dry MS Reduction, 20 Main Mute, 21 Left Pan, 28–33 meter
+selector and meters, 37 Preset Flavor, 38 Child to Draw, 39–53 one **bypass per child processor** (below), 54–65 the
+six faders and their colours (colours 0 … 3, default 1), 66 Balance, 67 **Noise** (a toggle, on by default; not a host
+parameter). The VST3 shows 15: bypass, sensitivity, the six faders and colours (choices with a trailing space:
+`'Sub '`, `'Push '`), output, balance.
+
+- **Latency** (C3, RefRender): **193 samples at 44.1 and 48 kHz, 385 at 96 kHz** (a fixed number of samples, doubled
+  at 96 kHz), the same on both components; an impulse's peak lands 1 sample after the reported latency (2 at 96 kHz).
+  An impulse of 0.5 comes out at 0.375 (48 kHz) with the defaults.
+
+### The chain (C2: the bypass names and `Presets\1010.xml`)
+The processor is a fixed chain of other Waves processors, each named by its four-character code. `1010.xml` holds the
+default chain, in order, as each child's own preset:
+
+| # | child (code) | its preset in the default chain | colour sub-presets (`1011.xml`) |
+|---|---|---|---|
+| 1 | SSL Channel (`SLCH`), in a mix stage | "Vocal Green" (57 values) | |
+| 2 | V-EQ3 (`VEQ3`) | "CLA Vocal" (18) | |
+| 3 | L1 limiter (`L1  `), in a mix stage | "Green" (14) | Blue, Red |
+| 4 | 1176 (`1176`) | "Green" (103) | Green, Blue, Red |
+| 5 | De-Esser (`RDES`) | "Main" (18) | |
+| 6 | De-Esser (`RDES`) | "Reverb" (18) | |
+| 7 | Renaissance Reverb (`RRVB`) | "Green" (69) | Green, Blue, Red |
+| 8 | Gain (`GAIN`) | "Gain" (12) | |
+| 9 | H-Delay (`HBDL`) | "Green" (45) | Green, "Vocal 2 1/8", "vocal Red" |
+| 10 | SuperTap (`SUPT`) | "Vocal Delay" (97) | |
+| 11 | Gain (`GAIN`) | "Gain" (12) | |
+| 12 | Doubler (`WDBL`) | "Tight" (69) | Tight, Medium, Wide |
+| 13 | Gain (`GAIN`) | "Gain" (12) | |
+
+So each colour loads a stored setting of a child (Compress: L1 + 1176; Reverb: RVerb; Delay: H-Delay; Pitch: Doubler)
+and each fader moves some of that child's controls; how (which controls, by which law) is in the plug-in, not in the
+resources: Phase 3 measures it, with a behaviour analysis of `CLA Vocals.dll` with REA (approved 2026-10-28). The
+H-Delay stage is the processor WDelay already recreates. None of these children is installed separately here, so each
+stage is measured inside the chain, the others bypassed through the bypass parameters in the state.
+
+### Presets
+43 in `Presets\1000.xml`, each a 68-value array (faders, colours, Balance; Sensitivity, Output and the meters kept).
+Most names are the engineer's own, or songs' and artists' names: WVox Chain renames all of them (Phase 5), carrying
+only the settings.
+
+### The editor (C4)
+738 × 474 px with the WaveSystem toolbar. A dark metal panel: a header plate with the engineer's signature (WVox
+Chain uses its own name plate and draws no signature, name, initials or likeness), a grille, a "Vocals" badge; a
+colour display over the six channel faders (each stage's three flavour names stacked, the selected one lit) with a lit
+push button per fader that steps the colour; eight vertical faders (Input Sens, Bass, Treble, Compress, Reverb, Delay,
+Pitch, Output) on ±10 scales; stereo input and output LED meters (0 … 24 dB down) with clip LEDs; the Sensitivity LED
+over the input meter; Balance as a small knob under the input meter (L / R).
+
+### Plan (approved 2026-10-28)
+- **UI (Phase 2)**: draw the editor with fitted shading models as before (faders, buttons, display, meters, panel),
+  with a Wavy name plate; film every interaction with MeterCapture (fader drags, colour buttons, text entry, meters).
+- **Measurement (Phase 3)**: each stage on its own (the other children bypassed through the state): the EQ curves per
+  colour and fader position; the L1 and 1176 laws and timing per Compress colour; the de-essers; the reverb per colour
+  (impulse responses, decay, modulation); the delays (tempo, feedback, filtering); the Doubler (detune, delay,
+  modulation, width); the noise; the Sensitivity LED; Balance and the mono-to-stereo spread; then REA on the plug-in
+  to learn how each fader drives its child.
+- **DSP (Phase 4)**: per stage, then the chain; deep nulls are expected on the EQ, dynamics and gains, while the
+  reverb, delays and doubler are time-varying and may only match in their impulse responses and statistics (reported
+  as measured).
