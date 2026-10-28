@@ -115,28 +115,58 @@ void engrave (Image::BitmapData& bd, const Path& p, float s)
         }
 }
 
-// the suite's mark printed on the red plate the way the reference's maker's mark is: a pale ink that takes the plate's
-// shading (measured: the ink = the plate + its red times (0.45, 1, 0.85), so it darkens with the plate toward the top)
-void printOnPlate (Image::BitmapData& bd, Rectangle<float> r, float s)
+// the suite's mark printed on the red plate's rolled top the way the reference's maker's mark is: wrapped round the
+// plate's curve and in a pale ink that takes the plate's shading. The plate rolls over from facing the viewer at
+// y 64 to its top edge at y 28 (measured: its shading's profile; the highlight at y 55), a cylinder of radius 36: a
+// print at arc length a above y 64 shows at y 64 - 36 sin (a / 36), squeezed toward the edge. The ink (measured on the
+// reference's mark) = the plate + its red times (0.45, 1, 0.85), so it darkens with the plate as the surface turns away.
+// flat: the mark's box in arc coordinates (x as on screen; y the arc length up from y 64, top to bottom)
+void printOnPlate (Image::BitmapData& bd, float x0, float width, float arcTop, float arcBottom, float s)
 {
-    Image m (Image::ARGB, bd.width, bd.height, true, SoftwareImageType());
+    constexpr float face = 64.0f, radius = 36.0f, over = 4.0f, pad = 4.0f;   // (the flat print rendered 4 x finer, then sampled)
+    const float k = s * over, h = arcTop - arcBottom;
+    Image flat (Image::ARGB, jmax (1, roundToInt ((width + 2.0f * pad) * k)), jmax (1, roundToInt ((h + 2.0f * pad) * k)), true, SoftwareImageType());
     {
-        Graphics g (m);
-        g.addTransform (AffineTransform::scale (s));
-        wavy::drawMark (g, r, false, false, Colours::white, 1.5f);
+        Graphics g (flat);
+        g.addTransform (AffineTransform::scale (k));
+        wavy::drawMark (g, { pad, pad, width, h }, false, false, Colours::white, 1.5f);
     }
-    const Image::BitmapData md (m, Image::BitmapData::readOnly);
-    const auto box = (r.expanded (2.0f) * s).getSmallestIntegerContainer().getIntersection ({ 0, 0, bd.width, bd.height });
-    for (int y = box.getY(); y < box.getBottom(); ++y)
-        for (int x = box.getX(); x < box.getRight(); ++x)
+    const Image::BitmapData fd (flat, Image::BitmapData::readOnly);
+    auto flatAlpha = [&] (float fx, float fy)                       // design px in the flat box
+    {
+        const int ix = (int) ((fx + pad) * k), iy = (int) ((fy + pad) * k);
+        if (ix < 0 || iy < 0 || ix >= fd.width || iy >= fd.height) return 0.0f;
+        return fd.getPixelColour (ix, iy).getFloatAlpha();
+    };
+    auto screenY = [&] (float arc) { return face - radius * std::sin (arc / radius); };
+    const int px0 = jmax (0, (int) std::floor ((x0 - pad) * s)), px1 = jmin (bd.width, (int) std::ceil ((x0 + width + pad) * s));
+    const int py0 = jmax (0, (int) std::floor (screenY (jmin (arcTop + pad, radius * 1.5707f)) * s));
+    const int py1 = jmin (bd.height, (int) std::ceil (screenY (arcBottom - pad) * s));
+    for (int py = py0; py < py1; ++py)
+    {
+        // the pixel's rows of the flat print: from the arc at its top to the arc at its bottom (more than one row near
+        // the edge, where the curve squeezes the print), averaged
+        const float yTop = (float) py / s, yBottom = (float) (py + 1) / s;
+        const float aTop = radius * std::asin (jlimit (-1.0f, 1.0f, (face - yTop) / radius));
+        const float aBottom = radius * std::asin (jlimit (-1.0f, 1.0f, (face - yBottom) / radius));
+        const int n = jlimit (1, 16, (int) std::ceil ((aTop - aBottom) * k));
+        for (int px = px0; px < px1; ++px)
         {
-            const float a = md.getPixelColour (x, y).getFloatAlpha();
+            float a = 0.0f;
+            for (int j = 0; j < n; ++j)
+                for (int i = 0; i < (int) over; ++i)
+                {
+                    const float arc = aTop + (aBottom - aTop) * ((float) j + 0.5f) / (float) n;
+                    a += flatAlpha (((float) px + ((float) i + 0.5f) / over) / s - x0, arcTop - arc);
+                }
+            a /= (float) n * over;
             if (a <= 1.0e-3f) continue;
-            const auto c = bd.getPixelColour (x, y);
+            const auto c = bd.getPixelColour (px, py);
             const float red = (float) c.getRed();
-            bd.setPixelColour (x, y, Colour ((uint8) jlimit (0.0f, 255.0f, c.getRed() + a * 0.45f * red), (uint8) jlimit (0.0f, 255.0f, c.getGreen() + a * 1.0f * red),
-                                             (uint8) jlimit (0.0f, 255.0f, c.getBlue() + a * 0.85f * red)));
+            bd.setPixelColour (px, py, Colour ((uint8) jlimit (0.0f, 255.0f, c.getRed() + a * 0.45f * red), (uint8) jlimit (0.0f, 255.0f, c.getGreen() + a * 1.0f * red),
+                                               (uint8) jlimit (0.0f, 255.0f, c.getBlue() + a * 0.85f * red)));
         }
+    }
 }
 
 // WVox Chain's name plate on the red header, in the reference's chrome lettering: a bold italic name (cap height 18 px
@@ -313,7 +343,7 @@ Image renderBackground (float s, bool stereo)
         for (const auto& sc : sk::screws) blendPolar (bd, s, sk::screw, sc[0], sc[1], 7.0f);
         blendPolar (bd, s, sk::headerScrewL, sk::headerScrews[0][0], sk::headerScrews[0][1], 8.5f);
         blendPolar (bd, s, sk::headerScrewR, sk::headerScrews[1][0], sk::headerScrews[1][1], 8.5f);
-        printOnPlate (bd, Rectangle<float> (664.0f, 28.0f, 26.0f, 21.0f), s);
+        printOnPlate (bd, 657.0f, 31.0f, 46.0f, 17.0f, s);           // (on screen: y 29.6 .. 47.6, where the reference's mark sits)
         engrave (bd, badgePath(), s);
     }
     Graphics g (img);
