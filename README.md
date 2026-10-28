@@ -35,7 +35,7 @@ The installers are not code-signed or notarized; see [packaging/](packaging) for
 | **WComp** | hybrid compressor with punch, tempo-synced release, analog modes and limiter | ready for the next release: close, not a null on every material (median −47.0 dB, see below) |
 | **WDelay** | hybrid delay with tape-style time changes, ping-pong, modulation, filters, LoFi and analog modes | ready for the next release: nulls on the delay path (−84 … −104 dB), close with modulation and Analog (see below) |
 | **WBass Rider** | note-by-note bass level rider with target, note detection, range and idle controls | ready for the next release: close, not a null on every bass part (bass line −30 dB, real bass −20 … −25 dB, see below) |
-| WVox Rider | real-time vocal level rider with a music side-chain, range and idle controls | in progress: Phase 4 (DSP) done, nulls on vocals (−47 … −74 dB, see below); the music side-chain not yet |
+| **WVox Rider** | real-time vocal level rider with a music side-chain, range and idle controls | ready for the next release: nulls on vocals (−47 … −74 dB, see below); the music side-chain not yet |
 | WVox Chain, WVox Bend | | planned, one at a time |
 
 ### WVox Rider null test (honest numbers)
@@ -49,6 +49,8 @@ Stereo, and at 44.1 and 96 kHz. Attack Fast is the weakest (about −50 dB), at 
   every constant is the reference's own hidden value, none is fitted. Details:
   [docs/NULL_RESULTS_WVOXRIDER.md](docs/NULL_RESULTS_WVOXRIDER.md),
   [MEASUREMENTS.md](MEASUREMENTS.md#wvox-rider-phase-4-the-riding-identified-2026-10-28).
+- The reference's own 13 presets, loaded into it, against WVox Rider's (Wavy names): **median −60.9 dB**, worst −37.9
+  ([docs/NULL_RESULTS_WVOXRIDER_PRESETS.md](docs/NULL_RESULTS_WVOXRIDER_PRESETS.md)).
 - Not covered yet: the **Music side-chain** (Music Sensitivity). The reference uses the music only when its host
   reports the side-chain active, which no offline host here does; WVox Rider rides without it for now.
 

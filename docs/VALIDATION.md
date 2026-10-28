@@ -4,15 +4,18 @@
 
 | Check | Result |
 |---|---|
-| Unit tests (`WVoxRiderTests`, 51 checks, 2026-10-28: the parameters as the reference's, the buses (a side-chain), no latency, the audio path, Automation Read and Write, the editor's Studio / Live layouts and the Music knob's disabled look, and the riding against the reference's measured values: the start, the law, the rise after 12 and 4 dB drops, the hold and glide to Idle at Slow and Fast, Spill on Live and off at -48) | all pass (Windows, local) |
-| pluginval, strictness level 10, `--skip-gui-tests`, on `WVox Rider.vst3` (Windows, local, 2026-10-28) | SUCCESS, exit code 0 |
+| Unit tests (`WVoxRiderTests`, 65 checks, 2026-10-28: the parameters as the reference's, the buses (a side-chain), no latency, the audio path, Automation Read and Write, the editor's Studio / Live layouts and the Music knob's disabled look, the 13 factory presets (their values, Attack, Automation Off in Full Reset, an Idle of 0 / 1 kept exactly), and the riding against the reference's measured values: the start, the law, the rise after 12 and 4 dB drops, the hold and glide to Idle at Slow and Fast, Spill on Live and off at -48) | all pass (Windows, local) |
+| pluginval, strictness level 10, `--skip-gui-tests`, on `WVox Rider.vst3` (Windows, local, 2026-10-28, with the presets) | SUCCESS, exit code 0 |
+| The built VST3 (hosted by `tools/RefRender`) against the offline renderer (`nulltest/validate_wvoxrider.py`), stereo, 3 settings at 48 and 96 kHz | identical |
 | The C++ ride against the model (`nulltest/check_wvoxrider_port.py`, 25 cases) | identical (0.0000 dB) |
 | FocusCheck (the space bar reaches the host after clicks on the Vocal and Music knobs, the Attack switch, the Rider fader, the Idle arrow, the Automation buttons and Target; 2026-10-28) | PASS |
 | Null test against the reference | [NULL_RESULTS_WVOXRIDER.md](NULL_RESULTS_WVOXRIDER.md): steps -74 dB, held-out vocal parts -47 .. -66 dB at ten settings |
+| Factory presets against the reference's own (13, loaded into its state; three held-out vocal parts) | [NULL_RESULTS_WVOXRIDER_PRESETS.md](NULL_RESULTS_WVOXRIDER_PRESETS.md): median -60.9 dB, worst -37.9 |
 | Sample rates | 44.1 kHz -63.5 dB, 96 kHz (Fast) -53.2 dB on held-out vocal parts |
 | Components | Stereo -60.3 dB, Live -60.4 / -46.6 dB (Slow / Fast) |
-| CPU (stereo at 48 kHz through the offline renderer) | about 0.4 % of one core |
+| CPU (stereo at 48 kHz through the offline renderer) | about 0.6 % of one core |
 | Music side-chain | not tested: the reference uses it in no offline host; to be checked in FL Studio |
+| Tested by the user in FL Studio | not yet |
 
 ## WBass Rider
 

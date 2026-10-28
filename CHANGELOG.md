@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **WVox Rider** (ready for the next release; Phases 2 to 5), a real-time vocal level rider modelled on Vocal Rider:
+  its 320 x 598 editor drawn by Wavy (the Target slider over the vocal meter, the Ride / Idle LEDs, the Attack switch,
+  the Vocal and Music Sensitivity knobs, Spill on Live, the Range column with the Idle arrow, the Rider and Output
+  faders, the Automation Off / Write / Read buttons), and the riding identified from the reference's audio: the
+  weighted level read and its floor, a per-sample vocal detector that the ride waits on (so it rises slowly on a real
+  voice), the hold and glide to the Idle value, Spill added to the detector's threshold on Live, the stereo mid; every
+  constant is the reference's own hidden value. Automation Write sends the ride to the host's Rider Fader, Read plays
+  it back; the fader can be grabbed. The reference's 13 factory presets with Wavy names. No latency. Null: level steps
+  -74 dB, held-out vocal parts -47 .. -66 dB, presets median -60.9 dB (docs/NULL_RESULTS_WVOXRIDER.md); pluginval,
+  FocusCheck, 44.1 / 96 kHz checked; in the installers' plug-in list. The music side-chain (Music Sensitivity) is not
+  modelled yet.
+
 - **WBass Rider** (ready for the next release; Phases 4 and 5): the riding DSP, identified from about 1,200 probe
   signals on the reference and its riding on a corpus of 36 bass parts: the weighted level read and the gain law
   (Target - level + 0.68 dB), the 42 ms look-ahead (5 ms in the Live components), a note detector with a windowed

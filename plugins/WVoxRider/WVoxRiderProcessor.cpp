@@ -120,9 +120,17 @@ void WVoxRiderProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer&)
     outDb.push (pk > 1.0e-5f ? Decibels::gainToDecibels (pk) : -100.0f);
 }
 
+// a factory preset's own Idle value (wavy::presetExactTag in the state)
+void WVoxRiderProcessor::readExactIdle()
+{
+    const auto t = apvts.state.getChildWithName (wavy::presetExactTag);
+    exactIdle.store (t.isValid() && t.hasProperty (wvoxrider::idle) ? (float) t.getProperty (wvoxrider::idle) : -1.0f);
+}
+
 // Automation Write: the Rider's movements go to the host as if a hand moved its parameter (one gesture while writing)
 void WVoxRiderProcessor::timerCallback()
 {
+    readExactIdle();
     auto* p = apvts.getParameter (wvoxrider::rider);
     const bool write = automationMode() == wvoxrider::Write;
     if (write != writing)
@@ -147,7 +155,7 @@ void WVoxRiderProcessor::getStateInformation (MemoryBlock& d)
 void WVoxRiderProcessor::setStateInformation (const void* data, int size)
 {
     if (auto xml = getXmlFromBinary (data, size))
-        if (xml->hasTagName (apvts.state.getType())) apvts.replaceState (ValueTree::fromXml (*xml));
+        if (xml->hasTagName (apvts.state.getType())) { apvts.replaceState (ValueTree::fromXml (*xml)); readExactIdle(); }
 }
 
 AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new WVoxRiderProcessor(); }

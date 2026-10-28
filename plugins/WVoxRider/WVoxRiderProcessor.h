@@ -30,8 +30,8 @@ inline bool musicOff (float value) { return value < -12.05f; }
 // the Idle arrow's value in dB: its place in the range
 inline float idleDb (float fraction, float lo, float hi) { return lo + fraction * (hi - lo); }
 enum Automation { Off, Write, Read };
-inline const std::vector<wavy::FactoryPreset>& factoryPresets() { static const std::vector<wavy::FactoryPreset> none; return none; }
 }
+#include "WVoxRiderPresets.h"
 
 class WVoxRiderProcessor : public juce::AudioProcessor, private juce::Timer
 {
@@ -50,10 +50,22 @@ public:
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram (int) override {}
-    const juce::String getProgramName (int) override { return "Default"; }
+    int getNumPrograms() override { return 1 + (int) wvoxrider::factoryPresets().size(); }
+    int getCurrentProgram() override { return currentProgram; }
+    void setCurrentProgram (int index) override
+    {
+        if (index == currentProgram || index < 0 || index >= getNumPrograms()) return;
+        currentProgram = index;
+        static const wavy::FactoryPreset defaults { "", "Default", {} };
+        wavy::applyPreset (apvts, index == 0 ? defaults : wvoxrider::factoryPresets()[(size_t) index - 1], apvts.getParameter (wvoxrider::mode));
+        readExactIdle();
+    }
+    const juce::String getProgramName (int index) override
+    {
+        if (index <= 0 || index >= getNumPrograms()) return "Default";
+        const auto& p = wvoxrider::factoryPresets()[(size_t) index - 1];
+        return juce::String (p.group) + ": " + p.name;
+    }
     void changeProgramName (int, const juce::String&) override {}
     void getStateInformation (juce::MemoryBlock&) override;
     void setStateInformation (const void*, int) override;
@@ -73,14 +85,24 @@ public:
     float get (const char* id) const { return apvts.getRawParameterValue (id)->load(); }
     int modeIndex() const { return juce::roundToInt (get (wvoxrider::mode)); }
     int automationMode() const { return juce::roundToInt (get (wvoxrider::automation)); }
-    float idleDb() const { return wvoxrider::idleDb (get (wvoxrider::idle), get (wvoxrider::rangeMin), get (wvoxrider::rangeMax)); }
+    // the Idle arrow's place: a factory preset's own value (presets use 0 and 1, outside the arrow's 0.02 .. 0.98) while
+    // the arrow stays where the preset put it, else the parameter's
+    float idleFraction() const
+    {
+        const float v = get (wvoxrider::idle), e = exactIdle.load();
+        return (e >= 0.0f && std::abs (v - juce::jlimit (0.02f, 0.98f, e)) < 1.0e-4f) ? e : v;
+    }
+    float idleDb() const { return wvoxrider::idleDb (idleFraction(), get (wvoxrider::rangeMin), get (wvoxrider::rangeMax)); }
+    void readExactIdle();                                       // (after a preset: also called by the timer)
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout layout();
-    void timerCallback() override;                              // Automation Write: the ride to the host
+    void timerCallback() override;                              // Automation Write: the ride to the host; the preset's Idle
+    std::atomic<float> exactIdle { -1.0f };
     double sr = 48000.0;
     wvoxrider::Ride ride;
     double outGain = 1.0, heldDb = 0.0, smooth5 = 0.0;          // the Output gain and a held Rider, each smoothed over 5 ms
     double musicLevel = 1.0e-10;
     bool wasHeld = false, returning = false, writing = false;
+    int currentProgram = 0;
 };

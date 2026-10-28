@@ -2,8 +2,9 @@
 //   WVoxRiderRender in.f32 out.f32 channels sampleRate [key=value ...]
 // Files are raw interleaved 32-bit floats. Keys (real units, the parameter IDs): target vocalSensitivity musicSensitivity
 // rangeMax rangeMin output spill rider (dB), attack (0 Slow, 1 Fast), automation (0 Off, 1 Write, 2 Read), idle (dB, its
-// place in the range as the editor's arrow), mode (0 Stereo, 1 Mono, 2 Live Stereo, 3 Live Mono), block (samples,
-// default 512). There is no latency; the output is the same length as the input.
+// place in the range as the editor's arrow), mode (0 Stereo, 1 Mono, 2 Live Stereo, 3 Live Mono), preset (a factory
+// preset's index, applied where it appears among the keys), block (samples, default 512). There is no latency; the
+// output is the same length as the input.
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -30,6 +31,11 @@ int main (int argc, char** argv)
         const std::string k = a.substr (0, eq);
         const float v = (float) std::atof (a.c_str() + eq + 1);
         if (k == "block") block = std::max (1, (int) v);
+        else if (k == "preset")
+        {
+            const auto& list = wvoxrider::factoryPresets();
+            if ((int) v >= 0 && (int) v < (int) list.size()) { wavy::applyPreset (p.apvts, list[(size_t) v], p.apvts.getParameter (wvoxrider::mode)); p.readExactIdle(); }
+        }
         else if (k == "idle") { idleDbValue = v; idleGiven = true; }
         else set (k.c_str(), v);
     }

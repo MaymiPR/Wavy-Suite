@@ -1,6 +1,6 @@
 // Unit tests for WVox Rider (Phases 2, 4): the parameters as the reference's, the buses (a side-chain), no latency, the
 // audio path, Automation (Read plays the host's Rider Fader, Write sends the ride), the editor (Studio / Live layouts,
-// the Music knob's disabled look without a side-chain), and the riding against values measured on the reference
+// the Music knob's disabled look without a side-chain), the factory presets, and the riding against values measured on the reference
 // (MEASUREMENTS.md, WVox Rider Phase 3 / 4).
 // Run: WVoxRiderTests (exit code 0 = all passed).
 #include <functional>
@@ -205,6 +205,31 @@ static void testRiding()
     CHECK_NEAR (at (h, 3.4), at (g, 3.4), 1.0e-9);
 }
 
+// the factory presets: the reference's 13, with our names; they set their values (Attack among them), and an Idle of
+// 0 or 1 (outside the arrow's 0.02 .. 0.98) is kept exactly while the arrow stays put
+static void testPresets()
+{
+    WVoxRiderProcessor p;
+    CHECK (p.getNumPrograms() == 14);
+    CHECK (p.getProgramName (1) == "Essentials: Full Reset");
+    p.setCurrentProgram (12);                                         // "Ceiling Ride": Target -42, Range -12 .. 0, Fast, Idle 1
+    CHECK (p.getProgramName (12) == "Essentials: Ceiling Ride");
+    CHECK_NEAR (p.apvts.getRawParameterValue (wvoxrider::target)->load(), -42.0, 0.05);
+    CHECK_NEAR (p.apvts.getRawParameterValue (wvoxrider::rangeMin)->load(), -12.0, 0.05);
+    CHECK_NEAR (p.apvts.getRawParameterValue (wvoxrider::rangeMax)->load(), 0.0, 0.05);
+    CHECK_NEAR (p.apvts.getRawParameterValue (wvoxrider::vocalSensitivity)->load(), -12.0, 0.05);
+    CHECK (p.apvts.getRawParameterValue (wvoxrider::attack)->load() > 0.5f);
+    CHECK_NEAR (p.idleDb(), 0.0, 1.0e-4);                             // Idle 1: at Max exactly (the arrow alone: -0.24)
+    set (p, wvoxrider::idle, 0.5f);                                   // the arrow moved: the parameter's value again
+    CHECK_NEAR (p.idleDb(), -6.0, 0.01);
+    p.setCurrentProgram (13);                                         // "Open Up": Range -12 .. +12, Idle 0
+    CHECK_NEAR (p.idleDb(), -12.0, 1.0e-4);
+    p.setCurrentProgram (1);                                          // "Full Reset" also sets Automation Off
+    CHECK_NEAR (p.apvts.getRawParameterValue (wvoxrider::target)->load(), -21.0, 0.05);
+    CHECK (p.automationMode() == wvoxrider::Off);
+    CHECK_NEAR (p.idleDb(), 0.0, 0.01);
+}
+
 int main()
 {
     juce::ScopedJuceInitialiser_GUI init;
@@ -214,6 +239,7 @@ int main()
     testWrite();
     testEditor();
     testRiding();
+    testPresets();
     std::printf ("%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;
 }
