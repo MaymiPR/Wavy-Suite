@@ -20,7 +20,7 @@ Toolbar::Toolbar (juce::UndoManager& u, juce::AudioProcessorValueTreeState& s, j
 {
     loadedValues = currentValues();
     if (style == Style::Flat) setSize (flatWidth, flatHeight);
-    else if (style == Style::Hybrid) setSize (hybridWidth, hybridHeight);
+    else if (hybridLayout()) setSize (hybridWidth, hybridHeight);
     else setSize (width, height);
 }
 
@@ -44,7 +44,7 @@ juce::Rectangle<int> Toolbar::rect (Item i) const
             case Menu:   return { 776, 10, 24, 17 };
             default:     return {};
         }
-    if (style == Style::Hybrid)    // measured on the reference (H-Comp): boxes on y 2 ... 16; a wider editor (H-Delay,
+    if (hybridLayout())            // measured on the reference (H-Comp): boxes on y 2 ... 16; a wider editor (H-Delay,
     {                              // 749) widens the preset box and moves the rest right
         const int x = getWidth() - hybridWidth;
         switch (i)
@@ -445,7 +445,7 @@ void Toolbar::paintFlat (juce::Graphics& g)
 void Toolbar::paint (juce::Graphics& g)
 {
     if (style == Style::Flat) { paintFlat (g); return; }
-    const bool hybrid = style == Style::Hybrid;
+    const bool hybrid = hybridLayout();
     if (hybrid) g.fillAll (juce::Colour (2, 2, 2));
     auto box = [&] (juce::Rectangle<int> r, bool hot)
     {
@@ -508,9 +508,21 @@ void Toolbar::paint (juce::Graphics& g)
             case About:
                 if (hybrid)
                 {
-                    // orange logo block (measured (255, 170, 0) with a darker lower half), the mark and the suite name
-                    juce::ColourGradient og (juce::Colour (255, 196, 60), 0.0f, (float) r.getY(), juce::Colour (232, 150, 0), 0.0f, (float) r.getBottom(), false);
-                    g.setGradientFill (og);
+                    // orange logo block (measured (255, 170, 0) with a darker lower half), the mark and the suite name; the
+                    // Classic bar's is grey (measured down the block: 167 at the edge, 202, falling to 121 below the
+                    // middle, 141 .. 157 at the foot)
+                    if (style == Style::Classic)
+                    {
+                        juce::ColourGradient gg (juce::Colour (202, 202, 202), 0.0f, (float) r.getY() + 1.0f, juce::Colour (141, 141, 141), 0.0f, (float) r.getBottom(), false);
+                        gg.addColour (0.2, juce::Colour (199, 199, 199));
+                        gg.addColour (0.7, juce::Colour (121, 121, 121));
+                        g.setGradientFill (gg);
+                    }
+                    else
+                    {
+                        juce::ColourGradient og (juce::Colour (255, 196, 60), 0.0f, (float) r.getY(), juce::Colour (232, 150, 0), 0.0f, (float) r.getBottom(), false);
+                        g.setGradientFill (og);
+                    }
                     g.fillRect (r);
                     g.setColour (hot ? juce::Colours::white : juce::Colour (90, 60, 10));
                     g.drawRect (r, 1);

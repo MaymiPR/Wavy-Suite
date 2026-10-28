@@ -36,7 +36,7 @@ The installers are not code-signed or notarized; see [packaging/](packaging) for
 | **WDelay** | hybrid delay with tape-style time changes, ping-pong, modulation, filters, LoFi and analog modes | ready for the next release: nulls on the delay path (−84 … −104 dB), close with modulation and Analog (see below) |
 | **WBass Rider** | note-by-note bass level rider with target, note detection, range and idle controls | ready for the next release: close, not a null on every bass part (bass line −30 dB, real bass −22 … −26 dB, see below) |
 | **WVox Rider** | real-time vocal level rider with a music side-chain, range and idle controls | ready for the next release: nulls on vocals (−47 … −74 dB, see below); the music side-chain not yet |
-| WVox Chain | a one-fader-per-stage vocal chain: EQ, compression, de-essing, reverb, delay, doubling | in progress: Phase 1 (research) done |
+| WVox Chain | a one-fader-per-stage vocal chain: EQ, compression, de-essing, reverb, delay, doubling | in progress: Phase 2 (the editor), first version; the audio passes (no DSP yet) |
 | WVox Bend | | planned |
 
 ### WVox Rider null test (honest numbers)

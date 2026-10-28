@@ -234,7 +234,7 @@ Editor::Editor (AudioProcessor& p, AudioProcessorValueTreeState& state, UndoMana
     toolbar->setMouseClickGrabsKeyboardFocus (false);
     contentComp->addAndMakeVisible (*toolbar);
     toolbar->setTopLeftPosition (0, 0);
-    if (tbStyle == wavy::Toolbar::Style::Hybrid) toolbar->setSize (W, wavy::Toolbar::hybridHeight);   // the editor's width
+    if (tbStyle == wavy::Toolbar::Style::Hybrid || tbStyle == wavy::Toolbar::Style::Classic) toolbar->setSize (W, wavy::Toolbar::hybridHeight);   // the editor's width
     else if (tbStyle == wavy::Toolbar::Style::Renaissance && W < wavy::Toolbar::width) toolbar->setSize (W, wavy::Toolbar::height);   // narrow
     toolbar->getWindowScale = [this] { return (float) getWidth() / (float) W; };
     toolbar->setWindowScale = [this] (float s) { setSize (roundToInt (W * s), roundToInt (H * s)); };

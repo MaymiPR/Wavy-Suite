@@ -15,10 +15,13 @@ namespace wavy
 // preset box | prev | next | A>B copy | Setup A/B | save icon | menu; same behaviour.
 // Style::Hybrid is the Hybrid-line bar (643 x 19 px, e.g. H-Comp): an orange logo block (the mark and the suite name,
 // then Mode) | undo | redo | preset bar | prev | next | A>B copy | Setup A/B | Save | menu.
+// Style::Classic is the older grey WaveSystem bar (e.g. the signature line's, 738 x 19 px): the Hybrid bar's boxes and
+// colours with a grey logo block.
 class Toolbar : public juce::Component
 {
 public:
-    enum class Style { Renaissance, Flat, Hybrid };
+    enum class Style { Renaissance, Flat, Hybrid, Classic };
+    bool hybridLayout() const { return style == Style::Hybrid || style == Style::Classic; }
     Toolbar (juce::UndoManager& undo, juce::AudioProcessorValueTreeState& state, juce::StringArray modeNames,
              juce::RangedAudioParameter* modeParam, juce::String productName, juce::String version,
              Style style = Style::Renaissance);
