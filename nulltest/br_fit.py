@@ -23,7 +23,8 @@ GLOBAL = [('slow_att', 30.0, 'log'), ('slow_rel', 1000.0, 'log'), ('ref_rel', 50
           ('f_att', 5.0, 'log'), ('f_rel', 150.0, 'log'), ('pitch_lp', 200.0, 'log'), ('rr_lo1', 39.0, 'log'), ('rr_hi1', 49.0, 'log')]
 # model options held fixed: at Response Fast a held note at a pitch in the band rr_lo1 .. rr_hi1 is ridden afresh once it is
 # RR_DEPTH under its slow envelope
-FIXED = dict(rr_band=7.0, rr_lo2=0.0, rr_hi2=0.0, block_rise=0.0, gate_block=2.0, hold_latch=2.0)
+FIXED = dict(rr_band=7.0, rr_lo2=0.0, rr_hi2=0.0, block_rise=0.0, gate_block=2.0, hold_latch=2.0,
+             agate=1.0, sh_fc=30.0, sh_g=-30.0, sh_q=0.0)   # (the gate and the weighting as the reference configures them)
 RR_DEPTH, RR_SENS = 4.4, 37.5   # its depth under S (measured: 4.3 .. 4.8 dB at any Sensitivity), from Sensitivity 50 (not at 0 / 25)
 SENS = (0.0, 25.0, 50.0, 75.0, 100.0)
 THR0 = {0.0: 1.25, 25.0: 1.25, 50.0: 1.25, 75.0: 1.0, 100.0: 0.5}

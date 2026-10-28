@@ -72,6 +72,7 @@ void WBassRiderProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
     st.target = get (wbassrider::target); st.rangeMin = get (wbassrider::rangeMin); st.rangeMax = get (wbassrider::rangeMax);
     st.idleDb = idleDb(); st.artifacts = get (wbassrider::artifacts); st.sensitivity = get (wbassrider::sensitivity);
     st.fast = get (wbassrider::response) > 0.5f;
+    st.spill = get (wbassrider::spill); st.live = wbassrider::isLive (modeIndex());
     const double outTo = Decibels::decibelsToGain ((double) get (wbassrider::output));
     const bool held = userRide.load();
     const double heldTo = (double) userRideDb.load();

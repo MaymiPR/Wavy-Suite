@@ -13,12 +13,12 @@ _lib.br_run.argtypes = [ctypes.POINTER(ctypes.c_float), ctypes.c_int, ctypes.c_d
                         ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float)]
 NAMES = ['target', 'rmin', 'rmax', 'idle', 'c0', 'sh_fc', 'sh_g', 'sh_q', 'pb_att', 'pb_rel', 'lp_fc', 'lp_q', 'n_att', 'n_rel',
          'floor', 'off', 'art', 'rel_depth', 'rel_ms', 'glide', 'smooth', 'ref_att', 'ref_rel', 'hp_fc', 'illegal', 'on_rise',
-         'slow_att', 'slow_rel', 'mode', 'slow_rel_fast', 'thr_u', 'thr_a', 'hyst', 'settle', 'off_ms', 'win_ms', 'off_rel_ms', 'nmode', 'pitch_c', 'hold_min', 'win_latch', 'fast', 'block_rise', 'f_hi', 'f_lo', 'gate_block', 'att_mode', 'f_att', 'f_rel', 'band_hyst', 'hold_latch', 'rel_ref', 'pitch_lp', 'att_min', 'att_src', 'lock', 'lock_thr', 'sens_in', 'fast_in', 'rel_reset', 'rr_band', 'rr_lo1', 'rr_hi1', 'rr_lo2', 'rr_hi2', 'rr_depth', 'pre_silence', 'pre_hold']
+         'slow_att', 'slow_rel', 'mode', 'slow_rel_fast', 'thr_u', 'thr_a', 'hyst', 'settle', 'off_ms', 'win_ms', 'off_rel_ms', 'nmode', 'pitch_c', 'hold_min', 'win_latch', 'fast', 'block_rise', 'f_hi', 'f_lo', 'gate_block', 'att_mode', 'f_att', 'f_rel', 'band_hyst', 'hold_latch', 'rel_ref', 'pitch_lp', 'att_min', 'att_src', 'lock', 'lock_thr', 'sens_in', 'fast_in', 'rel_reset', 'rr_band', 'rr_lo1', 'rr_hi1', 'rr_lo2', 'rr_hi2', 'rr_depth', 'pre_silence', 'pre_hold', 'spill', 'agate']
 assert len(NAMES) == _lib.br_nparams()
-DEFAULTS = dict(target=-14.0, rmin=-12.0, rmax=12.0, idle=0.0, c0=0.68, sh_fc=31.35, sh_g=-28.90, sh_q=0.5075, pb_att=2.0,
+DEFAULTS = dict(target=-14.0, rmin=-12.0, rmax=12.0, idle=0.0, c0=0.68, sh_fc=30.0, sh_g=-30.0, sh_q=0.0, pb_att=2.0,
                 pb_rel=100.0, lp_fc=1020.0, lp_q=0.60, n_att=1.0, n_rel=1.0, floor=-48.75, off=38.0, art=11.5, rel_depth=12.4,
                 rel_ms=21.0, glide=32.0, smooth=5.0, ref_att=1.0, ref_rel=5000.0, hp_fc=2000.0, illegal=0.0, on_rise=0.3,
-                slow_att=30.0, slow_rel=1000.0, mode=0.0, slow_rel_fast=0.0, thr_u=1.25, thr_a=0.05, hyst=0.3, settle=20.0, off_ms=60.0, win_ms=75.0, off_rel_ms=60.0, nmode=1.0, pitch_c=3.3, hold_min=0.0, win_latch=0.0, fast=0.0, block_rise=1.0, f_hi=172.0, f_lo=78.0, gate_block=1.0, att_mode=1.0, f_att=2.0, f_rel=100.0, band_hyst=0.0, hold_latch=0.0, rel_ref=0.0, pitch_lp=0.0, att_min=0.0, att_src=0.0, lock=0.0, lock_thr=0.0, sens_in=50.0, fast_in=0.0, rel_reset=0.0, rr_band=0.0, rr_lo1=39.0, rr_hi1=49.0, rr_lo2=84.0, rr_hi2=90.0, rr_depth=4.4, pre_silence=-77.7, pre_hold=0.0)
+                slow_att=30.0, slow_rel=1000.0, mode=0.0, slow_rel_fast=0.0, thr_u=1.25, thr_a=0.05, hyst=0.3, settle=20.0, off_ms=60.0, win_ms=75.0, off_rel_ms=60.0, nmode=1.0, pitch_c=3.3, hold_min=0.0, win_latch=0.0, fast=0.0, block_rise=1.0, f_hi=172.0, f_lo=78.0, gate_block=1.0, att_mode=1.0, f_att=2.0, f_rel=100.0, band_hyst=0.0, hold_latch=0.0, rel_ref=0.0, pitch_lp=0.0, att_min=0.0, att_src=0.0, lock=0.0, lock_thr=0.0, sens_in=50.0, fast_in=0.0, rel_reset=0.0, rr_band=0.0, rr_lo1=39.0, rr_hi1=49.0, rr_lo2=84.0, rr_hi2=90.0, rr_depth=4.4, pre_silence=-77.7, pre_hold=0.0, spill=-40.0, agate=1.0)
 FS = 48000
 LOOKAHEAD = {False: 2016, True: 240}      # samples at 48 kHz: 42 ms, Live 5 ms
 
@@ -51,6 +51,8 @@ def run(x, p, trace=False):
 def ride(x, live=False, trace=False, **kw):
     """the ride in dB lined up with x (gain[t] meets x[t]); x mono (the mid for stereo)"""
     L = LOOKAHEAD[live]
+    # Spill counts on Live only; the Studio components keep its default (-40)
+    if not live: kw['spill'] = -40.0
     xp = np.r_[np.asarray(x, np.float32), np.zeros(L, np.float32)]
     r = run(xp, params(**dict(dict(pre_hold=float(L)), **kw)), trace)
     g, tr = r if trace else (r, None)

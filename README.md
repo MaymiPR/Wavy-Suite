@@ -34,7 +34,7 @@ The installers are not code-signed or notarized; see [packaging/](packaging) for
 | **WBassX** | psychoacoustic bass enhancer with harmonics compressor, filters and monitor modes | ready for the next release: close, not a null (median −48.5 dB, see below) |
 | **WComp** | hybrid compressor with punch, tempo-synced release, analog modes and limiter | ready for the next release: close, not a null on every material (median −47.0 dB, see below) |
 | **WDelay** | hybrid delay with tape-style time changes, ping-pong, modulation, filters, LoFi and analog modes | ready for the next release: nulls on the delay path (−84 … −104 dB), close with modulation and Analog (see below) |
-| **WBass Rider** | note-by-note bass level rider with target, note detection, range and idle controls | ready for the next release: close, not a null on every bass part (bass line −30 dB, real bass −20 … −25 dB, see below) |
+| **WBass Rider** | note-by-note bass level rider with target, note detection, range and idle controls | ready for the next release: close, not a null on every bass part (bass line −30 dB, real bass −22 … −26 dB, see below) |
 | **WVox Rider** | real-time vocal level rider with a music side-chain, range and idle controls | ready for the next release: nulls on vocals (−47 … −74 dB, see below); the music side-chain not yet |
 | WVox Chain, WVox Bend | | planned, one at a time |
 
@@ -57,10 +57,10 @@ Stereo, and at 44.1 and 96 kHz. Attack Fast is the weakest (about −50 dB), at 
 ### WBass Rider null test (honest numbers)
 
 Residual of WBass Rider against the reference, lower is better. The level read, the gain law, the 42 ms look-ahead,
-the smoothing and the hold null at **−41 … −49 dB** on steady tones and level steps; a bass line at **−30 dB** at
+the smoothing and the hold null at **−48 … −49 dB** on steady tones and level steps; a bass line at **−30 dB** at
 nearly every Sensitivity × Response setting (−25 … −28 dB at Sensitivity 75 / 100), at 44.1 and 96 kHz alike.
 
-- Real bass parts (FL Studio's own bass samples played as bass lines) held out from the fit: **median −20 … −25 dB**
+- Real bass parts (FL Studio's own bass samples played as bass lines) held out from the fit: **median −22 … −26 dB**
   per setting, the worst parts −10 … −17 dB. Nearly all of that is a note ridden afresh by one side and not the
   other, after which the two hold 1 … 4 dB apart until the next note; in a mix that is one note slightly louder or
   quieter than with the reference, not an artefact. It is weakest at Response Fast and Sensitivity 100.

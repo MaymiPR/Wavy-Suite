@@ -17,7 +17,7 @@ enum {
     BR_OFF, BR_ART, BR_REL_DEPTH, BR_REL_MS, BR_GLIDE,
     BR_SMOOTH, BR_REF_ATT, BR_REF_REL, BR_HP_FC, BR_ILLEGAL,
     BR_ON_RISE, BR_SLOW_ATT, BR_SLOW_REL, BR_MODE, BR_SLOW_REL_FAST,
-    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_HOLD_MIN, BR_WIN_LATCH, BR_FAST, BR_BLOCK_RISE, BR_F_HI, BR_F_LO, BR_GATE_BLOCK, BR_ATT_MODE, BR_F_ATT, BR_F_REL, BR_BAND_HYST, BR_HOLD_LATCH, BR_REL_REF, BR_PITCH_LP, BR_ATT_MIN, BR_ATT_SRC, BR_LOCK, BR_LOCK_THR, BR_SENS_IN, BR_FAST_IN, BR_REL_RESET, BR_RR_BAND, BR_RR_LO1, BR_RR_HI1, BR_RR_LO2, BR_RR_HI2, BR_RR_DEPTH, BR_PRE_SILENCE, BR_PRE_HOLD, BR_NPARAMS
+    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_HOLD_MIN, BR_WIN_LATCH, BR_FAST, BR_BLOCK_RISE, BR_F_HI, BR_F_LO, BR_GATE_BLOCK, BR_ATT_MODE, BR_F_ATT, BR_F_REL, BR_BAND_HYST, BR_HOLD_LATCH, BR_REL_REF, BR_PITCH_LP, BR_ATT_MIN, BR_ATT_SRC, BR_LOCK, BR_LOCK_THR, BR_SENS_IN, BR_FAST_IN, BR_REL_RESET, BR_RR_BAND, BR_RR_LO1, BR_RR_HI1, BR_RR_LO2, BR_RR_HI2, BR_RR_DEPTH, BR_PRE_SILENCE, BR_PRE_HOLD, BR_SPILL, BR_AGATE, BR_NPARAMS
 };
 
 typedef struct { double b0, b1, b2, a1, a2, z1, z2; } Biquad;
@@ -133,7 +133,15 @@ __declspec(dllexport) int br_lock_dumped (void) { return lk_dn; }
 __declspec(dllexport) void br_run (const float* x, int n, double fs, const double* p, float* gain, float* trace)
 {
     Biquad shelf, lp, hp;
-    lowshelf (&shelf, fs, p[BR_SH_FC], p[BR_SH_G], p[BR_SH_Q]);
+    if (p[BR_SH_Q] > 0.0) lowshelf (&shelf, fs, p[BR_SH_FC], p[BR_SH_G], p[BR_SH_Q]);
+    else
+    {
+        /* sh_q <= 0: two identical first-order low shelves, each with half the gain (as the reference designs it) */
+        const double g = sqrt (pow (10.0, 0.5 * p[BR_SH_G] / 20.0)), K = tan (M_PI * p[BR_SH_FC] / fs);
+        const double b0 = 1.0 / K + g, b1 = g - 1.0 / K, a0 = 1.0 / K + 1.0 / g, a1 = 1.0 / g - 1.0 / K;
+        const double c0 = b0 / a0, c1 = b1 / a0, d1 = a1 / a0;
+        bq_set (&shelf, c0 * c0, 2.0 * c0 * c1, c1 * c1, 1.0, 2.0 * d1, d1 * d1);
+    }
     lowpass (&lp, fs, p[BR_LP_FC], p[BR_LP_Q]);
     Biquad lpp1, lpp2; lowpass (&lpp1, fs, p[BR_PITCH_LP] > 0.0 ? p[BR_PITCH_LP] : 1000.0, 0.7071); lpp2 = lpp1;
     highpass (&hp, fs, p[BR_HP_FC], 0.7071);
@@ -231,7 +239,10 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
         const double Fa = db_pow (follow (&Fp, p[BR_ATT_SRC] >= 0.5 ? P : pk, cfa, cfr));
         const double Na = p[BR_ATT_SRC] >= 0.5 ? E : N;
         const int legal = H < N + p[BR_ILLEGAL];
-        const int open = N > p[BR_FLOOR] && legal && N > R - p[BR_ART];
+        /* the Artifacts gate (agate 1): a note starts over the Artifacts factor times the long reference plus the Spill
+           level, summed as amplitudes (Studio: Spill at its default, -40); agate 0: a fixed floor and R less the gate */
+        const double gA = p[BR_AGATE] >= 0.5 ? 20.0 * log10 (pow (10.0, (R - p[BR_ART]) / 20.0) + pow (10.0, (p[BR_SPILL] - p[BR_ART]) / 20.0)) : 0.0;
+        const int open = p[BR_AGATE] >= 0.5 ? (legal && N > gA) : (N > p[BR_FLOOR] && legal && N > R - p[BR_ART]);
         int start = 0;
         /* for a moment after a note ends, any legal note within 38 dB of its peak is a new note (no floor, no Artifacts
            gate); then the gates apply again */
@@ -273,7 +284,7 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
                        (block rise 1) or the note level */
                     const double Nr = p[BR_BLOCK_RISE] >= 0.5 ? Nb : N;
                     if (Nr < minN) minN = Nr;
-                    const int openR = ((p[BR_BLOCK_RISE] >= 0.5 && p[BR_GATE_BLOCK] >= 0.5) || p[BR_GATE_BLOCK] >= 1.5) ? (Nb > p[BR_FLOOR] && legal && Nb > R - p[BR_ART]) : open;   /* (gate block 2: the gate on the block level, the rise on either) */
+                    const int openR = ((p[BR_BLOCK_RISE] >= 0.5 && p[BR_GATE_BLOCK] >= 0.5) || p[BR_GATE_BLOCK] >= 1.5) ? (p[BR_AGATE] >= 0.5 ? (legal && Nb > gA) : (Nb > p[BR_FLOOR] && legal && Nb > R - p[BR_ART])) : open;   /* (gate block 2: the gate on the block level, the rise on either) */
                     if (openR && Nr > minN + p[BR_ON_RISE]) start = 1;
                 }
             }

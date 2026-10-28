@@ -70,7 +70,9 @@ def main():
         R.fresh(M.NAME); p = R.load(M.NAME); r = p(x[None], fs, buffer_size=512, reset=True)[0]
         y = render_fs(x[None], fs)[0]
         rows.append(('reference vs WBass Rider, bass line at %g kHz' % (fs / 1000), res_db(x, y, r))); print(rows[-1], flush=True)
-    for label, name, mode, st in (('Live Mono, bass line', 'Bass Rider Live Mono', 3, {}), ('Live Mono, bass line, Fast', 'Bass Rider Live Mono', 3, {'response': 'Fast '})):
+    for label, name, mode, st in (('Live Mono, bass line', 'Bass Rider Live Mono', 3, {}), ('Live Mono, bass line, Fast', 'Bass Rider Live Mono', 3, {'response': 'Fast '}),
+                                  ('Live Mono, bass line, Spill -25', 'Bass Rider Live Mono', 3, {'spill': -25.0}),
+                                  ('Live Mono, bass line, Spill -15', 'Bass Rider Live Mono', 3, {'spill': -15.0})):
         r = M.render(bass, name=name, **st); y = render_fs(bass[None], 48000, mode=mode, **st)[0]
         rows.append(('reference vs WBass Rider, %s' % label, res_db(bass, y, r))); print(rows[-1], flush=True)
     xs = np.vstack([bass, K.part(30)[0][:len(bass)] * 0.7]).astype(np.float32)

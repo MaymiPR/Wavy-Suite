@@ -8,14 +8,14 @@
 // on its audio; nulltest/brmodel.c is the same model, line for line, and nulltest/br_fit.py fits its note detector. Per
 // input sample (the mid of the input, undelayed) it returns the ride in dB, which the processor applies to the audio its
 // latency later (the look-ahead).
-//   the level read: E = 10 log10 of the analytic envelope's power of the input through a low shelf (31.35 Hz, -28.9 dB,
-//                   Q 0.51), followed 2 ms up / 100 ms down; the law: Target - E + 0.68 dB, clamped to the range
+//   the level read: E = 10 log10 of the analytic envelope's power of the input through a low shelf (two first-order
+//                   sections of -15 dB at 30 Hz: the hidden HPF 30 Hz / -30 dB), followed 2 ms up / 100 ms down; the law: Target - E + 0.68 dB, clamped to the range
 //   the detector:   the note level N, the peak of the input low-passed near 1 kHz over the last 1024 / 2048 / 4096
 //                   samples (at 48 kHz; the window by pitch band, over 172 / 78 Hz, as the reference's timings step
 //                   with pitch), a block level (the peak in each quarter window, which gates re-attacks), the
 //                   envelope of the band over 2 kHz (an illegal note), two peak followers of N: a long reference R and a slow
 //                   envelope S, and a one-pole follower F of N (which lags a decaying note by a bounded amount)
-//   a note:         starts over the floor, legal and within the Artifacts gate under R (for a moment
+//   a note:         starts legal and over the Artifacts gate (its factor times R plus the Spill level) (for a moment
 //                   after a note has ended: legal and within 38 dB of its peak); while it stays over F less a margin
 //                   (Sensitivity; and for a moment after) the gain follows the law, then it holds (a slow fade is
 //                   followed throughout); it is released when it stays under S
@@ -28,8 +28,8 @@ namespace wbassrider
 {
 struct RideSettings
 {
-    double target = -14.0, rangeMin = -12.0, rangeMax = 12.0, idleDb = 0.0, artifacts = 50.0, sensitivity = 50.0;
-    bool fast = false;
+    double target = -14.0, rangeMin = -12.0, rangeMax = 12.0, idleDb = 0.0, artifacts = 50.0, sensitivity = 50.0, spill = -40.0;
+    bool fast = false, live = false;
 };
 
 class Ride
@@ -53,7 +53,7 @@ public:
         else if (fs > 70000.0)  { a = a96; b = b96; k = 7; }
         for (auto* q : { &qe, &qh }) q->set (a, b, k);
         for (int w = 0; w < 3; ++w) win[w].prepare ((int) std::lround ((1024 << w) * fs / 48000.0));
-        shelf.lowShelf (fs, 31.35, -28.90, 0.5075);
+        shelf.doubleLowShelf (fs, 30.0, -30.0);
         lp.lowPass (fs, 1020.0, 0.60);
         hp.highPass (fs, 2000.0, 0.7071);
         cpa = coef (2.0); cpr = coef (100.0); cna = coef (1.0); cnr = coef (1.0); cra = coef (1.0); krr = decay (refRel);
@@ -80,6 +80,7 @@ public:
     // one sample of the detector's input (the mid of the undelayed input); returns the ride in dB
     double push (double x, const RideSettings& s)
     {
+        const double spillDb = s.live ? s.spill : -40.0;   // (the Studio components keep Spill's default)
         idleNow = s.idleDb;
         energy = db (follow (P, qe.power (shelf.process (x)), cpa, cpr));
         const double gt = s.target - energy + 0.68;
@@ -111,7 +112,11 @@ public:
         const double R = db (peak (Rf, np, cra, krr));
         const double S = db (peak (Sl, np, csa, ksr));
         const double F = db (follow (Fp, np, cfa, cfr));
-        const bool open = N > floorDb && H < N && N > R - (20.0 - 0.17 * s.artifacts);
+        // a note starts over the Artifacts factor times the long reference plus the Spill level, summed as amplitudes
+        // (measured from silence: Spill - 18.9 dB at Artifacts 0, Spill - 8.7 at 50, the same at 40 .. 200 Hz)
+        const double art = 20.0 - 0.17 * s.artifacts;
+        const double gateA = 20.0 * std::log10 (std::pow (10.0, (R - art) / 20.0) + std::pow (10.0, (spillDb - art) / 20.0));
+        const bool open = H < N && N > gateA;
         bool start = false;
         // for a moment after a note ends, any legal note within 38 dB of its peak is a new note (no floor, no Artifacts
         // gate); then the gates apply again
@@ -140,7 +145,7 @@ public:
                 else
                 {
                     minN = std::min (minN, N);
-                    const bool openB = Nb > floorDb && H < N && Nb > R - (20.0 - 0.17 * s.artifacts);
+                    const bool openB = H < N && Nb > gateA;
                     if (openB && N > minN + bySensitivity (onRise, s.sensitivity)) start = true;
                 }
             }
@@ -166,12 +171,12 @@ public:
     int64_t preHold = 0;             // the look-ahead in samples (set by the processor)
 
     // the note detector's constants (nulltest/br_fit.py, measurements/wbassrider/detector_fit.json; br_export.py)
-    double slowAtt = 8.9595, slowRel = 1278.0703, refRel = 5678.4626, hyst = 0.0033, relMs = 1.1049, holdMs = 67.3689,
-           followAtt = 6.5472, followRel = 365.3028, bandHi = 172.0, bandLo = 78.0, reRideLo = 39.0000, reRideHi = 47.0000, reRideDepth = 4.4, offMs = 27.0968, offRelMs = 7.0273, winMs = 1.1054, floorDb = -48.75;
+    double slowAtt = 9.8499, slowRel = 1351.1864, refRel = 5677.9174, hyst = 0.0043, relMs = 1.3193, holdMs = 53.7331,
+           followAtt = 10.4011, followRel = 345.0301, bandHi = 172.0, bandLo = 78.0, reRideLo = 36.7818, reRideHi = 49.2817, reRideDepth = 4.4, offMs = 26.5947, offRelMs = 6.6073, winMs = 1.1550, floorDb = -48.75;
     // at Sensitivity 0 .. 100 by 25: the rise over S that is a new note, the margin over F that keeps the attack, and a
     // released note's rise that is a new note
-    double onThr[5] { 1.3976, 0.4913, 1.4605, 3.2098, -0.8084 }, margin[5] { 1.5000, 1.9344, 0.2314, 0.0099, -0.8320 }, onRise[5] { 2.4500, 1.8750, 1.7812, 1.0000, 1.8703 };
-    double depthSlow[5] { 12.7293, 12.7678, 13.0000, 12.1833, 6.1958 }, depthFast[5] { 7.7170, 7.5918, 4.3622, 4.0200, 3.6643 };
+    double onThr[5] { 1.5826, 0.3252, 1.3870, 3.2738, -0.8331 }, margin[5] { 1.2801, 1.7792, 0.3778, 0.0042, -0.9979 }, onRise[5] { 2.0745, 2.4965, 1.8808, 0.9627, 1.1710 };
+    double depthSlow[5] { 12.0000, 12.0000, 12.0000, 12.0000, 12.0000 }, depthFast[5] { 4.0000, 4.0000, 4.0000, 4.0000, 4.0000 };
 
 private:
     struct Biquad
@@ -185,6 +190,15 @@ private:
             const double A = std::pow (10.0, gdb / 40.0), w0 = 2.0 * 3.141592653589793 * fc / fs, c = std::cos (w0), al = std::sin (w0) / (2.0 * q), sa = 2.0 * std::sqrt (A) * al;
             set (A * ((A + 1) - (A - 1) * c + sa), 2 * A * ((A - 1) - (A + 1) * c), A * ((A + 1) - (A - 1) * c - sa),
                  (A + 1) + (A - 1) * c + sa, -2 * ((A - 1) + (A + 1) * c), (A + 1) + (A - 1) * c - sa);
+        }
+        // two identical first-order low shelves, each with half the gain (the hidden HPF 30 Hz / -30 dB, as the reference
+        // builds its weighting)
+        void doubleLowShelf (double fs, double fc, double gdb)
+        {
+            const double g = std::sqrt (std::pow (10.0, 0.5 * gdb / 20.0)), K = std::tan (3.141592653589793 * fc / fs);
+            const double b0 = 1.0 / K + g, b1 = g - 1.0 / K, a0 = 1.0 / K + 1.0 / g, a1 = 1.0 / g - 1.0 / K;
+            const double c0 = b0 / a0, c1 = b1 / a0, d1 = a1 / a0;
+            set (c0 * c0, 2.0 * c0 * c1, c1 * c1, 1.0, 2.0 * d1, d1 * d1);
         }
         void lowPass (double fs, double fc, double q)
         {

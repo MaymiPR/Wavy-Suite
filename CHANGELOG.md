@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **WBass Rider** riding, third pass (from how the reference configures its detector): Spill now works on the Live
+  components (a note starts over the Artifacts factor times the long reference plus Spill, which also moves the floor
+  with Artifacts on Studio), the weighting is the reference's two-section shelf at 30 Hz, and the release depths are
+  Slow 12 / Fast 4 dB (ten fitted constants fewer). Live at Spill -15: -14.3 -> -24.2 dB; held-out bass parts at Fast
+  / Sensitivity 25 -19.6 -> -24.2 and Artifacts 85 -21.2 -> -25.1 dB median; steady tones -41.5 -> -48.9 dB. One
+  synthetic ghost-note case got worse (-34.5 -> -13.5 dB, a single borderline note).
 - **WVox Rider** (ready for the next release; Phases 2 to 5), a real-time vocal level rider modelled on Vocal Rider:
   its 320 x 598 editor drawn by Wavy (the Target slider over the vocal meter, the Ride / Idle LEDs, the Attack switch,
   the Vocal and Music Sensitivity knobs, Spill on Live, the Range column with the Idle arrow, the Rider and Output

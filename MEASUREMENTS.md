@@ -1633,3 +1633,28 @@ including Stereo, Live, 44.1 and 96 kHz.
 Not identified (no probe needs them, or none can reach them): the role of the detector's fixed 50 ms factor seen in
 the behaviour analysis; OutAtt / OutRel (they smooth the Output control only; Output moves are not measured); the
 Music side-chain (see Phase 3).
+
+
+## WBass Rider: Phase 4, third pass, from the reference's detector configuration, 2026-10-28
+
+A behaviour analysis of the installed Bass Rider binary (its notes stay in the git-ignored reference/wbassrider/)
+showed how the plug-in configures its detector blocks; each lead was then checked on the reference's audio:
+
+- **Spill** is wired to the detector only in the Live components; the Studio components use a fixed value. Steady
+  40 / 80 / 200 Hz notes after silence (`Bass Rider Live Mono`, Spill -40 / -25 / -10, 0.25 dB bisection) are
+  ridden from **Spill - 8.69 dB** peak at Artifacts 50 and **Spill - 18.88 dB** at Artifacts 0; Studio ignores Spill.
+  That is an additive gate: a note starts when its level is over the Artifacts gain times (the long reference R plus
+  the Spill level), as amplitudes (from silence R equals the note: predicted -8.82 / -19.08 dB). At Spill's default
+  (-40) it is the floor fitted before on Studio (-48.75 dB): Studio is the same gate with Spill fixed at -40.
+- **Weighting**: built like Vocal Rider's, two identical first-order shelves of half the gain: the hidden HPF 30 Hz /
+  -30 dB as two -15 dB sections (the fitted RBJ shelf, 31.35 Hz / -28.9 dB / Q 0.51, was close: Q 0.5 is what the
+  pair gives). Steady 80 Hz -41.5 -> -48.9 dB; probe cost 969 -> 925.
+- **Release depth** by Response only: fixed at Slow 12 / Fast 4 dB in place of ten fitted values (fit cost 2965 ->
+  2932 before refitting).
+- **Sensitivity**: the binary derives the note-on threshold from a straight line in Sensitivity; as fixed lines the
+  fit got worse, so the per-Sensitivity tables stay fitted (their mapping to the reference's threshold is not known).
+
+The detector's other constants were refitted with these held (`nulltest/br_fit.py` CMA-ES, 25 generations; cost
+2891). Results: docs/NULL_RESULTS_WBASSRIDER.md, "Third pass". Not taken from the binary: the octave-band high-passes
+(fs / 2^round(log2(fs / 20)) and three octaves up) that likely choose the window by pitch, and its 4 + 4 first-order
+allpass quadrature pair; both are leads for another pass.

@@ -3,7 +3,42 @@
 Residuals of WBass Rider's output against the reference's, over the loud parts, in dB (lower is better). The plug-in
 runs through its own processor offline (`WBassRiderRender`; the built VST3 gives the same samples); the reference
 through its VST3 at 48 kHz unless stated. How the model was found: MEASUREMENTS.md, "WBass Rider: Phase 3" and
-"Phase 4" (nine passes).
+"Phase 4" (nine passes, and a third pass from the binary's configuration).
+
+## Third pass, 2026-10-28: Spill, the Artifacts gate, the weighting and the release depths
+
+What changed (MEASUREMENTS.md, "WBass Rider: Phase 4, third pass"): Spill acts on the Live components; a note starts
+over the Artifacts factor times (the long reference + Spill), summed as amplitudes (Studio: Spill fixed at -40); the
+weighting is two first-order -15 dB shelves at 30 Hz; the release depths are Slow 12 / Fast 4 dB; the rest refitted.
+Before -> now:
+
+| case | before (dB) | now (dB) |
+|---|---|---|
+| steady 80 Hz -20 dBFS | -41.5 | -48.9 |
+| steps 1 kHz | -48.6 | -48.3 |
+| bass line | -30.2 | -29.8 |
+| bass line, Target -24 / Sensitivity 80 / Artifacts 20 | -30.2 / -28.1 / -30.3 | -29.7 / -28.2 / -29.9 |
+| synthetic part 6 (ghost notes, gaps) | -34.5 | -13.5 |
+| synthetic part 7, Fast | -18.8 | -18.8 |
+| synthetic part 8, range -6 .. +6 | -34.5 | -28.2 |
+| Live Mono, bass line / Fast | -26.2 / -25.7 | -26.0 / -24.3 |
+| Live Mono, bass line, Spill -25 | -17.9 | -21.2 |
+| Live Mono, bass line, Spill -15 | -14.3 | -24.2 |
+| Stereo (different bass on L / R) / Live Stereo | -27.0 / -26.8 | -27.7 / -26.8 |
+| bass line at 44.1 / 96 kHz | -30.8 / -30.4 | -30.2 / -30.0 |
+| factory presets, median | -24.8 | -25.2 |
+
+Held-out real bass parts (12), median per setting:
+
+| setting | defaults | Fast | Sens. 0 | Sens. 100 | Fast, Sens. 25 | Fast, Sens. 100 | Sens. 75 | Artifacts 15 | Artifacts 85 | Target -24 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| before | -24.7 | -24.0 | -24.4 | -22.9 | -19.6 | -23.2 | -21.6 | -24.7 | -21.2 | -23.2 |
+| now | -25.6 | -23.7 | -25.1 | -22.4 | -24.2 | -22.9 | -21.9 | -25.6 | -25.1 | -23.0 |
+
+Synthetic part 6 turns on one note (2.38 s, 13 dB over a quiet passage): it clears the old gate by 0.04 dB and misses
+the additive one by 0.2 dB, after which the two hold apart; the gate's form is the reference's (measured from
+silence at Artifacts 0 and 50 to 0.1 dB), the long reference R's exact fall is not. The older tables below are from
+before this pass.
 
 ## The fixed cases (`nulltest/nulltest_wbassrider.py`)
 

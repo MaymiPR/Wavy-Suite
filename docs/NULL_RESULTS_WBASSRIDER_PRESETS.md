@@ -6,22 +6,22 @@ leaves it), output residual over the loud parts in dB (lower is better). Generat
 
 | preset | bass line | corpus part 30 (picked) | corpus part 25 (slap) |
 |---|---|---|---|
-| Full Reset | -30.2 | -22.8 | -25.9 |
-| Live PA Start | -24.6 | -24.8 | -27.1 |
-| Gentle Ride | -29.6 | -32.2 | -59.0 |
-| Fingerstyle Slow | -24.8 | -24.0 | -25.9 |
-| Fretless Slow | -37.9 | -24.4 | -17.7 |
-| Acoustic Bass Slow | -24.4 | -18.9 | -20.4 |
-| Upright Bass | -37.6 | -24.0 | -16.9 |
-| Fast Fingers | -33.1 | -16.8 | -35.4 |
-| Wide Dynamics | -24.7 | -17.7 | -29.3 |
-| Clean and Lively | -24.7 | -16.2 | -22.9 |
-| Fast, Artifacts Ignored | -9.9 | -24.4 | -25.8 |
-| Picked Bass Fast | -24.3 | -17.2 | -26.5 |
-| Fast Eighths | -27.9 | -17.6 | -24.8 |
-| Fret Noise Ignored | -40.3 | -28.0 | -57.9 |
-| Slap Through the Amp | -26.6 | -21.2 | -26.0 |
-| Bass Tamer | -35.0 | -77.6 | -61.1 |
-| Stage Ready | -22.6 | -17.2 | -35.4 |
+| Full Reset | -29.8 | -22.6 | -26.7 |
+| Live PA Start | -23.2 | -23.9 | -27.8 |
+| Gentle Ride | -29.6 | -33.3 | -59.0 |
+| Fingerstyle Slow | -24.6 | -24.8 | -26.0 |
+| Fretless Slow | -14.0 | -25.3 | -26.4 |
+| Acoustic Bass Slow | -24.3 | -19.8 | -27.2 |
+| Upright Bass | -35.8 | -25.1 | -11.1 |
+| Fast Fingers | -35.2 | -16.5 | -33.1 |
+| Wide Dynamics | -19.3 | -16.8 | -29.4 |
+| Clean and Lively | -23.4 | -15.7 | -23.8 |
+| Fast, Artifacts Ignored | -9.9 | -23.9 | -26.7 |
+| Picked Bass Fast | -23.1 | -16.5 | -26.1 |
+| Fast Eighths | -26.0 | -16.8 | -25.3 |
+| Fret Noise Ignored | -25.2 | -28.4 | -57.9 |
+| Slap Through the Amp | -9.0 | -20.6 | -27.2 |
+| Bass Tamer | -34.8 | -78.0 | -61.1 |
+| Stage Ready | -22.3 | -16.9 | -33.1 |
 
-Median -24.8 dB, worst -9.9 dB.
+Median -25.2 dB, worst -9.0 dB.
