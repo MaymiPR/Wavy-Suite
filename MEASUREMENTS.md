@@ -1522,3 +1522,66 @@ reference R (a peak follower) has fallen 1.5 dB less than the reference's. The C
   docs/NULL_RESULTS_WBASSRIDER_PRESETS.md): median -24.8 dB; the worst, "Fast, Artifacts Ignored" on the bass line,
   -9.9 (the drops onto lower notes at Fast, not modelled yet).
 - The null table is unchanged (bass line -30.2 dB); the C++ matches the model (now also checked at Artifacts 100).
+
+
+## WVox Rider: Phase 3 measurements (the reference's audio), 2026-10-28
+
+`nulltest/measure_voxrider.py` renders the reference (Vocal Rider Mono / Live Mono / Stereo, 48 kHz, a fresh instance
+per render) and reads the applied gain as output over input, sample by sample (a least-squares ratio over 1–20 ms; a
+−80 dBFS pilot at 3001 Hz exposes the gain in silences). There is no latency, so nothing needs aligning. Each finding
+names its subcommand. A behaviour analysis of the installed binaries gave hypotheses to test (its notes stay in the
+git-ignored `reference/wvoxrider/`); everything below is measured on the audio.
+
+### The static law (`explore`, `settle`, `static`, `ranges`)
+- A steady tone settles within about a second and stays (checked to 30 s).
+- **Law**: in linear gain, `gain = ½·gMin + c · Target / level`, clamped to [gMin, gMax] (gMin, gMax: Range Min /
+  Max as gains). The ½·gMin offset is why the output is not held at Target: a 3 dB louder input leaves the variable
+  part exactly 3 dB lower (ratios 1.403 … 1.416 per 3 dB, 10^(3/20) = 1.4125), but the total gain falls by less,
+  more so near Min. With c = 0.738 on a 1 kHz sine (rms level) it predicts every setting measured (Target −12 / −21 /
+  −30, Range ±12, ±6, −3 … +9, −12 … 0, ±1, levels −36 … −6 dBFS) to 0.1 dB.
+- **c** splits into the weighting at 1 kHz (−0.42 dB, below) and +3.06 dB: the level read is the **peak** power of
+  the weighted signal (a sine's peak is +3.01 dB over its rms), as a fast-attack / slow-release power follower reads.
+- **Output** is a plain gain after the ride (−6 → −6.00, +3 → +3.00 dB relative).
+
+### The level read (`weighting`, `bias`)
+- **Weighting** (steady sines, −21 dBFS rms, through the law; re 1 kHz): −13.4 dB at 50 Hz, −8.55 at 100, −3.52 at 200,
+  −0.48 at 500, flat to 2 kHz, then −1.44 at 4 kHz, −2.62 at 6.5 kHz, −4.02 at 10 kHz, −5.74 at 16 kHz. Two shelves,
+  each made of two identical first-order sections with half the gain (low shelf at the hidden HPFFreq / HPFGain 100 Hz
+  / −18 dB, high shelf at LPFFreq / LPFGain 6.5 kHz / −6 dB), fit this to 0.15 dB rms (0.50 max) with exactly those
+  values; freed, 102.4 Hz / −17.4 dB and 6.92 kHz / −6.1 dB give 0.12 dB rms. So the hidden "HPF" and "LPF" are
+  shelves, not pass filters.
+- **Floor**: below about −45 dBFS the level read flattens: a power floor at −42 dB in the follower's own units (the
+  hidden VOCBias −42; −44.6 dBFS rms at 1 kHz after c), added to the level (checked at −30 … −54 dBFS: the floor
+  comes out at −44.6 ± 0.2 each time).
+
+### Vocal detection (`onset`, `spill`)
+- **Onset**: a steady tone is ridden from a level that does not depend on Target and moves with Vocal Sensitivity:
+  −42 / −50 / −58 / −64 / −70 dBFS for −12 / −6 / 0 / +6 / +12 dB (2 dB grid). A detector that fires while the
+  short-term power exceeds `10^((−VocalSensitivity − 14)/10)` times the follower's level plus its floor predicts
+  −42.3 / −51.9 / −58.4 / −64.5 / −70.6 (for a steady tone short- and long-term power are equal, so the onset sits
+  that far under the floor). Below it the gain parks at the Idle value.
+- **Spill** (Live components): an absolute gate. Riding starts 2 dB (rms) under the Spill value (−45 → −47, −40 →
+  −42 … −18 → −20 dBFS: the same 2.6 dB as c), and Spill −48 (its minimum) is off. The Studio components ignore it.
+
+### Timing (`steps`, `idle`, `gaps`)
+- **Gain down** (the level rises): time to 63 % of the change 39–58 ms at Attack Slow, 7.7–11.4 ms at Fast (the
+  hidden VocAtt 50 / 10 ms, which Attack sets).
+- **Gain up** (the level falls): the same at Slow and Fast, slow and getting faster as it goes: 6 dB down takes 555 ms
+  to 63 %, 12 dB 1373 ms (t90 764 / 1789 ms). The follower's release (VocRel 1009 ms) and the ride's (RideRel
+  1000 ms) both act here: to fit in Phase 4.
+- **When the voice stops** (silence): the gain stays exactly where it is for **500 ms at Slow, 50 ms at Fast** (the
+  hidden ParkHold, which Attack sets), then **glides to the Idle value**: about −6.1 dB/s steady when it comes down
+  (from +6), +4 … +5 dB/s, getting faster, when it goes up (from −5.8). The Idle value is Min + Idle × (Max − Min).
+- **Gaps between words**: shorter than the hold, the gain does not move; longer, it glides (about 6.6 dB/s) until the
+  voice returns. Back at the same level the gain recovers in about 0.3 s (faster than after a level drop: the follower
+  held the level through the gap, VocHold 5 s); back louder it comes down in the attack time.
+
+### Stereo (`stereo`)
+- The Stereo component reads the **mid**, (L + R) / 2: one channel alone reads 6 dB under both, anti-phase reads
+  nothing (parked at Idle), L with R 6 dB lower reads −2.5 dB. Both channels get the same gain.
+
+### Music side-chain (not measured yet)
+- With the side-chain bus enabled and fed (tools/RefRender, and tools/MeterCapture with its new `sc=` input), the
+  reference's Music knob keeps its disabled picture, its LED stays dark and Music Sensitivity changes nothing. The
+  reference uses the music only while its host reports the side-chain active, which these JUCE hosts do not achieve;
+  this needs a test in FL with a real side-chain send.

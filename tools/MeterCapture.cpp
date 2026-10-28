@@ -4,6 +4,7 @@
 //   ... gl=1 [crop=x0,y0,x1,y1]   (read the editor's OpenGL frames back instead of grabbing the screen, see GlCapture)
 //   ... hostwin=1   (the editor inside a plain Win32 window that keeps the keyboard focus, as FL hosts it)
 //   ... away=0   (the drag script leaves the mouse over the editor between drags; with in=..., audio plays meanwhile)
+//   ... sc=<mono float32 48 kHz file>   (the side-chain bus enabled in stereo and fed with it, next to in=)
 //   paramName=value sets the normalised value, paramName:=text the value the parameter's text parses to.
 // Loads the plug-in (a shell's sub-plugin by name), opens its editor, feeds a fixed schedule of 50 Hz tone bursts from
 // a real-time paced thread, and grabs the editor's screen area every ~25 ms. out.raw: per frame a double timestamp
@@ -51,9 +52,10 @@ public:
     std::atomic<double> startTime { 0.0 };
     std::atomic<bool> done { false };
     std::vector<float> recorded;   // the plug-in's output, interleaved stereo; written next to the frames
+    std::vector<float> sideChain;  // sc=: fed to the side-chain bus's two channels
     void run() override
     {
-        AudioBuffer<float> buf (2, block); MidiBuffer midi;
+        AudioBuffer<float> buf (jmax (2, plugin.getTotalNumInputChannels()), block); MidiBuffer midi;
         sleep (2500);
         const double t0 = Time::getMillisecondCounterHiRes() * 0.001;
         startTime = t0;
@@ -61,7 +63,14 @@ public:
         {
             const double wait = t0 + (double) i / fs - Time::getMillisecondCounterHiRes() * 0.001;
             if (wait > 0) Thread::sleep ((int) (wait * 1000.0));
+            buf.clear();
             for (int k = 0; k < block; ++k) { buf.setSample (0, k, input[i + (size_t) k]); buf.setSample (1, k, input[i + (size_t) k]); }
+            if (buf.getNumChannels() >= 4)
+                for (int k = 0; k < block; ++k)
+                {
+                    const float s = i + (size_t) k < sideChain.size() ? sideChain[i + (size_t) k] : 0.0f;
+                    buf.setSample (2, k, s); buf.setSample (3, k, s);
+                }
             plugin.processBlock (buf, midi);
             playHead.samples = (int64) (i + (size_t) block);
             for (int k = 0; k < block; ++k) { recorded.push_back (buf.getSample (0, k)); recorded.push_back (buf.getSample (1, k)); }
@@ -83,6 +92,18 @@ public:
     AudioPluginInstance& plugin;
     std::vector<float> input;
 };
+
+// the side-chain's signal (sc=<mono float32 48 kHz file>), empty without one
+static std::vector<float> sideChainInput (const StringArray& args)
+{
+    for (auto& a : args)
+        if (a.startsWith ("sc="))
+        {
+            MemoryBlock mb; File (a.substring (3)).loadFileAsData (mb);
+            return std::vector<float> ((const float*) mb.getData(), (const float*) mb.getData() + mb.getSize() / sizeof (float));
+        }
+    return {};
+}
 
 class Capture : public Timer
 {
@@ -545,12 +566,19 @@ public:
     }
     void setUp (const StringArray& args)
     {
+        for (auto& a : args)
+            if (a.startsWith ("sc="))                        // the side-chain bus on, in stereo
+            {
+                auto layout = plugin->getBusesLayout();
+                for (int b = 1; b < layout.inputBuses.size(); ++b) layout.inputBuses.getReference (b) = AudioChannelSet::stereo();
+                if (! plugin->setBusesLayout (layout)) std::printf ("could not enable the side-chain bus\n");
+            }
         for (int io = 0; io < 2; ++io)                       // bus layout (main / side-chain)
             for (int b = 0; b < plugin->getBusCount (io == 0); ++b)
                 if (auto* bus = plugin->getBus (io == 0, b))
                     std::printf ("  %s bus %d '%s': %d ch, enabled %d\n", io == 0 ? "input" : "output", b, bus->getName().toRawUTF8(),
                                  bus->getNumberOfChannels(), (int) bus->isEnabled());
-        plugin->setPlayConfigDetails (2, 2, fs, block);
+        plugin->setPlayConfigDetails (plugin->getTotalNumInputChannels(), 2, fs, block);
         plugin->prepareToPlay (fs, block);
         for (int i = 3; i < args.size(); ++i)
         {
@@ -633,6 +661,7 @@ public:
                     MemoryBlock mb; File (args[i].substring (3)).loadFileAsData (mb);
                     std::vector<float> in ((const float*) mb.getData(), (const float*) mb.getData() + mb.getSize() / sizeof (float));
                     feeder = std::make_unique<Feeder> (*plugin, std::move (in));
+                    feeder->sideChain = sideChainInput (args);
                     feeder->startThread (Thread::Priority::high);
                 }
             dragWatch = std::make_unique<DragWatch> (*dragScript);
@@ -648,6 +677,7 @@ public:
                 in.assign ((const float*) mb.getData(), (const float*) mb.getData() + mb.getSize() / sizeof (float));
             }
         feeder = std::make_unique<Feeder> (*plugin, std::move (in));
+        feeder->sideChain = sideChainInput (args);
         capture = std::make_unique<Capture> (*editorComp, *feeder, args[2]);
         capture->gl = gl;
         if (gl)
