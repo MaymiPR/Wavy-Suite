@@ -18,6 +18,7 @@ g, td = F.load_fit()
 for name, x, st in (('bass line', C.bassline(), {}), ('synthetic part 6', C.synth_notes(seed=6, secs=10.0), {}),
                     ('synthetic part 7, Fast, Sensitivity 70', C.synth_notes(seed=7, secs=10.0), {'response': 'Fast', 'sensitivity': 70.0}),
                     ('bass line, Artifacts 20', C.bassline(), {'artifacts': 20.0}),
+                    ('bass line, Artifacts 100', C.bassline(), {'artifacts': 100.0}),
                     ('42 Hz decay, Fast (a band re-ride)', PR.build([('gap', 0, 0, 0.2), ('ramp', -8, -56, 1.6, 42.0)]), {'response': 'Fast'}),
                     ('corpus part 21, Fast, Sensitivity 25', K.part(21)[0], {'response': 'Fast', 'sensitivity': 25.0})):
     resp = st.get('response', 'Slow'); sens = float(st.get('sensitivity', 50.0))

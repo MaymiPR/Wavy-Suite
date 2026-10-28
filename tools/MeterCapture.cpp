@@ -3,7 +3,7 @@
 //   ... [design=<width>] drag=x,y,dx,dy[,ctrl|shift|alt|wheel|wheelctrl|midctrl|ctrlup] ...   (drag script instead of the capture, see DragScript)
 //   ... gl=1 [crop=x0,y0,x1,y1]   (read the editor's OpenGL frames back instead of grabbing the screen, see GlCapture)
 //   ... hostwin=1   (the editor inside a plain Win32 window that keeps the keyboard focus, as FL hosts it)
-//   ... away=0   (the drag script leaves the mouse over the editor between drags)
+//   ... away=0   (the drag script leaves the mouse over the editor between drags; with in=..., audio plays meanwhile)
 //   paramName=value sets the normalised value, paramName:=text the value the parameter's text parses to.
 // Loads the plug-in (a shell's sub-plugin by name), opens its editor, feeds a fixed schedule of 50 Hz tone bursts from
 // a real-time paced thread, and grabs the editor's screen area every ~25 ms. out.raw: per frame a double timestamp
@@ -627,6 +627,14 @@ public:
             }
             dragScript = std::make_unique<DragScript> (*plugin, *editorComp, drags, design, File (args[2]));
             dragScript->moveAway = ! args.contains ("away=0");
+            for (int i = 3; i < args.size(); ++i)
+                if (args[i].startsWith ("in="))          // audio plays through the drags too (its output next to the frames)
+                {
+                    MemoryBlock mb; File (args[i].substring (3)).loadFileAsData (mb);
+                    std::vector<float> in ((const float*) mb.getData(), (const float*) mb.getData() + mb.getSize() / sizeof (float));
+                    feeder = std::make_unique<Feeder> (*plugin, std::move (in));
+                    feeder->startThread (Thread::Priority::high);
+                }
             dragWatch = std::make_unique<DragWatch> (*dragScript);
             dragScript->startThread();
             dragWatch->startTimer (100);
@@ -657,6 +665,12 @@ public:
     {
         if (dragScript) dragScript->stopThread (3000);
         if (feeder) feeder->stopThread (3000);
+        if (dragScript && feeder)                        // a drag script with audio: its output, and when the audio started
+        {
+            const File out (getCommandLineParameterArray()[2]);
+            File (out.getFullPathName() + ".pcm").replaceWithData (feeder->recorded.data(), feeder->recorded.size() * sizeof (float));
+            File (out.getFullPathName() + ".start.txt").replaceWithText (String (feeder->startTime.load() - GlCapture::scriptStart, 4));
+        }
         {
             std::lock_guard<std::mutex> g (GlCapture::lock);
             GlCapture::feeder = nullptr; GlCapture::stream.reset();

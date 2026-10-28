@@ -56,6 +56,7 @@ void WBassRiderProcessor::configure()
     line.assign ((size_t) jmax (1, getMainBusNumInputChannels()), std::vector<float> ((size_t) delaySamples + 1, 0.0f));
     writePos = 0;
     ride.prepare (sr);
+    ride.preHold = delaySamples;
     smooth5 = std::exp (-1.0 / (0.005 * sr));
     outGain = Decibels::decibelsToGain ((double) get (wbassrider::output));
     heldDb = 0.0;

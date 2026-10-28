@@ -477,6 +477,7 @@ WBassRiderEditor::WBassRiderEditor (WBassRiderProcessor& p)
       output (make<Fader> (Fader::Output)), rider (make<Fader> (Fader::Rider)), idleColumn (make<IdleColumn>()),
       lasso (make<wavy::flat::LassoOverlay>())
 {
+    setFactoryPresets (wbassrider::factoryPresets());             // Target stays where it is, as in the reference, unless a preset sets it
     marks.blueAlone = { &rider, &idleColumn };
     marks.changed = [this] { content().repaint(); };
     const auto cursor = dragCursor();

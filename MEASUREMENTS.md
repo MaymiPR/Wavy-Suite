@@ -1493,3 +1493,32 @@ reference R (a peak follower) has fallen 1.5 dB less than the reference's. The C
 - **The bass line through the plug-in**: Slow -30.2 / -30.6 / -30.2 / -28.0 / -25.3, Fast -30.3 / -30.5 / -29.3 /
   -28.0 / -26.2 at Sensitivity 0 .. 100 (unchanged). The C++ matches the model to 0.08 dB at 99 %. The null table as
   in the seventh pass but synthetic part 7, Fast -18.8 dB (was -19.0).
+
+### Phase 4, ninth pass: the Idle value, and the factory presets, 2026-10-27
+
+- **The Idle arrow in the reference** (films with `tools/MeterCapture gl=1`, now able to play audio through a drag
+  script, `in=`; and renders with Idle / Range changed between blocks, the gain read on a -54 dBFS 3 kHz pilot):
+  - the arrow keeps its place in the range: Range Max 12 -> 7.5 moves it from 0 to -2.2 dB (as WBass Rider's);
+  - a sounding note keeps its gain whatever the arrow does; when the note ends the gain glides to the new Idle value
+    at 32 dB/s; in silence after a note an Idle (or Range) change glides the gain to it at 32 dB/s, so the Rider
+    follows the arrow as it is dragged; an ignored note (within 38 dB of the last) holds the gain;
+  - **before any note**: the gain starts at 0 dB (not at the Idle value) and, once the look-ahead has filled, glides
+    to the Idle value at 32 dB/s, and follows it, while the input is silent: a quiet 80 Hz tone at -72.75 dBFS holds
+    the gain at 0 whatever Idle does, -73 lets it glide; 40 Hz glides at -72, 200 Hz holds at -74 (Target and Spill
+    change nothing): silence there is the level read E under -77.7 dB. WBass Rider held its gain until the first note
+    (Idle changes did nothing until then) and started at the Idle value; both now as the reference (`pre_silence`,
+    `pre_hold`), within 0.1 dB of its glides.
+- **Artifacts above 50**: the bass line nulled at -12.5 dB at Artifacts 100 and -18.6 at 68.2 (Slow), from held notes
+  that started following the law again when a quiet note rose over the follower F, bypassing the Artifacts gate; the
+  reference keeps them held. Now a held note follows again only within the gates (`hold_latch` 2): Artifacts 100
+  -12.5 -> -37.6 dB, 68.2 -18.6 -> -24.8; nothing else moves (corpus Artifacts 85 training -19.1 -> -20.5). And at
+  Response Fast the band re-ride is gated by Artifacts above 50 (ungated at 50 and under: `rr_band` 7; the bass line
+  at Fast, Artifacts 68.2 -17.8 -> -24.6).
+- **Factory presets**: the reference's 17 (`nulltest/read_ref_presets_br.py`, `tools/make_presets.py` ->
+  `plugins/WBassRider/WBassRiderPresets.h`), with Wavy names; the 15 that store Target as "*" leave it where it is
+  (`FactoryPreset::leave`). The array positions were checked by loading each array into the reference's own state
+  and reading its parameters back (Artifacts 77.1, 100, 85.3, 74.1, 60, 0 as converted). Against the reference
+  (each preset on the bass line and held-out corpus parts 30 and 25; `nulltest/nulltest_wbassrider_presets.py`,
+  docs/NULL_RESULTS_WBASSRIDER_PRESETS.md): median -24.8 dB; the worst, "Fast, Artifacts Ignored" on the bass line,
+  -9.9 (the drops onto lower notes at Fast, not modelled yet).
+- The null table is unchanged (bass line -30.2 dB); the C++ matches the model (now also checked at Artifacts 100).

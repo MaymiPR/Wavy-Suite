@@ -74,7 +74,7 @@ public:
         prevXl = 0.0; period = 0.01 * fs; lastCross = -1; now = 0; cyclePos = cycleNeg = lastNp = 0.0; blockMax = 0.0; Nb = -300.0; blockPos = 0;
         P = Np = Hp = Rf = Sl = Fp = 0.0;
         inNote = released = below = false; relCount = under = offCount = reRideCount = 0; sinceOff = 1 << 30;
-        peakN = -300.0; minN = 300.0; g = 0.0; raw = out = idleNow; energy = -300.0;
+        peakN = -300.0; minN = 300.0; g = 0.0; raw = out = 0.0; energy = -300.0; everNote = false;
     }
 
     // one sample of the detector's input (the mid of the undelayed input); returns the ride in dB
@@ -124,10 +124,10 @@ public:
             else
             {
                 // at Response Fast (Sensitivity 50 and up), a held note just over the 4096-sample window's edge is ridden
-                // afresh once it is reRideDepth under S, released or not, legal (no floor, no Artifacts gate; its slow
-                // envelope restarts)
+                // afresh once it is reRideDepth under S, released or not, legal (at Artifacts 50 and under no floor and no
+                // Artifacts gate, above them both; its slow envelope restarts)
                 const bool band = s.fast && s.sensitivity >= 37.5 && under >= holdN && fz >= reRideLo && fz <= reRideHi;
-                reRideCount = (band && H < N && N < S - reRideDepth) ? reRideCount + 1 : 0;
+                reRideCount = (band && (s.artifacts > 50.0 ? open : H < N) && N < S - reRideDepth) ? reRideCount + 1 : 0;
                 if (reRideCount >= relN) { start = true; Sl = np; reRideCount = 0; }
                 if (! released)
                 {
@@ -145,14 +145,17 @@ public:
                 }
             }
         }
-        if (start) { inNote = true; released = below = false; relCount = under = offCount = reRideCount = 0; peakN = N; g = gt; }
+        if (start) { inNote = everNote = true; released = below = false; relCount = under = offCount = reRideCount = 0; peakN = N; g = gt; }
         else if (inNote)
         {
-            under = N > F + bySensitivity (margin, s.sensitivity) ? 0 : under + 1;
+            // (once held, the gain follows again only for a note within the gates: one under the Artifacts gate stays held)
+            if (! (under >= holdN && ! open)) under = N > F + bySensitivity (margin, s.sensitivity) ? 0 : under + 1;
             if (under < holdN) g = gt;                     // (then the gain holds where it is, whatever the level does)
         }
         if (inNote) raw = std::clamp (g, s.rangeMin, s.rangeMax);
-        else if (N < peakN - 38.0)          // silence (38 dB under the last note): the glide to the Idle value
+        // silence (38 dB under the last note; before any note, the level read under -77.7 dB, once the look-ahead has
+        // filled): the glide to the Idle value (the gain starts at 0 dB)
+        else if (everNote ? N < peakN - 38.0 : (now > preHold && energy < -77.7))
             raw = raw > s.idleDb ? std::max (s.idleDb, raw - glide) : std::min (s.idleDb, raw + glide);
         // (an ignored note, within 38 dB of the last: the gain stays where it is)
         out = raw + csm * (out - raw);
@@ -160,6 +163,7 @@ public:
     }
 
     double energy = -300.0;          // the level read (dB), what the Energy meter shows
+    int64_t preHold = 0;             // the look-ahead in samples (set by the processor)
 
     // the note detector's constants (nulltest/br_fit.py, measurements/wbassrider/detector_fit.json; br_export.py)
     double slowAtt = 8.9595, slowRel = 1278.0703, refRel = 5678.4626, hyst = 0.0033, relMs = 1.1049, holdMs = 67.3689,
@@ -264,7 +268,7 @@ private:
     double cpa = 0, cpr = 0, cna = 0, cnr = 0, cra = 0, krr = 0, csa = 0, ksr = 0, csm = 0, cfa = 0, cfr = 0, glide = 0;
     int relN = 0, holdN = 0, offN = 0, offRelN = 0, winN = 0, sinceOff = 1 << 30;
     double P = 0, Np = 0, Hp = 0, Rf = 0, Sl = 0, Fp = 0;
-    bool inNote = false, released = false, below = false;
+    bool inNote = false, released = false, below = false, everNote = false;
     int relCount = 0, under = 0, offCount = 0, reRideCount = 0;
     double peakN = -300.0, minN = 300.0, g = 0.0, raw = 0.0, out = 0.0, idleNow = 0.0;
 };

@@ -17,7 +17,7 @@ enum {
     BR_OFF, BR_ART, BR_REL_DEPTH, BR_REL_MS, BR_GLIDE,
     BR_SMOOTH, BR_REF_ATT, BR_REF_REL, BR_HP_FC, BR_ILLEGAL,
     BR_ON_RISE, BR_SLOW_ATT, BR_SLOW_REL, BR_MODE, BR_SLOW_REL_FAST,
-    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_HOLD_MIN, BR_WIN_LATCH, BR_FAST, BR_BLOCK_RISE, BR_F_HI, BR_F_LO, BR_GATE_BLOCK, BR_ATT_MODE, BR_F_ATT, BR_F_REL, BR_BAND_HYST, BR_HOLD_LATCH, BR_REL_REF, BR_PITCH_LP, BR_ATT_MIN, BR_ATT_SRC, BR_LOCK, BR_LOCK_THR, BR_SENS_IN, BR_FAST_IN, BR_REL_RESET, BR_RR_BAND, BR_RR_LO1, BR_RR_HI1, BR_RR_LO2, BR_RR_HI2, BR_RR_DEPTH, BR_NPARAMS
+    BR_THR_U, BR_THR_A, BR_HYST, BR_SETTLE, BR_OFF_MS, BR_WIN_MS, BR_OFF_REL_MS, BR_NMODE, BR_PITCH_C, BR_HOLD_MIN, BR_WIN_LATCH, BR_FAST, BR_BLOCK_RISE, BR_F_HI, BR_F_LO, BR_GATE_BLOCK, BR_ATT_MODE, BR_F_ATT, BR_F_REL, BR_BAND_HYST, BR_HOLD_LATCH, BR_REL_REF, BR_PITCH_LP, BR_ATT_MIN, BR_ATT_SRC, BR_LOCK, BR_LOCK_THR, BR_SENS_IN, BR_FAST_IN, BR_REL_RESET, BR_RR_BAND, BR_RR_LO1, BR_RR_HI1, BR_RR_LO2, BR_RR_HI2, BR_RR_DEPTH, BR_PRE_SILENCE, BR_PRE_HOLD, BR_NPARAMS
 };
 
 typedef struct { double b0, b1, b2, a1, a2, z1, z2; } Biquad;
@@ -164,7 +164,10 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
     /* the learned lock's state: 1 ms histories of E and N, the note's start and peaks */
     const int lkStep = (int) (fs / 1000.0 + 0.5); double lkE[64] = { 0 }, lkN[64] = { 0 }; int lkPos = 0, lkSince = 0;
     int locked = 0, startAt = -1, schedPtr = 0, schedLock = -2, lkFollow = 1, lkHeld = 0; double peakE = -300.0, Estart = -300.0, Ebefore = -300.0;
-    double raw = p[BR_IDLE], out = p[BR_IDLE], gts = p[BR_RMAX];
+    /* (pre silence < 0: the gain starts at 0 dB, and until the first note it is silence while E stays under pre silence
+       dB, the glide to the Idle value then; else it starts at the Idle value and holds until a note) */
+    const int preMode = p[BR_PRE_SILENCE] < 0.0; int everNote = 0; const int preHold = (int) p[BR_PRE_HOLD];   /* (and not before pre hold samples: the look-ahead) */
+    double raw = preMode ? 0.0 : p[BR_IDLE], out = raw, gts = p[BR_RMAX];
     for (int i = 0; i < n; ++i)
     {
         const double xi = x[i];
@@ -250,7 +253,7 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
                                    && ((fz >= p[BR_RR_LO1] && fz <= p[BR_RR_HI1]) || (fz >= p[BR_RR_LO2] && fz <= p[BR_RR_HI2]));
                 if (p[BR_RR_BAND] >= 3.5)
                 {
-                    rrCount = (inBand && (p[BR_RR_BAND] >= 5.5 ? legal : open) && N < S - ((p[BR_RR_BAND] >= 4.5 && p[BR_RR_BAND] < 5.5) ? fmax (p[BR_RR_DEPTH], p[BR_REL_DEPTH]) : p[BR_RR_DEPTH])) ? rrCount + 1 : 0;
+                    rrCount = (inBand && (p[BR_RR_BAND] >= 6.5 ? (p[BR_ART] < 11.5 - 1e-6 ? open : legal) : p[BR_RR_BAND] >= 5.5 ? legal : open) && N < S - ((p[BR_RR_BAND] >= 4.5 && p[BR_RR_BAND] < 5.5) ? fmax (p[BR_RR_DEPTH], p[BR_REL_DEPTH]) : p[BR_RR_DEPTH])) ? rrCount + 1 : 0;
                     if (rrCount >= relN) { start = 1; Sl = pow (10.0, N / 10.0); rrCount = 0; }
                 }
                 if (! released)
@@ -281,7 +284,7 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
             /* (rel reset 1: a released note ridden afresh starts its slow envelope from here, so the next release needs a
                new drop by the depth) */
             if (p[BR_REL_RESET] >= 0.5 && inNote && released) Sl = pow (10.0, N / 10.0);
-            inNote = 1; released = 0; relCount = 0; rrCount = 0; below = 0; peakN = N; g = gt; settle = settleN; under = 0; offCount = 0;
+            inNote = 1; everNote = 1; released = 0; relCount = 0; rrCount = 0; below = 0; peakN = N; g = gt; settle = settleN; under = 0; offCount = 0;
             locked = 0; lkFollow = 1; lkHeld = 0; startAt = i; peakE = E; Estart = E; Ebefore = lkE[(lkPos - 10) & 63];
             while (schedPtr < lk_nsched && lk_sched[2 * schedPtr] < i) ++schedPtr;
             schedLock = (schedPtr < lk_nsched && lk_sched[2 * schedPtr] == i) ? lk_sched[2 * schedPtr + 1] : -2;
@@ -291,7 +294,8 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
             /* the attack (the note over its slow envelope, which is still rising): the gain follows the law; then it
                only goes down */
             /* (hold latch 1: once held, the gain stays held until a new note) */
-            if (! (p[BR_HOLD_LATCH] >= 0.5 && under >= settleN))
+            /* (hold latch 2: once held, the gain follows again only within the gates: a note under the Artifacts gate stays held) */
+            if (! (p[BR_HOLD_LATCH] >= 1.5 ? (under >= settleN && ! open) : (p[BR_HOLD_LATCH] >= 0.5 && under >= settleN)))
                 under = Na > (p[BR_ATT_MODE] >= 0.5 ? Fa : S) + p[BR_THR_A] ? 0 : under + 1;
             if (under == settleN) Nh = N;                /* the level where the hold began */
             /* (att min 1: in the attack the gain only follows the law down, to its lowest) */
@@ -335,7 +339,7 @@ __declspec(dllexport) void br_run (const float* x, int n, double fs, const doubl
         }
         if (inNote)
             raw = fmin (p[BR_RMAX], fmax (p[BR_RMIN], g));
-        else if (N < peakN - p[BR_OFF])     /* silence (38 dB under the last note): the glide to the Idle value */
+        else if (everNote ? N < peakN - p[BR_OFF] : (preMode && i >= preHold && E < p[BR_PRE_SILENCE]))     /* silence (38 dB under the last note): the glide to the Idle value */
             raw = raw > p[BR_IDLE] ? fmax (p[BR_IDLE], raw - glide) : fmin (p[BR_IDLE], raw + glide);
         /* (an ignored note, within 38 dB of the last: the gain stays where it is) */
         out = raw + csm * (out - raw);

@@ -1,5 +1,6 @@
 // Unit tests for WBass Rider: the parameters as the reference's, the components' latency, the audio path, the ride
-// against the reference's measured behaviour (law, look-ahead, hold, glide, stereo mid), the state, the editor.
+// against the reference's measured behaviour (law, look-ahead, hold, glide, stereo mid, Idle), the state, the editor,
+// the factory presets.
 // Run: WBassRiderTests (exit code 0 = all passed).
 #include <functional>
 #include <cmath>
@@ -196,6 +197,64 @@ static void testSelection()
     CHECK_NEAR (p.idleDb(), -3.0, 1e-4);                             // the arrow itself: the middle of -12 .. 6
 }
 
+// the Idle value as the reference applies it (MEASUREMENTS.md, WBass Rider: Idle): the gain starts at 0 dB and, in
+// silence before any note, glides to the Idle value at 32 dB/s once the look-ahead has filled; a quiet sound before any
+// note (the level read over -77.7 dB) holds it; after a note it glides to a new Idle value at once, as the arrow moves
+static void testIdle()
+{
+    {
+        WBassRiderProcessor p;
+        auto* idle = p.apvts.getParameter (wbassrider::idle);
+        idle->setValueNotifyingHost (idle->convertTo0to1 (0.88f));      // +9.12 dB at +-12 (0.01 steps)
+        runRide (p, 10, [] (int, float& l, float& r) { l = r = 0.0f; });          // 0.1 s
+        CHECK (p.rideDb.load() > 1.0f && p.rideDb.load() < 3.5f);       // measured +2.94 at 0.1 s
+        runRide (p, 40, [] (int, float& l, float& r) { l = r = 0.0f; });
+        CHECK_NEAR (p.rideDb.load(), 9.12, 0.05);
+    }
+    {
+        WBassRiderProcessor p;
+        auto* idle = p.apvts.getParameter (wbassrider::idle);
+        idle->setValueNotifyingHost (idle->convertTo0to1 (0.75f));      // +6 dB
+        runRide (p, 100, [] (int n, float& l, float& r) { l = r = (float) sineAt (n, 80.0, -72.0); });
+        CHECK_NEAR (p.rideDb.load(), 0.0, 0.05);                         // held at 0 (measured)
+    }
+    {
+        WBassRiderProcessor p;
+        runRide (p, 100, [] (int n, float& l, float& r) { l = r = (float) sineAt (n, 80.0, -20.0); });
+        juce::AudioBuffer<float> b (2, 480); juce::MidiBuffer midi;
+        for (int blk = 0; blk < 60; ++blk) { b.clear(); p.processBlock (b, midi); }
+        CHECK_NEAR (p.rideDb.load(), 0.0, 0.05);
+        auto* idle = p.apvts.getParameter (wbassrider::idle);
+        idle->setValueNotifyingHost (idle->convertTo0to1 (0.25f));      // -6 dB: glides there
+        for (int blk = 0; blk < 10; ++blk) { b.clear(); p.processBlock (b, midi); }
+        CHECK (p.rideDb.load() < -1.5f && p.rideDb.load() > -4.5f);
+        for (int blk = 0; blk < 20; ++blk) { b.clear(); p.processBlock (b, midi); }
+        CHECK_NEAR (p.rideDb.load(), -6.0, 0.05);
+    }
+}
+
+// the factory presets: the reference's 17, with our names; they set their values, and all but the first two leave
+// Target where it is
+static void testPresets()
+{
+    WBassRiderProcessor p;
+    CHECK (p.getNumPrograms() == 18);
+    CHECK (p.getProgramName (1) == "Essentials: Full Reset");
+    auto* target = p.apvts.getParameter (wbassrider::target);
+    target->setValueNotifyingHost (target->convertTo0to1 (-24.0f));
+    p.setCurrentProgram (16);                                         // "Bass Tamer": Max 0, Idle 0.98, Fast, Sensitivity 75
+    CHECK (p.getProgramName (16) == "Essentials: Bass Tamer");
+    CHECK_NEAR (p.apvts.getRawParameterValue (wbassrider::target)->load(), -24.0, 0.05);
+    CHECK_NEAR (p.apvts.getRawParameterValue (wbassrider::rangeMax)->load(), 0.0, 0.05);
+    CHECK_NEAR (p.apvts.getRawParameterValue (wbassrider::sensitivity)->load(), 75.0, 0.05);
+    CHECK (p.apvts.getRawParameterValue (wbassrider::response)->load() > 0.5f);
+    CHECK_NEAR (p.idleDb(), -0.24, 0.01);
+    p.setCurrentProgram (2);                                          // "Live PA Start" sets Target, Artifacts 68.2, Spill -30
+    CHECK_NEAR (p.apvts.getRawParameterValue (wbassrider::target)->load(), -14.0, 0.05);
+    CHECK_NEAR (p.apvts.getRawParameterValue (wbassrider::artifacts)->load(), 68.2, 0.05);
+    CHECK_NEAR (p.apvts.getRawParameterValue (wbassrider::spill)->load(), -30.0, 0.05);
+}
+
 int main()
 {
     juce::ScopedJuceInitialiser_GUI init;
@@ -207,6 +266,8 @@ int main()
     testRideStereoMid();
     testStateAndEditor();
     testSelection();
+    testIdle();
+    testPresets();
     std::printf ("%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;
 }

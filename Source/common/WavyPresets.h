@@ -1,5 +1,6 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <algorithm>
 #include <vector>
 
 namespace wavy
@@ -12,6 +13,7 @@ struct FactoryPreset
     const char* group;
     const char* name;
     std::vector<Value> values;
+    std::vector<const char*> leave {};   // parameters this preset leaves where they are (WBass Rider's Target, "*" in the reference)
 };
 
 inline const juce::Identifier presetExactTag { "PresetExact" };
@@ -25,6 +27,7 @@ inline void applyPreset (juce::AudioProcessorValueTreeState& apvts, const Factor
     {
         auto* rp = dynamic_cast<juce::RangedAudioParameter*> (p);
         if (rp == nullptr || rp == keep || std::find (alsoKeep.begin(), alsoKeep.end(), p) != alsoKeep.end()) continue;
+        if (std::any_of (preset.leave.begin(), preset.leave.end(), [rp] (const char* id) { return rp->getParameterID() == id; })) continue;
         float target = rp->getDefaultValue();
         for (const auto& v : preset.values)
             if (rp->getParameterID() == v.id) target = rp->convertTo0to1 (v.value);

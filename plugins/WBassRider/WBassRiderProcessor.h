@@ -3,7 +3,7 @@
 #include <atomic>
 #include <vector>
 #include "WavyMeter.h"
-#include "WavyPresets.h"
+#include "WBassRiderPresets.h"
 #include "WBassRiderRide.h"
 
 // Parameters follow the reference's (Bass Rider's VST3 parameters and ParamXML ranges, defaults and resolutions; see
@@ -45,10 +45,22 @@ public:
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram (int) override {}
-    const juce::String getProgramName (int) override { return "Default"; }
+    // programs for the host's preset list: 0 = Default, then the factory presets (wbassrider::factoryPresets())
+    int getNumPrograms() override { return 1 + (int) wbassrider::factoryPresets().size(); }
+    int getCurrentProgram() override { return currentProgram; }
+    void setCurrentProgram (int index) override
+    {
+        if (index == currentProgram || index < 0 || index >= getNumPrograms()) return;
+        currentProgram = index;
+        static const wavy::FactoryPreset defaults { "", "Default", {} };
+        wavy::applyPreset (apvts, index == 0 ? defaults : wbassrider::factoryPresets()[(size_t) index - 1], apvts.getParameter (wbassrider::mode));
+    }
+    const juce::String getProgramName (int index) override
+    {
+        if (index <= 0 || index >= getNumPrograms()) return "Default";
+        const auto& p = wbassrider::factoryPresets()[(size_t) index - 1];
+        return juce::String (p.group) + ": " + p.name;
+    }
     void changeProgramName (int, const juce::String&) override {}
     void getStateInformation (juce::MemoryBlock&) override;
     void setStateInformation (const void*, int) override;
@@ -69,6 +81,7 @@ public:
     float idleDb() const { return wbassrider::idleDb (get (wbassrider::idle), get (wbassrider::rangeMin), get (wbassrider::rangeMax)); }
 
 private:
+    int currentProgram = 0;
     juce::AudioProcessorValueTreeState::ParameterLayout layout();
     void configure();
     double sr = 48000.0;
