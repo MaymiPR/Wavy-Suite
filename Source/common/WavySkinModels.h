@@ -82,6 +82,10 @@ inline bool polarAt (const Polar& m, float dx, float dy, float angle, float rmax
     const float fi = juce::jlimit (0.0f, (float) (m.radii - 1) - 1.0e-3f, r / m.step);
     const int i = (int) fi;
     const float t = fi - (float) i;
+    // the harmonics fade out toward the very centre, where no pixel pins them (a pixel centred on the part's centre
+    // would otherwise take the first knot's angle terms at an arbitrary angle)
+    const float hw = juce::jmin (1.0f, r / m.step);
+    for (int j = 1; j < nb; ++j) basis[j] *= hw;
     for (int ch = 0; ch < 4; ++ch)
     {
         float a = 0.0f, b = 0.0f;

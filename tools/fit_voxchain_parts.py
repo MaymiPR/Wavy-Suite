@@ -3,13 +3,18 @@ reference/wvoxchain/skin/) and writes plugins/WVoxChain/WVoxChainSkinData.h. No 
 models that WVoxChainEditor.cpp renders (the methods of tools/fit_voxrider_parts.py):
 
 - the panels (the 1x background, 738 x 474 with the toolbar's strip): a colour per row times a factor per column times
-  a coarse correction grid, and the grain left over, the printed art masked; the grille as a measured hole pattern;
-- the printed art as measured items (labels: string, ink box, grey; the scale's dashes as runs);
-- the small parts (fader track, fader caps and shadow, meter frames, the colour windows and buttons) as low-rank
-  models; the round parts (screws, the Balance knob, the Sensitivity LED) as polar models round their centres.
+  a coarse correction grid, and the grain left over, the printed art masked; the flavours' window as a low-rank part
+  times its 2 x 2 dot tile; the grille's lattice as each pixel row's 11 px profile and a tint per hole;
+- the rails and their four corners, the tracks, the meter windows, the seams between the panels and the meters' tabs
+  as low-rank parts or low-rank differences to the panels; the Stereo component's Balance tab (15001) as its
+  difference to the Mono/Stereo background (15000);
+- the printed art as measured items (labels: string, ink box, grey; the scale's dashes as runs; the flavour names'
+  ink boxes, measured on the reference's frame);
+- the controls: fader caps and shadow, the push buttons as their difference to the background they were cut from,
+  meters, LED frames as low-rank parts; the round parts (screws, the Balance knob) as polar models round their centres.
 
-The engineer's signature plate, the maker's mark and the product badge are left out (the panel model fills them;
-WVox Chain prints its own name plate).
+The engineer's signature, the maker's mark and the product badge are left out (the panel model fills them; WVox
+Chain draws its own name plate, mark and badge).
 
     python -I tools/fit_voxchain_parts.py [--preview]
 """
@@ -43,6 +48,20 @@ def base():
 # the faders: control rectangle x (34 wide, 209 tall from y 210); the track centre is 17 px in
 FADERS = [('sensitivity', 49), ('bass', 186), ('treble', 253), ('compress', 319), ('reverb', 386), ('delay', 452), ('pitch', 519), ('output', 655)]
 
+# the colour selectors' x (55 x 81 from y 117: the flavours' window, the push button from y 159)
+SELECTORS = [176, 243, 309, 376, 442, 508]
+# the flavours' window (its black edge included: x 172 .. 567, y 113 .. 156) and its dotted inside
+WINDOW = (172, 113, 568, 157)
+DOTS = (174, 115, 566, 155)
+# the four corners (the rails bending into the plate at the top and under the panels at the bottom): x0, y0, x1, y1
+CORNERS = [(0, 19, 50, 62), (688, 19, 738, 62), (0, 428, 50, 474), (688, 428, 738, 474)]
+
+# the strips where what the panels leave is fitted (x0, y0, x1, y1, rank): the seams between the panels, under the
+# red plate, between the window's frame and the lower panels, the panels' feet and the plate's top; the meters' tabs
+SEAMS = [(156, 100, 172, 474, 3), (569, 100, 585, 474, 3), (22, 98, 716, 116, 3), (22, 172, 716, 192, 3),
+         (22, 440, 716, 474, 4), (22, 19, 716, 48, 4),
+         (99, 184, 151, 224, 8), (589, 184, 641, 224, 8), (99, 398, 151, 428, 8), (589, 398, 641, 428, 8)]
+
 # panels: name, y0, y1, x0, x1, correction cell, art boxes (x0, y0, x1, y1) the models leave out
 def panel_list():
     tracks = [(x - 1, 190, x + 35, 430) for _, x in FADERS]
@@ -52,13 +71,12 @@ def panel_list():
     labels = [(60, 429, 125, 443), (185, 429, 220, 443), (248, 429, 292, 443), (309, 429, 365, 443), (382, 429, 427, 443),
               (450, 429, 490, 443), (518, 429, 556, 443), (648, 429, 698, 443)]
     return [
-        ('header', 19, 107, 22, 716, 8, [(30, 70, 50, 90), (686, 70, 706, 90), (55, 62, 210, 98), (655, 30, 700, 50)]),
-        ('displayFrame', 107, 183, 164, 577, 8, [(170, 111, 570, 159)]),
-        ('displayWindow', 112, 157, 172, 568, 4, []),
+        ('header', 19, 107, 22, 716, 8, [(30, 70, 50, 90), (686, 70, 706, 90), (55, 62, 210, 98), (655, 30, 700, 50)] + CORNERS[:2]),
+        ('displayFrame', 107, 183, 164, 577, 8, [WINDOW]),
         ('badge', 107, 183, 577, 716, 8, [(600, 125, 695, 165)]),
-        ('lowerLeft', 181, 474, 22, 164, 6, tracks[:1] + meters[:1] + labels[:1] + scales),
+        ('lowerLeft', 181, 474, 22, 164, 6, tracks[:1] + meters[:1] + labels[:1] + scales + CORNERS[2:3]),
         ('lowerMid', 181, 474, 164, 577, 6, tracks[1:7] + labels[1:7] + scales),
-        ('lowerRight', 181, 474, 577, 716, 6, tracks[7:] + meters[1:] + labels[7:] + scales),
+        ('lowerRight', 181, 474, 577, 716, 6, tracks[7:] + meters[1:] + labels[7:] + scales + CORNERS[3:]),
         ('railLeft', 19, 474, 0, 22, 8, []),
         ('railRight', 19, 474, 716, 738, 8, []),
     ]
@@ -218,6 +236,7 @@ def part(lines, name, P, k, mask=None):
     ok = np.ones((h, w), bool) if mask is None else ~mask
     print('%-14s %d x %d rank %d, rms %.2f' % (name, w, h, k, 255 * np.sqrt(np.mean((rec - P)[ok] ** 2))))
     F.emit_lowrank(lines, name, m)
+    return rec
 
 
 def printing(lines, rgb):
@@ -265,18 +284,41 @@ def controls(lines, rgb=None):
         # and columns vary too much for the panel model, whose columns' medians treat the highlights as art)
         for name, x0 in (('railLeftPart', 0), ('railRightPart', 716)):
             P = np.concatenate([rgb[19:474, x0:x0 + 22] / 255.0, np.ones((455, 22, 1))], 2)
-            part(lines, name, P, 3)
+            part(lines, name, P, 6)
     # fader caps (34 x 58; Sensitivity's own) and their shadow (43 x 64, drawn at the control's top-left)
     part(lines, 'cap', load(1000), 6)
     part(lines, 'capSens', load(999), 6)
     part(lines, 'capShadow', load(1005), 4)
-    # the colour windows (55 x 81): the flavour window above (its names masked: the editor prints them) and the push
-    # button below, unlit (colour off) and lit; the 1 px ring in the button is where the selection frame is drawn
-    off, on = load(600), load(603)
-    tm = np.zeros(off.shape[:2], bool); tm[1:39, 5:50] = True
-    part(lines, 'colourWindow', off[:42], 6, tm[:42])
-    part(lines, 'buttonOff', off[42:], 6)
-    part(lines, 'buttonOn', on[42:], 6)
+    # the push buttons (55 x 39 from y 159 under each flavour window), unlit (colour off) and lit: the skin's images were
+    # cut from the background at the first selector (Bass), so each is kept as its difference to the background there
+    # (signed RGB, zero outside the bezel and its shadow); the editor adds it to its own background at each selector
+    if rgb is not None:
+        bg = rgb[159:198, SELECTORS[0]:SELECTORS[0] + 55] / 255.0
+        sup = np.zeros((39, 55), bool)
+        for n in (600, 603):
+            sup |= np.abs(load(n)[42:, :, :3] - bg).sum(2) > 3 / 255.0
+        ys, xs = np.nonzero(sup)
+        bx = (int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1)
+        for name, n in (('buttonOffDelta', 600), ('buttonOnDelta', 603)):
+            D = load(n)[42:, :, :3] - bg
+            D[~sup] = 0.0
+            part(lines, name, np.concatenate([D, np.zeros((39, 55, 1))], 2), 8)
+        lines.append('inline constexpr int buttonY = 42, buttonSupport[4] = { %d, %d, %d, %d };   // in the button (55 x 39): x0, y0, x1, y1' % bx)
+        print('button support %s' % (bx,))
+    # the flavours' names: their ink boxes on the reference's frame (relative to the selector; the third flavour's row
+    # at the top), the names in bold italic capitals fitted into them
+    ref = np.asarray(Image.open(os.path.join(ROOT, 'reference', 'wvoxchain', 'shots', 'gl_default.png')).convert('RGB')).astype(int)
+    ink = np.abs(ref - (rgb if rgb is not None else base())).sum(2) > 24
+    boxes = []
+    for x in SELECTORS:
+        row = []
+        for r in range(3):
+            y0 = 118 + 12 * r
+            ys, xs = np.nonzero(ink[y0:y0 + 12, x:x + 55])
+            row.append((int(xs.min()), y0 - 117 + int(ys.min()), int(xs.max()) + 1, y0 - 117 + int(ys.max()) + 1))
+        boxes.append(row)
+    lines.append('inline constexpr float nameBoxes[6][3][4] = { %s };   // per selector, the rows top down (flavours 3, 2, 1): x0, y0, x1, y1' %
+                 ', '.join('{ %s }' % ', '.join('{ %d.0f, %d.0f, %d.0f, %d.0f }' % b for b in row) for row in boxes))
     # the Sensitivity LED (28 x 25), 24 frames from off through green and yellow to red
     for i in range(24): part(lines, 'sensLed%d' % i, load(13050 + i), 3)
     lines.append('inline constexpr const LowRank* sensLeds[] = { %s };' % ', '.join('&sensLed%d' % i for i in range(24)))
@@ -318,11 +360,31 @@ def main():
              'struct Label { const char* text; float x0, y0, x1, y1, grey; bool bold, italic; };',
              'struct Run { float x, y, w, h, grey; };']
     out = np.zeros_like(rgb)
+    # the flavours' window's dots (every other pixel of every other row lit): a 2 x 2 tile of factors, divided out
+    # before its panel is fitted
+    dx0, dy0, dx1, dy1 = DOTS
+    win = rgb[dy0:dy1, dx0:dx1].mean(2)
+    yy, xx = np.mgrid[dy0:dy1, dx0:dx1]
+    tile = np.array([[np.median(win[(yy % 2 == j) & (xx % 2 == i)]) for i in range(2)] for j in range(2)])
+    tile /= tile.mean()
+    print('window dots    %s' % np.round(tile, 3).tolist())
+    lines.append('inline constexpr float windowDots[2][2] = { { %.4ff, %.4ff }, { %.4ff, %.4ff } };   // [y & 1][x & 1]' % tuple(tile.ravel()))
+    lines.append('inline constexpr int windowBox[4] = { %d, %d, %d, %d }, dotsBox[4] = { %d, %d, %d, %d };' % (WINDOW + DOTS))
+    flat = rgb.copy()
+    flat[dy0:dy1, dx0:dx1] /= tile[yy % 2, xx % 2][..., None]
     for name, y0, y1, x0, x1, fx, art in panel_list():
         p = panel(rgb, name, y0, y1, x0, x1, fx, art)
         F.emit_panel(lines, p)
         if name == 'displayFrame': out[y0:y1, x0:x1] = p['model']
         else: out[y0:y1, x0:x1] = np.where(out[y0:y1, x0:x1].sum(2, keepdims=True) > 0, out[y0:y1, x0:x1], p['model']) if name != 'displayWindow' else p['model']
+    # the flavours' window with its black edge and bevel: an opaque low-rank part (rows times columns hold its edges,
+    # which the panel model's outlier test would leave out), the dots divided out
+    wx0, wy0, wx1, wy1 = WINDOW
+    P = np.concatenate([flat[wy0:wy1, wx0:wx1] / 255.0, np.ones((wy1 - wy0, wx1 - wx0, 1))], 2)
+    rec = part(lines, 'windowPart', P, 6)
+    wm = 255 * rec[..., :3]
+    wm[dy0 - wy0:dy1 - wy0, dx0 - wx0:dx1 - wx0] *= tile[yy % 2, xx % 2][..., None]
+    out[wy0:wy1, wx0:wx1] = wm
     # the overlays (differences to the panels, the same at each place) and the screws (one part everywhere)
     comp = out.copy()
     sc, sx0, sy0 = disc(rgb, 202.5, 210.5, 6.5)
@@ -331,26 +393,31 @@ def main():
     F.emit_polar(lines, 'screw', sm)
     screws = []
     # the channel faders' tracks: a light strip, the slot, a screw at each end (box from the control x + 2, y 190)
+    # (each track its own part: the six differ by more than their grain, the slot's edges fall on different sub-pixels)
     boxes = [(x + 2, 190, x + 32, 432) for _, x in FADERS[1:7]]
-    tm, trec = overlay(rgb, out, boxes, 'track', 4, holes=(('c', 14.5, 20.5, 8.0), ('c', 14.5, 227.5, 8.0)))
-    F.emit_lowrank(lines, 'track', tm)
-    for b in boxes: comp[b[1]:b[3], b[0]:b[2]] += 255 * trec
+    for i, b in enumerate(boxes):
+        tm, trec = overlay(rgb, out, [b], 'track%d' % i, 6, holes=(('c', 14.5, 20.5, 8.0), ('c', 14.5, 227.5, 8.0)))
+        F.emit_lowrank(lines, 'track%d' % i, tm)
+        comp[b[1]:b[3], b[0]:b[2]] += 255 * trec
+    lines.append('inline constexpr const LowRank* tracks[] = { %s };' % ', '.join('&track%d' % i for i in range(6)))
     screws += [(b[0] + 14.5, y) for b in boxes for y in (210.5, 417.5)]
     # Sensitivity's and Output's: a taller strip (box from the control x + 2, y 186), a screw at the bottom, Output's at the
     # top too (Sensitivity's track has none there): one part each
     for name, x, top in (('sensTrack', 49, False), ('outTrack', 655, True)):
         b = (x + 2, 186, x + 32, 432)
         hole = (('c', 15.5, 231.5, 8.0),) + ((('c', 15.5, 17.5, 8.0),) if top else ())
-        tmx, rec = overlay(rgb, out, [b], name, 4, holes=hole)
+        tmx, rec = overlay(rgb, out, [b], name, 6, holes=hole)
         F.emit_lowrank(lines, name, tmx)
         comp[b[1]:b[3], b[0]:b[2]] += 255 * rec
         screws += [(b[0] + 15.5, 417.5)] + ([(b[0] + 15.5, 203.5)] if top else [])
     # the meter windows: tabs with screws above and below, the dotted window, the scale's numbers (printed by the editor)
     boxes = [(101, 186, 149, 424), (591, 186, 639, 424)]
     nums = tuple(('r', 16, y - 5, 32, y + 6) for y in (44, 85, 121, 157, 193))
-    mm, mrec = overlay(rgb, out, boxes, 'meterWindow', 6, holes=(('c', 24.5, 17.5, 8.0), ('c', 24.5, 225.5, 8.0)) + nums)
-    F.emit_lowrank(lines, 'meterWindow', mm)
-    for b in boxes: comp[b[1]:b[3], b[0]:b[2]] += 255 * mrec
+    # (each its own: the input's holds the Balance knob's tab)
+    for name, b in zip(('meterWindowIn', 'meterWindowOut'), boxes):
+        mm, mrec = overlay(rgb, out, [b], name, 6, holes=(('c', 24.5, 17.5, 8.0), ('c', 24.5, 225.5, 8.0)) + nums)
+        F.emit_lowrank(lines, name, mm)
+        comp[b[1]:b[3], b[0]:b[2]] += 255 * mrec
     screws += [(b[0] + 24.5, y) for b in boxes for y in (203.5, 411.5)]
     lines.append('inline constexpr int trackDx = 2, trackY = 190, sideTrackY = 186;   // overlay boxes: the control x + 2')
     lines.append('inline constexpr int meterInX = 101, meterOutX = 591, meterY = 186;')
@@ -366,45 +433,80 @@ def main():
                 if best is None or e < best[0]: best = (e, cx, cy)
         return best[1], best[2]
     hs = [centre(40.0, 82.5), centre(698.0, 82.5)]
-    P, x0, y0 = disc(rgb, hs[0][0], hs[0][1], 8.0)
-    hm = F.polar(P, hs[0][0] - x0, hs[0][1] - y0, 8.5, NH=8, step=0.5)
-    print('header screw   polar rms %.2f at %s' % (hm['err'], hs))
-    F.emit_polar(lines, 'headerScrew', hm)
+    # (each its own model: one model drawn half a pixel off its fit aliases)
+    for name, (cx, cy) in zip(('headerScrewL', 'headerScrewR'), hs):
+        P, x0, y0 = disc(rgb, cx, cy, 8.0)
+        hm = F.polar(P, cx - x0, cy - y0, 8.5, NH=8, step=0.5)
+        print('%-14s polar rms %.2f at (%.2f, %.2f)' % (name, hm['err'], cx, cy))
+        F.emit_polar(lines, name, hm)
+        comp = over(comp, *render_polar(hm, cx, cy, 8.5, 19))
     lines.append('inline constexpr float headerScrews[][2] = { %s };' % ', '.join('{ %.2ff, %.2ff }' % c_ for c_ in hs))
-    for cx, cy in hs: comp = over(comp, *render_polar(hm, cx, cy, 8.5, 19))
     out = comp
-    # the grille: its bars (a panel with the holes left out), one hole shape and each hole's tint
+    # the grille: its frame (a panel with the holes left out), the lattice of holes
     gr = grille(rgb)
     holes = [(cx - 5.2, cy - 5.2, cx + 5.2, cy + 5.2) for cx, cy in gr['centres']]
     pg = panel(rgb, 'grilleBars', 107, 181, 22, 164, 4, holes)
     F.emit_panel(lines, pg)
     comp[107:181, 22:164] = pg['model']
-    patches, tints = [], []
+    # the holes: every pixel row of the lattice repeats every 11 px (the holes 11 px apart along a row, the next row
+    # shifted by half), so each row's profile over one period, the median over the periods (sharp: no sub-pixel
+    # averaging); then each hole's tint (its mean colour against the profile's, r < 4.5 px)
+    assert abs(gr['a'] - 11.0) < 0.06
+    cs = np.array(gr['centres'])
+    gx0, gy0 = max(int(math.floor(cs[:, 0].min() - 5.5)), 24), max(int(math.floor(cs[:, 1].min() - 5.5)), 109)
+    gx1, gy1 = min(int(math.ceil(cs[:, 0].max() + 5.5)), 162), min(int(math.ceil(cs[:, 1].max() + 5.5)), 179)
+    reg = rgb[gy0:gy1, gx0:gx1]
+    per = (gx1 - gx0) // 11
+    tile = np.stack([np.median(reg[:, ph:ph + 11 * per:11], axis=1) for ph in range(11)], 1)     # (h, 11, 3)
+    model = tile[:, np.arange(gx1 - gx0) % 11]
+    yy_, xx_ = np.mgrid[gy0:gy1, gx0:gx1] + 0.5
+    tints = []
     for cx, cy in gr['centres']:
-        P, px0, py0 = disc(rgb, cx, cy, 5.0)
-        t = P[..., :3].sum((0, 1)) / max(P[..., 3].sum(), 1e-6)
-        tints.append(t); patches.append((P, px0, py0, cx, cy))
-    tints = np.array(tints); mean_t = tints.mean(0)
-    # the shape: each hole divided by its tint relative to the mean, the holes averaged on a common grid (sub-pixel
-    # centres: bilinear), then a polar model round the middle
-    n = patches[0][0].shape[0]; acc = np.zeros((n, n, 4))
-    for (P, px0, py0, cx, cy), t in zip(patches, tints):
-        Q = P.copy(); Q[..., :3] *= (mean_t / np.maximum(t, 1e-4))
-        acc += Q
-    acc /= len(patches)
-    c0 = n / 2.0
-    hm = F.polar(acc, c0, c0, 5.5, NH=6, step=0.5)
-    print('grille hole    polar rms %.2f, tints %.3f .. %.3f' % (hm['err'], tints.min(), tints.max()))
-    F.emit_polar(lines, 'grilleHole', hm)
-    rel = tints / mean_t
-    lines.append('inline constexpr float grilleLattice = %.2ff, grilleOx = %.2ff, grilleOy = %.2ff;   // spacing; the first hole (rows alternate by half)' % (gr['a'], gr['ox'], gr['oy']))
-    lines.append('inline constexpr float grilleHoles[][5] = { %s };   // x, y, tint r, g, b (times the shape)' % ', '.join(
-        '{ %.2ff, %.2ff, %.3ff, %.3ff, %.3ff }' % (cx, cy, r_[0], r_[1], r_[2]) for (cx, cy), r_ in zip(gr['centres'], rel)))
-    for (cx, cy), r_ in zip(gr['centres'], rel):
-        img, ix0, iy0 = render_polar(hm, cx, cy, 5.5, 13)
-        img[..., :3] *= r_
-        comp = over(comp, img, ix0, iy0)
+        m_ = np.hypot(xx_ - cx, yy_ - cy) < 4.5
+        tints.append(reg[m_].mean(0) / np.maximum(model[m_].mean(0), 1))
+    tints = np.array(tints)
+    near = np.full(model.shape[:2], -1)
+    for i, (cx, cy) in enumerate(gr['centres']): near[np.hypot(xx_ - cx, yy_ - cy) < 5.0] = i
+    tinted = np.where(near[..., None] >= 0, model * tints[np.maximum(near, 0)], model)
+    print('grille lattice box (%d, %d) .. (%d, %d), profile rms %.2f, tinted %.2f, tints %.2f .. %.2f' % (gx0, gy0, gx1, gy1,
+          np.sqrt(np.mean((reg - model) ** 2)), np.sqrt(np.mean((reg - tinted) ** 2)), tints.min(), tints.max()))
+    lines.append('inline constexpr int grilleBox[4] = { %d, %d, %d, %d };   // the lattice (its rows repeat every 11 px from x0)' % (gx0, gy0, gx1, gy1))
+    lines.append('inline constexpr float grilleTile[%d][11][3] = { %s };' % (gy1 - gy0, ', '.join(
+        '{ %s }' % ', '.join('{ %.1ff, %.1ff, %.1ff }' % tuple(tile[r, ph]) for ph in range(11)) for r in range(gy1 - gy0))))
+    lines.append('inline constexpr float grilleHoles[][5] = { %s };   // x, y, tint r, g, b (times the profile, r < 5 px)' % ', '.join(
+        '{ %.2ff, %.2ff, %.3ff, %.3ff, %.3ff }' % (cx, cy, t_[0], t_[1], t_[2]) for (cx, cy), t_ in zip(gr['centres'], tints)))
+    comp[gy0:gy1, gx0:gx1] = tinted
     out = comp
+    # the corners: opaque low-rank parts over everything else there (the editor fades them into it over their open edges)
+    for name, (x0, y0, x1, y1) in zip(('cornerTL', 'cornerTR', 'cornerBL', 'cornerBR'), CORNERS):
+        P = np.concatenate([rgb[y0:y1, x0:x1] / 255.0, np.ones((y1 - y0, x1 - x0, 1))], 2)
+        rec = part(lines, name, P, 10)
+        out[y0:y1, x0:x1] = 255 * rec[..., :3]
+    lines.append('inline constexpr int corners[4][4] = { %s };' % ', '.join('{ %d, %d, %d, %d }' % c for c in CORNERS))
+    # what the parts above leave along the panels' seams (the grooves between them, the plate's shadow): low-rank
+    # differences over strips, fitted in turn on what is left (the printing, drawn by the editor, left out)
+    art = np.zeros(rgb.shape[:2], bool)
+    for _, y0, y1, x0, x1, _, boxes_ in panel_list():
+        for a, b, c, e in boxes_:
+            if (a, b, c, e) not in CORNERS and not (e - b > 200): art[b:e, a:c] = True     # (the text, not the tracks / meters)
+    seams = []
+    for i, (x0, y0, x1, y1, k) in enumerate(SEAMS):
+        D = (rgb[y0:y1, x0:x1] - out[y0:y1, x0:x1]) / 255.0
+        m = F.lowrank(np.concatenate([D, np.zeros((y1 - y0, x1 - x0, 1))], 2), k, art[y0:y1, x0:x1] if art[y0:y1, x0:x1].any() else None)
+        r_ = np.einsum('yjc,xjc->yxc', m['u'].reshape(y1 - y0, k, 4), m['v'].reshape(x1 - x0, k, 4))[..., :3]
+        print('seam%-10d %d x %d rank %d, rms %.2f -> %.2f' % (i, x1 - x0, y1 - y0, k, 255 * np.sqrt(np.mean(D ** 2)), 255 * np.sqrt(np.mean((D - r_) ** 2))))
+        F.emit_lowrank(lines, 'seam%d' % i, m)
+        out[y0:y1, x0:x1] += 255 * r_
+        seams.append('{ &seam%d, %d.0f, %d.0f }' % (i, x0, y0))
+    lines.append('struct Placed { const LowRank* m; float x, y; };')
+    lines.append('inline constexpr Placed seams[] = { %s };' % ', '.join(seams))
+    # the Stereo component's background (15001): the Balance knob's L and R and its shadow over the tab, as its
+    # difference to the Mono/Stereo one's
+    st = np.asarray(Image.open(os.path.join(SKIN, '15001.png')).convert('RGB')).astype(float)
+    x0, y0, x1, y1 = 104, 400, 148, 429
+    D = (st[y0:y1, x0:x1] - rgb[y0:y1, x0:x1]) / 255.0
+    rec = part(lines, 'stereoTab', np.concatenate([D, np.zeros((y1 - y0, x1 - x0, 1))], 2), 8)
+    lines.append('inline constexpr int stereoTabX = %d, stereoTabY = %d;' % (x0, y0))
     printing(lines, rgb)
     controls(lines, rgb)
     lines += ['}', '']
@@ -412,7 +514,9 @@ def main():
     print('wrote', OUT, '(%d kB)' % (os.path.getsize(OUT) // 1024))
     if preview:
         Image.fromarray(np.clip(np.concatenate([rgb, out], 1), 0, 255).astype(np.uint8)).save(PREVIEW)
-        print('preview', PREVIEW)
+        res = np.clip(128 + 3 * (rgb - out).mean(2), 0, 255).astype(np.uint8)
+        Image.fromarray(res).save(PREVIEW.replace('.png', '_resid.png'))
+        print('preview', PREVIEW, 'mean |diff| %.2f' % np.abs(rgb - out)[19:].mean())
 
 
 if __name__ == '__main__':

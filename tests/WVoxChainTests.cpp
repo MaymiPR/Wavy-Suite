@@ -1,6 +1,6 @@
 // Unit tests for WVox Chain (Phase 2): the parameters as the reference's (ranges, defaults, the colours' texts), the
 // components' buses, the latency, the audio path (the gains, the delay), and the editor (its size, the Mono/Stereo
-// component's layout, the colour selectors' clicks, a snapshot paints).
+// component's layout, the colour selectors' clicks, the faders' grab area and the selection, a snapshot paints).
 // Run: WVoxChainTests (exit code 0 = all passed).
 #include <cmath>
 #include <cstdio>
@@ -106,6 +106,35 @@ static void testEditor()
         CHECK (p.apvts.getParameter (wvoxchain::bassColor)->getCurrentValueAsText() == "Lower");
         cs[0]->setState (0);
         CHECK (p.apvts.getParameter (wvoxchain::bassColor)->getCurrentValueAsText() == "Bypass");
+    }
+    // the selection (filmed on the reference): a fader is grabbed on its cap only (34 x 58, at 0 from 75.5 px down its
+    // 215 px control); one control marked at a time; its value shows only while the mouse is on it
+    std::vector<wvoxchain::ui::Fader*> fs;
+    std::function<void (juce::Component&)> findF = [&] (juce::Component& c)
+    {
+        for (auto* k : c.getChildren())
+        {
+            if (auto* f = dynamic_cast<wvoxchain::ui::Fader*> (k)) fs.push_back (f);
+            findF (*k);
+        }
+    };
+    findF (*ed);
+    CHECK (fs.size() == 8);
+    if (fs.size() == 8)
+    {
+        CHECK_NEAR (fs[1]->capTop(), 75.5, 1e-3);
+        CHECK (fs[1]->onCap ({ 17.0f, 100.0f }));
+        CHECK (! fs[1]->onCap ({ 17.0f, 60.0f }) && ! fs[1]->onCap ({ 17.0f, 140.0f }) && ! fs[1]->onCap ({ 38.0f, 100.0f }));
+        auto& mk = dynamic_cast<WVoxChainEditor&> (*ed).marks;
+        mk.select (fs[1]);
+        CHECK (! mk.showsValue (fs[1]));
+        mk.hover = fs[1];
+        CHECK (mk.showsValue (fs[1]) && ! mk.showsValue (fs[2]));
+        mk.select (fs[2]);
+        CHECK (! mk.showsValue (fs[1]));
+        mk.clear();
+        CHECK (mk.selected == nullptr);
+        mk.hover = nullptr;
     }
     set (p, wvoxchain::mode, 1.0f);                                      // Mono/Stereo: no Balance
     img = ed->createComponentSnapshot (ed->getLocalBounds());

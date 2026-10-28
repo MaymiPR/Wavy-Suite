@@ -828,6 +828,42 @@ push button per fader that steps the colour; eight vertical faders (Input Sens, 
 Pitch, Output) on ±10 scales; stereo input and output LED meters (0 … 24 dB down) with clip LEDs; the Sensitivity LED
 over the input meter; Balance as a small knob under the input meter (L / R).
 
+- **Skin (C2)**: `15000.png` is the Mono/Stereo component's background (no controls, no flavour names); `15001.png` the
+  Stereo one's, differing only round the Balance tab (the L and R and the knob's shadow, x 106 … 144, y 403 … 426).
+  The push buttons' images (`600`/`603` and per selector `610`, `620` …) are opaque cuts of the background (Bass's
+  matches `15000` at x 176, y 117 exactly outside the button). Each control's state images: *Active* yellow
+  (228, 215, 106; the fader cap's 34 × 58 frame, the button's 32 × 20 ring at (11, 50) of the selector, the knob's
+  ring r 7.54 round (15, 14)), *Selected* blue (5, 0, 212), *Automated* red. The flavour window's dots: every other
+  pixel of every other row lit (× 1.30).
+- **Text (C4)**: the flavour names are bold italic capitals 6 px tall in measured ink boxes (rows at y 119, 131, 143);
+  lit green (100, 192, 72), blue (68, 160, 202), red (255, 60, 60), unlit (74, 74, 74). The value box: 37 × 13 at
+  y 454 under the control, black at 0.8 in a 1 px white frame, the digits 7 px tall in grey 200, centred.
+
+### The editor's behaviour (C4: MeterCapture `gl=1` click / hover / drag scripts, 2026-10-28)
+Filmed on the Stereo and Mono/Stereo components (`build/meters/vc_a` … `vc_d`, `vc_m`):
+- **No hover marks**: the mouse over any control shows nothing.
+- **Selection**: a click on a fader's **cap** marks it (the yellow frame) and it stays marked when the mouse leaves; a
+  click on another control moves the mark; a click on the background (the red plate, the badge, the grille, the
+  panel's foot), on a meter, on a flavour's name, or on a fader's track off its cap clears it. Ctrl-click marks;
+  Shift-click on the marked control unmarks it. Dragging on the background draws no lasso and marks nothing.
+- **Value box**: shown while the marked control is under the mouse and while it is dragged (live value); hidden when
+  the mouse leaves, though the mark stays.
+- **Faders**: grabbed on the cap only (a click above or below it moves nothing); the cap follows the mouse at 7.55 px
+  per step (40 px: 5.3; 30 px: 4.0); the cursor is hidden while dragging and put back on the cap where it went.
+  Alt-click on the cap resets to 0 (and marks). The wheel: 1/72 of the range per notch over the whole control
+  (3 notches: 0.9). Double-click on the cap opens the text entry (3.5 typed: 3.5).
+- **Colour push button**: a click steps to the next flavour (Sub → Lower → Upper → off → Sub) and marks the button
+  (yellow ring); unlit (grey) while the colour is off. A click on a flavour's name selects it, a click on the lit name
+  turns the colour off; neither marks anything (the mark is cleared).
+- **Balance**: a click marks it (yellow ring round the cap); a vertical drag turns it at the knobs' rate (30 px in
+  0.6 px steps: 0.4 of ±6); the cursor is hidden and put back where the drag began; Alt-click resets to 0;
+  double-click types a value. Hidden on the Mono/Stereo component, its tab showing the meter's screw.
+- **Meter**: a click marks nothing (and clears the mark); the clip lights reset on a click (C1).
+
+WVox Chain was filmed with the same scripts (`build/meters/wc_a`, `wc_c`): the marks, the value box and every value
+match frame for frame; MeterCapture's typed keys do not reach a JUCE plug-in's text box (WBass Rider's neither), so
+the text entry is checked in FL.
+
 ### Plan (approved 2026-10-28)
 - **UI (Phase 2)**: draw the editor with fitted shading models as before (faders, buttons, display, meters, panel),
   with a Wavy name plate; film every interaction with MeterCapture (fader drags, colour buttons, text entry, meters).
