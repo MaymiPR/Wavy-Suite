@@ -99,7 +99,7 @@ void WVoxRiderProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer&)
     {
         const double mid = ch > 1 ? 0.5 * ((double) b.getSample (0, i) + (double) b.getSample (1, i)) : (double) b.getSample (0, i);
         const double r = ride.push (mid, st);
-        vocalMax = jmax (vocalMax, (float) ride.levelDb);
+        vocalMax = jmax (vocalMax, (float) ride.levelDb());
         // a held Rider (or Automation Read): its gain, reached over 5 ms; on release the ride is rejoined over 5 ms
         if (fixed || returning)
         {
@@ -115,7 +115,7 @@ void WVoxRiderProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer&)
     }
     vocalDb.push (vocalMax);
     rideDb.store ((float) heldDb);
-    riding.store (ride.active);
+    riding.store (ride.detecting());
     const float pk = b.getMagnitude (0, n);
     outDb.push (pk > 1.0e-5f ? Decibels::gainToDecibels (pk) : -100.0f);
 }

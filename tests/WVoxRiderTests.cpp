@@ -1,13 +1,16 @@
-// Unit tests for WVox Rider (Phase 2): the parameters as the reference's, the buses (a side-chain), no latency, the
+// Unit tests for WVox Rider (Phases 2, 4): the parameters as the reference's, the buses (a side-chain), no latency, the
 // audio path, Automation (Read plays the host's Rider Fader, Write sends the ride), the editor (Studio / Live layouts,
-// the Music knob's disabled look without a side-chain).
+// the Music knob's disabled look without a side-chain), and the riding against values measured on the reference
+// (MEASUREMENTS.md, WVox Rider Phase 3 / 4).
 // Run: WVoxRiderTests (exit code 0 = all passed).
 #include <functional>
+#include <vector>
 #include <cmath>
 #include <cstdio>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "WVoxRiderProcessor.h"
 #include "WVoxRiderEditor.h"
+#include "WVoxRiderRide.h"
 
 static int failures = 0, checks = 0;
 #define CHECK(cond) do { ++checks; if (! (cond)) { ++failures; std::printf ("FAIL %s:%d  %s\n", __FILE__, __LINE__, #cond); } } while (0)
@@ -137,6 +140,71 @@ static void testEditor()
     CHECK (img.getWidth() == WVoxRiderEditor::W);
 }
 
+// the riding (wvoxrider::Ride) on 1 kHz sines at 48 kHz, against the reference's measured numbers
+namespace ridetest
+{
+constexpr double fs = 48000.0;
+// levels (dBFS rms; < -200 = silence) for durations (s); the gain in dB per sample
+static std::vector<double> ride (const std::vector<std::pair<double, double>>& parts, const wvoxrider::RideSettings& st)
+{
+    wvoxrider::Ride r; r.prepare (fs);
+    std::vector<double> g; double ph = 0.0;
+    for (auto [lev, secs] : parts)
+    {
+        const double a = lev < -200.0 ? 0.0 : std::sqrt (2.0) * std::pow (10.0, lev / 20.0);
+        for (int i = 0; i < (int) (secs * fs); ++i, ph += 2.0 * juce::MathConstants<double>::pi * 1000.0 / fs)
+            g.push_back (r.push (a * std::sin (ph), st));
+    }
+    return g;
+}
+static double at (const std::vector<double>& g, double t) { return g[(size_t) (t * fs)]; }
+// the variable part of the gain, v = gain - 1/2 gMin, in dB
+static double vdb (double gdb, double rangeMin) { return 20.0 * std::log10 (std::pow (10.0, gdb / 20.0) - 0.5 * std::pow (10.0, rangeMin / 20.0)); }
+}
+
+static void testRiding()
+{
+    using namespace ridetest;
+    wvoxrider::RideSettings st;
+    // it starts at 1/2 gMin + 1 (the reference: +1.94 dB at Range -6 .. +6)
+    auto g = ride ({ { -300.0, 0.1 } }, st);
+    const double halfMin = 0.5 * std::pow (10.0, -6.0 / 20.0);
+    CHECK_NEAR (g[0], 20.0 * std::log10 (halfMin + 1.0), 1.0e-6);
+    // the law on a steady tone: 1/2 gMin + 0.738 Target / level (Phase 3, every setting within 0.1 dB)
+    g = ride ({ { -27.0, 3.0 } }, st);
+    CHECK_NEAR (at (g, 2.9), 20.0 * std::log10 (halfMin + 0.738 * std::pow (10.0, 6.0 / 20.0)), 0.15);
+    // the rise after a drop goes only as fast as the detector passes samples: 12 dB down, v rises 2.25 dB in the
+    // first 0.5 s; 4 dB down, 2.14 dB in 0.3 s (the reference, Range -12 .. +12, from -15 dBFS)
+    st.rangeMin = -12.0; st.rangeMax = 12.0;
+    g = ride ({ { -15.0, 3.0 }, { -27.0, 1.0 } }, st);
+    CHECK_NEAR (vdb (at (g, 3.5), -12.0) - vdb (at (g, 3.0), -12.0), 2.25, 0.1);
+    g = ride ({ { -15.0, 3.0 }, { -19.0, 1.0 } }, st);
+    CHECK_NEAR (vdb (at (g, 3.3), -12.0) - vdb (at (g, 3.0), -12.0), 2.14, 0.1);
+    // when the voice stops: held for 500 ms (Slow) / 50 ms (Fast), then v glides 7.21 dB/s to the Idle value, exactly
+    // (here down, to -4 dB)
+    st = {}; st.idleDb = -4.0;
+    g = ride ({ { -24.0, 2.0 }, { -300.0, 2.0 } }, st);
+    CHECK_NEAR (at (g, 2.45), at (g, 2.0), 0.001);
+    CHECK_NEAR ((vdb (at (g, 2.6), -6.0) - vdb (at (g, 2.7), -6.0)) / 0.1, 7.21, 0.05);
+    CHECK_NEAR (at (g, 3.95), -4.0, 1.0e-6);
+    st.fast = true;
+    g = ride ({ { -24.0, 2.0 }, { -300.0, 1.0 } }, st);
+    CHECK_NEAR (at (g, 2.04), at (g, 2.0), 0.001);
+    CHECK (at (g, 2.0) - at (g, 2.1) > 0.2);
+    // Spill (Live) adds to the detector's threshold: just after a drop from -18 to -30 dBFS at Spill -30, nothing is
+    // ridden for 0.4 s (the reference: -3.80 dB throughout); in Studio the gain rises 1.43 dB in that time
+    st = {}; st.rangeMin = -12.0; st.rangeMax = 12.0; st.spill = -30.0; st.live = true;
+    g = ride ({ { -18.0, 3.0 }, { -30.0, 1.0 } }, st);
+    CHECK_NEAR (at (g, 3.4), at (g, 3.0), 0.02);
+    st.live = false;
+    g = ride ({ { -18.0, 3.0 }, { -30.0, 1.0 } }, st);
+    CHECK_NEAR (at (g, 3.4) - at (g, 3.0), 1.43, 0.1);
+    // Spill at its minimum (-48) is off
+    st.live = true; st.spill = -48.0;
+    auto h = ride ({ { -18.0, 3.0 }, { -30.0, 1.0 } }, st);
+    CHECK_NEAR (at (h, 3.4), at (g, 3.4), 1.0e-9);
+}
+
 int main()
 {
     juce::ScopedJuceInitialiser_GUI init;
@@ -145,6 +213,7 @@ int main()
     testPathAndRead();
     testWrite();
     testEditor();
+    testRiding();
     std::printf ("%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;
 }

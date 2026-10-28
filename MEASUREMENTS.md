@@ -1585,3 +1585,51 @@ git-ignored `reference/wvoxrider/`); everything below is measured on the audio.
   reference's Music knob keeps its disabled picture, its LED stays dark and Music Sensitivity changes nothing. The
   reference uses the music only while its host reports the side-chain active, which these JUCE hosts do not achieve;
   this needs a test in FL with a real side-chain send.
+
+
+## WVox Rider: Phase 4, the riding identified, 2026-10-28
+
+The model (`nulltest/vrmodel.c`, the same as `plugins/WVoxRider/WVoxRiderRide.h` line for line;
+`nulltest/check_wvoxrider_port.py`: the C++ against the model, 25 cases, worst difference 0.0000 dB) was built from
+the reference's renders: 26 probes and a vocal corpus (`nulltest/vocal_corpus.py`: 84 sung and spoken phrases of FL
+Studio's own Vocals packs strung into 36 parts of 20 s; parts 0 .. 23 to identify, 24 .. 35 held out), each at ten
+settings (`nulltest/vr_ref.py`, 620 renders), and targeted drops. A first pass (a debounced detector, every
+constant fitted by CMA-ES) reached -22 dB on the probes and only -12 dB on the corpus: the reference rose much more
+slowly on real vocals than on tones. What the second pass established:
+
+- **The ride moves only on the samples the detector passes.** After a level drop the gain does not rise at one rate
+  but at stepped ones: on a 1 kHz sine at 48 kHz every rate is a multiple of 0.362 dB/s, i.e. k / 24 of 8.69 dB/s (the
+  hidden RideRel, 1000 ms per neper), with k the samples of each 24-sample half period that pass. Just after a 12 dB
+  drop 10 pass (3.62 dB/s); settled, 21 (7.61 dB/s: the three samples nearest each zero crossing never clear a
+  threshold 14 dB under the peak). The steps depend on the drop, not on the level before it (drops of 1 .. 12 dB from
+  -15 and -27 dBFS, Range ±12). So the detector decides per sample (the hidden VADAtt / VADRel, 0.01 ms) and the ride
+  has no debounce: on a voice, whose peaks are brief, it rises slowly (about 2 dB/s on the corpus).
+- **The follower** runs on the weighted power plus the floor (VOCBias -42 dB) and starts at the floor: up by at most
+  the attack's rate (VocAtt 50 / 10 ms by Attack), down by at most the release's (VocRel 1009 ms) on samples the
+  detector passes and the hold's (VocHold 5000 ms) on the others, all multiplicative per sample with squared
+  coefficients (the behaviour analysis saw them squared). Since it only rises on samples above it, it slows near a
+  sine's peak, which gives the measured gain-down shape (Phase 3's "t63 39 .. 58 ms").
+- **The start**: the gain starts at 1/2 gMin + 1 (+1.94 dB at Range -6 .. +6) and the park hold counts from the first
+  sample (the reference holds through an initial silence shorter than the hold).
+- **Spill** (Live) adds an absolute level to the detector's threshold: a sample passes when its short-term power is
+  over 10^((-Vocal Sensitivity - 14) / 10) times the follower **plus** the Spill power. So the steady onset sits about
+  2 dB (rms) under Spill (Phase 3), and after a drop from -18 to -30 dBFS at Spill -30 nothing is ridden for 0.9 s
+  (to -31 dBFS: 2.2 s) until the follower has fallen; a separate gate cannot do that. Spill -48 (its minimum) is off.
+- **Park**: as Phase 3 (v toward the Idle value at 1205 ms per neper, 7.21 dB/s; hold 500 / 50 ms).
+
+**No fitted constants**: with this structure every constant is the reference's hidden ParamXML / preset value (law
+scale c 0 dB, floor -42 dB, threshold 14 dB, VocAtt 50 / 10, VocRel 1009, VocHold 5000 ms squared; VADAtt / VADRel
+0.01 ms; RideAtt 0.55 / 0.35, RideRel 1000 ms; ParkAtt / ParkRel 1205 ms; ParkHold 500 / 50 ms). The level drops
+then match to 0.002 dB rms and the Live drops to 0.003 .. 0.06 dB. A local CMA-ES from these values over 17
+constants (`nulltest/vr_fit.py fit`, 500 cases) found no better point in 176 candidates (mean null -63.8 dB at the
+start, the best other candidate -44.5); single nudges (VocAtt Fast 8 / 12 ms, VADAtt / VADRel 0.1 ms, RideAtt Fast
+0.2 / 0.6 ms, ParkHold Fast 45 / 55 ms) all make Fast worse. Steady tones at 150 Hz .. 8 kHz are within 0.022 dB.
+
+The model over the 620 renders (median null; `vr_fit.py report`): probes -70.5 dB, training parts -60.8, held-out
+parts -62.3 (per setting -50 .. -69 dB; Attack Fast is the weakest, about -50, at word onsets). The plug-in against
+the reference on fresh renders: [docs/NULL_RESULTS_WVOXRIDER.md](docs/NULL_RESULTS_WVOXRIDER.md), -47 .. -74 dB,
+including Stereo, Live, 44.1 and 96 kHz.
+
+Not identified (no probe needs them, or none can reach them): the role of the detector's fixed 50 ms factor seen in
+the behaviour analysis; OutAtt / OutRel (they smooth the Output control only; Output moves are not measured); the
+Music side-chain (see Phase 3).

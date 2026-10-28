@@ -3,11 +3,12 @@
 #include <atomic>
 #include "WavyMeter.h"
 #include "WavyPresets.h"
-#include "WVoxRiderProvisional.h"
+#include "WVoxRiderRide.h"
 
 // Parameters follow the reference's (Vocal Rider's VST3 parameters and ParamXML ranges, defaults and resolutions; see
-// RESEARCH.md, WVox Rider). No latency (as the reference's); a side-chain input for the music. The riding is
-// provisional until Phase 4 (WVoxRiderProvisional.h).
+// RESEARCH.md, WVox Rider). No latency (as the reference's); a side-chain input for the music. The riding is the model
+// identified on the reference's audio (WVoxRiderRide.h; MEASUREMENTS.md, WVox Rider Phase 3 / 4). The music does not
+// steer it yet (the reference's use of it could not be measured outside a host that activates its side-chain).
 namespace wvoxrider
 {
 inline constexpr const char* target = "target";                    // -42 .. 0 dB, default -21 (the Target slider)
@@ -78,7 +79,7 @@ private:
     juce::AudioProcessorValueTreeState::ParameterLayout layout();
     void timerCallback() override;                              // Automation Write: the ride to the host
     double sr = 48000.0;
-    wvoxrider::ProvisionalRide ride;
+    wvoxrider::Ride ride;
     double outGain = 1.0, heldDb = 0.0, smooth5 = 0.0;          // the Output gain and a held Rider, each smoothed over 5 ms
     double musicLevel = 1.0e-10;
     bool wasHeld = false, returning = false, writing = false;

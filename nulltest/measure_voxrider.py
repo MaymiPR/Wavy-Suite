@@ -233,5 +233,16 @@ def gaps():
     print('at: before, mid-gap, end of gap, +20 / 50 / 100 / 300 ms, +1 s, +1.9 s after')
 
 
+def glide():
+    """the glide to Idle after the tone stops (Attack Fast: 50 ms hold): from several gains, at Range +-12 / +-6 and
+    Idle 0 / +6, the gain every 100 ms"""
+    for rmin, rmax, idle_db in ((-12.0, 12.0, 0.0), (-6.0, 6.0, 0.0), (-12.0, 12.0, 6.0)):
+        for lev in (-40.0, -33.0, -27.0, -21.0, -15.0, -9.0):
+            x = with_pilot(seg(1000.0, [lev, None], [2.5, 6.0]))
+            g = gtrace(x, render(x, attack='Fast ', range_min=rmin, range_max=rmax, idle=idle_db), win=0.005)
+            tr = [at(g, 2.5 + p, 2.5 + p + 0.004) for p in np.arange(0.0, 5.01, 0.1)]
+            print('range %+3.0f..%+3.0f idle %+.0f lev %+3.0f:' % (rmin, rmax, idle_db, lev), ' '.join('%+.2f' % v for v in tr[::2]))
+
+
 if __name__ == '__main__':
     globals()[sys.argv[1]]()
