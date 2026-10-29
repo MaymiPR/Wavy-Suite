@@ -1745,3 +1745,90 @@ from the children's ParamXML) give the structure; each point below is also **mea
   through the X / Y curve (measured: the input's rms level).
 - Not settled by either: why the state rejects the bypass and colour slots, the Noise's source, the latency's split
   (it adds up to 193 samples), and the tempo law of the Quarter delay (in the H-Delay / SuperTap children).
+
+## WVox Chain: Phase 3, the full campaign (every control at every amount, and their interactions), 2026-10-28
+
+`nulltest/campaign_voxchain.py` (pedalboard, 12 parallel instances: about 1,500 renders) and
+`nulltest/campaign_voxchain_rr.py` (RefRender: tempo, the Mono/Stereo component, changes during playback) measure the
+reference; `nulltest/analyse_voxchain.py` prints every table (data in the git-ignored
+`reference/wvoxchain/meas/campaign/`). The interactions are scored against the stages acting independently: for the
+linear stages the product of their responses, for the wet stages the sum of their contributions.
+
+### Every control at every amount (`single`: faders at all 21 steps, Balance in 0.5 dB steps, every colour)
+- **Output**: an exact gain at the very end, the same at every input level (−10 … +10 → −10.00 … +10.00 dB, levels −42
+  … 0 dB rms), applied to the wet stages too. The output is **not limited**: factory presets peak at up to +5.7 dBFS.
+- **Sensitivity**: an exact gain before every stage; it moves every dynamic stage's threshold by its own dB (the
+  de-esser and Compress curves shift by exactly the fader's value) and the wet sends with it.
+- **Balance**: the far side only, exactly the value (−6.0 … +6.0 in 0.5 steps: R −6.00 … L −6.00, the other 0.00).
+- **Bass / Treble**: each colour's response at all 21 steps (`single.json`, 1/12 octave from 20 Hz). Near 1.2 dB per
+  step at the largest point but not a straight line: cut and boost differ (Bass Sub 1.17 / 1.20 dB per step, Lower
+  1.21 / 1.26, Treble Bite 1.04 / 1.16, Top 0.94 / 1.23, Roof 1.29 / 1.14), departures from a line up to 1.6 dB (the
+  shelves' shapes change with gain). Bass **Upper switches its high-pass in at 0**: 30 Hz −1.16 dB at −1, −9.21 at 0.
+- **Compress**: the makeup (low-level gain over clear) at every step: Push −3.87, −3.48, −3.11, −2.75, −2.41, −2.08,
+  −1.26, −0.51, +0.17, +0.81, +1.41, +2.40, +3.29, +4.09, +4.83, +5.51, +6.30, +7.02, +7.68, +8.30, +8.88 (−10 … +10;
+  kinks at −5 and at 0); Spank +1.52 … +6.99 … +13.69, Wall +1.47 … +6.74 … +14.21 (the same kinks). The highest output
+  (1 kHz) rises with the fader: Push −5.82 … −3.71 dBFS, Spank −8.20 … −5.83, Wall −5.99 … −3.94. 100 Hz tones get
+  0.2 dB less makeup; 6 kHz tones meet the de-esser after the compressors.
+- **The wet stages**: each send is **exactly 1.2000 dB per step** (all 21 steps, all nine colours, zero departure from
+  the line); the T60, first arrival and L / R correlation never change with the fader.
+
+### Level dependence (`levels`)
+- Compress × Sensitivity (noise steps, −42 … 0 dB rms): each curve is the Sensitivity-0 one shifted by the fader.
+- **The EQ comes before the dynamics**: an EQ boost at the tone's frequency is pulled back once the compressor or the
+  de-esser acts (Treble Top +10 at 10 kHz: +12.9 dB at −45 dBFS; the de-esser takes it back from −27 dBFS, −26 dB by
+  +6; with Spank from −30 dBFS). Bass boosts pass the de-esser untouched (no reduction below 3 kHz).
+- The de-esser: no action at 2 kHz at any Sensitivity; 4 kHz from −9 dBFS (Sensitivity 0), 6 and 10 kHz from −12,
+  nearly 1 dB per dB above (0.9 at 6 kHz, 0.97 at 10 kHz); its threshold moves 1:1 with Sensitivity.
+- The wet sends are linear in level (−40 … 0 dBFS impulses: energy per unit input unchanged), apart from what the
+  dynamic stages before them do.
+
+### Every pair of stages (`pairs`; faders −10 / −5 / 0 / 5 / 10 or −10 / 0 / 10, every colour)
+- **Bass × Treble**: independent: the combination equals the sum of each alone in dB within 0.01 dB (225
+  combinations, median 0.001 dB).
+- **EQ × Compress**: in series, the EQ first. Below the threshold the two add (within 0.07 dB); above it the EQ's boost
+  or cut is taken back by up to the compressor's whole reduction (Bass Lower +10 into Spank: −11.3 dB at +6 dBFS).
+- **Compress × the wet stages**: every send follows Compress's makeup (Push −10: −3.8 dB; Spank +10: +13.3 dB on every
+  wet stage): the sends are taken after the compressors.
+- **EQ × the wet stages**: Treble changes every send (Top ±10: delay −7.2 / +9.6, doubler −8.9 / +12.2, reverb −3.8 /
+  +8.4 dB, its T60 1.57 … 1.72 s as the spectrum tilts); Bass reaches the reverb (Sub +10: +2.0 dB) but hardly the delays
+  (≤ 0.3 dB) or the doubler (≤ 0.12 dB): their inputs are high-passed.
+- **The wet stages together**: parallel sends: any combination equals the sum of its stages alone to −77 dB or better
+  (54 combinations).
+- **Balance × the wet stages**: the reverb and the delays take the mono sum after Balance (Balance ±3 → −1.28 dB on both
+  sides, ±6 → −2.08); the doubler stays per side (−6 → R −6.00, L 0).
+- **Sensitivity / Output × the wet stages**: Output exact (±10.00); Sensitivity exact on the reverb and the doubler,
+  +9.36 on the delays at +10 (the delays' input is limited at that level).
+
+### Stereo input (`stereo`) and the Mono/Stereo component (`monostereo`)
+- The dry path keeps L and R apart (nothing from L reaches R with every colour clear, −240 dB). The reverb and the
+  delays are fed the sum of L and R and spread it (L-only input: reverb Large on R at −16 dB at 100 Hz); the doubler
+  works per side.
+- **Mono/Stereo** = the Stereo component fed the same signal on both inputs: identical to the noise floor (−74 dB) for
+  every colour at fader +5, the defaults and clear, **except Pitch Wide, whose R voice differs** (−1.6 dB residual).
+
+### Tempo (`tempo`: RefRender at 40 … 240 bpm in steps of 10)
+- **Slap**: one echo at a 1/16 note at every tempo (62.5 … 375 ms; 369 at 40 bpm, 297.9 at 50).
+- **Eight** and **Quarter**: echoes every 1/8 and 1/4 note through one **shared compressive mapping of the note
+  length**: 250 → 249.2 ms, 300 → 297.8, 333 → 329.7, 375 → 368.9, 429 → 418, 500 → 481.5, 600 → 566, 750 → 686 (Eight at
+  40 bpm and Quarter at 80 bpm alike), 857 → 766, 1000 → 868, 1200 → 1001, 1500 → about 1190. Ping-pong at about −6 dB per
+  bounce; the side of the first echo changes with the tempo.
+
+### Sample rates (`rates`)
+44.1 / 88.2 / 96 kHz against 48: the same responses within ±0.5 dB (30 Hz … 16 kHz), except Treble Roof (the V-EQ3's
+high band), +0.9 dB at 16 kHz at 88.2 / 96 kHz (its response is cramped near the Nyquist frequency at 44.1 / 48).
+
+### Timing (`timing`: tone bursts −40→−20, −30→−6, −20→0 dBFS of 50 / 300 / 1500 ms, every colour, faders −10 / 0 / 10)
+- Compress depends on colour, fader and level (the L1 and the 1176 in series): attack t63 from 1 to 71 ms (Push at
+  fader 0, −30→−6: 71 ms; Wall +10: 3–4 ms), release from 1 ms to about 1 s (Push +10 after 0 dBFS: 958 ms; Spank 0:
+  264 ms; Wall 0, −30→−6: 18 ms). Every curve is in `timing.json` for Phase 4.
+- The de-esser: attack within 1 ms at every level; release 2–104 ms, longer after deeper reduction and longer bursts
+  (6 kHz: 9 ms after −2.6 dB, 104 ms after −11 dB).
+
+### Changes during playback (`changes`: a control jumped at 1.5 s, 1 ms frames)
+Sensitivity, Output, Balance, the Compress fader, the wet faders and the reverb colour change **within 1 ms** (no
+smoothing). The Bass and Treble faders **glide**: 90 % in about 120 ms (Treble Bite −10→+10 at 5 kHz: 124 ms). A Bass
+colour change glides over about 60–100 ms, a Compress colour change over 49 ms.
+
+### Random combinations and the factory presets (`combos`)
+120 random settings of all 15 controls and the 43 factory presets, rendered on held-out vocal parts (levels, spectra,
+L / R correlation in `combos.json`); being deterministic, they are the reference set for Phase 4's nulls.
