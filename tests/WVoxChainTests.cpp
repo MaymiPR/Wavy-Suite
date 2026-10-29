@@ -63,11 +63,13 @@ static void testBusesAndLatency()
     CHECK (wvoxchain::latencySamples (44100.0) == 193);
 }
 
-// the audio passes delayed by the latency, at the Sensitivity and Output gains (until the chain's DSP)
+// the audio: nothing before the latency, then the reference's fixed filter (with every colour clear its impulse
+// response starts +0.278, -0.721, -0.130: MEASUREMENTS.md), Sensitivity and Output as exact gains
 static void testPath()
 {
     WVoxChainProcessor p;
     p.setPlayConfigDetails (2, 2, 48000.0, 512);
+    for (const auto& st : wvoxchain::stages()) set (p, st.colour, 0.0f);
     set (p, wvoxchain::sensitivity, 6.0f);
     set (p, wvoxchain::output, -6.0f);
     p.prepareToPlay (48000.0, 512);
@@ -75,8 +77,10 @@ static void testPath()
     juce::MidiBuffer m;
     b.clear(); b.setSample (0, 10, 1.0f); b.setSample (1, 10, 1.0f);
     p.processBlock (b, m);
-    CHECK_NEAR (b.getSample (0, 10 + 193 > 511 ? 0 : 10 + 193), 1.0, 1e-3);   // +6 then -6 dB: unity, 193 samples later
-    CHECK_NEAR (b.getSample (0, 10), 0.0, 1e-6);
+    CHECK_NEAR (b.getSample (0, 10 + 192), 0.0, 1e-4);
+    CHECK_NEAR (b.getSample (0, 10 + 193), 0.278, 0.002);               // (+6 then -6 dB: unity)
+    CHECK_NEAR (b.getSample (0, 10 + 194), -0.721, 0.002);
+    CHECK_NEAR (b.getSample (1, 10 + 195), -0.130, 0.002);
 }
 
 static void testEditor()

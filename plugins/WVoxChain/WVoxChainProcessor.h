@@ -3,11 +3,11 @@
 #include <atomic>
 #include "WavyPresets.h"
 #include "WavyMeter.h"
+#include "WVoxChainDsp.h"
 
 // WVox Chain: a one-fader-per-stage vocal chain modelled on CLA Vocals (RESEARCH.md, WVox Chain): Sensitivity, Bass,
-// Treble, Compress, Reverb, Delay and Pitch faders, each stage with a colour, Output and Balance. Phase 2: the
-// parameters as the reference's, its latency and the editor; the audio passes at the Sensitivity and Output gains
-// until the chain's DSP (Phase 4).
+// Treble, Compress, Reverb, Delay and Pitch faders, each stage with a colour, Output and Balance. The audio is
+// WVoxChainDsp.h's chain (Phase 4 under way).
 namespace wvoxchain
 {
 inline constexpr const char* sensitivity = "sensitivity";
@@ -64,7 +64,7 @@ public:
     const juce::String getName() const override { return "WVox Chain"; }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
-    double getTailLengthSeconds() const override { return 2.0; }
+    double getTailLengthSeconds() const override { return 5.0; }
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
     void setCurrentProgram (int) override {}
@@ -77,17 +77,17 @@ public:
     juce::AudioProcessorValueTreeState apvts;
 
     // editor taps: the input and output peaks per channel (dB, the highest of the block) for the meters, and the
-    // input's level for the Sensitivity LED
+    // input's rms level after Sensitivity for the Sensitivity LED
     wavy::PeakTap inL, inR, outL, outR;
     std::atomic<float> sensLevelDb { -100.0f };
 
     float get (const char* id) const { return apvts.getRawParameterValue (id)->load(); }
+    void setNoise (bool on) { chain.noiseOn = on; }                   // (the reference's state-only Noise; off for null tests)
     int modeIndex() const { return juce::roundToInt (get (wvoxchain::mode)); }
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout layout();
     double sr = 48000.0;
-    int latency = 193, writePos = 0;
-    std::vector<std::vector<float>> line;                       // the latency's delay line per channel
-    double inGain = 1.0, outGain = 1.0, smooth = 0.0;
+    wvoxchain::dsp::Chain chain;
+    juce::AudioBuffer<float> work;
 };

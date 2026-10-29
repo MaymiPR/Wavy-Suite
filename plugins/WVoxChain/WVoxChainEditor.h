@@ -114,7 +114,6 @@ public:
 
 private:
     Marks& marks;
-    float held = -100.0f;
     std::array<Sprite, 24> frames;
 };
 

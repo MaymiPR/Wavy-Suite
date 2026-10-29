@@ -563,13 +563,12 @@ void Meter::paint (Graphics& g)
 //==============================================================================
 void SensLed::set (float levelDb)
 {
-    // the reference's LED curve (ParamXML X / Y: the level -144 / -9 / -3 / 3 / 6 dB to -144 / -108 / -72 / -36 / 0)
-    // held as a peak that falls at the meters' rate; the frame from the curve's output
-    held = jmax (levelDb, held - 0.5f);
-    static const float X[5] = { -144.0f, -9.0f, -3.0f, 3.0f, 6.0f }, Y[5] = { -144.0f, -108.0f, -72.0f, -36.0f, 0.0f };
-    float y = Y[0];
+    // the reference's LED (filmed, MEASUREMENTS.md): the input's rms level through the curve its state holds (X -144 /
+    // -20 / -12 / -4 / 0 dB to Y -144 / -109.56 / -72 / -34.43 / 0, linear between), frame round (23 (Y + 144) / 144)
+    static const float X[5] = { -144.0f, -20.0f, -12.0f, -4.0f, 0.0f }, Y[5] = { -144.0f, -109.56f, -72.0f, -34.43f, 0.0f };
+    float y = levelDb >= X[4] ? Y[4] : Y[0];
     for (int i = 0; i < 4; ++i)
-        if (held >= X[i]) y = Y[i] + (Y[i + 1] - Y[i]) * jlimit (0.0f, 1.0f, (held - X[i]) / (X[i + 1] - X[i]));
+        if (levelDb >= X[i] && levelDb < X[i + 1]) y = Y[i] + (Y[i + 1] - Y[i]) * (levelDb - X[i]) / (X[i + 1] - X[i]);
     const int f = jlimit (0, 23, roundToInt ((y + 144.0f) / 144.0f * 23.0f));
     if (f != frame) { frame = f; repaint(); }
 }
