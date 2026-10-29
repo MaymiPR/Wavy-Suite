@@ -1832,3 +1832,28 @@ colour change glides over about 60–100 ms, a Compress colour change over 49 ms
 ### Random combinations and the factory presets (`combos`)
 120 random settings of all 15 controls and the 43 factory presets, rendered on held-out vocal parts (levels, spectra,
 L / R correlation in `combos.json`); being deterministic, they are the reference set for Phase 4's nulls.
+
+## WVox Chain: Phase 4, first pass (the linear chain and the reverb), 2026-10-28
+
+The plug-in's audio is `plugins/WVoxChain/WVoxChainDsp.{h,cpp}`, nulled against the reference with
+`nulltest/nulltest_wvoxchain.py` (our processor through `tools/WVoxChainRender`, the reference through cv_ref; the Noise
+off in both, since two noise sources cannot null; a held-out vocal at −16 dBFS peak, under the dynamics' thresholds).
+- **The fixed filter** (every colour clear): an order-8 IIR per rate, −85 … −92 dB from the reference's impulse
+  responses (`fit_voxchain_fixed.py`; order 6 left −55 dB below 120 Hz). Its two all-passes (about 1.95 and 6.4 kHz)
+  are analog-defined, a section near the top of the band is not, so it is kept per rate.
+- **Bass / Treble**: every one of the fader's 201 positions, per colour and rate, is a low-order digital filter in the
+  reference; `fit_voxchain_eqtables.py` fits each through the clear chain's own response (Treble exact to −114 dB and
+  better at every position and rate; Bass Sub / Lower −114 … −146 dB median, −55 … −74 near 0; Upper −66 … −86 median,
+  −36 … −50 at worst). Other rates use the fitted shapes. Fitting each step with generic shelves and interpolating
+  failed between steps (−20 dB), since neighbouring steps' fits were different equivalent shapes.
+- **The reverb** (the user chose convolution): linear, exactly time-invariant, true stereo (L and R inputs give
+  uncorrelated responses) and designed per rate (one rate's response resampled is unrelated to another's): the four
+  paths per colour and rate, 16-bit (−73 dB), 15.5 MB, run by zero-latency convolutions that keep running while
+  Reverb is clear.
+- **Nulls**: clear −75.4 dB; Bass Sub / Lower and every Treble colour −71 … −76 dB at every setting tried (between
+  steps too); the reverb −67 … −75 dB; Bass Upper at 0 and above −46 … −57 dB (its fits).
+- **The main de-esser** (`deess.c`, `fit_voxchain_deess.py`, not in the plug-in yet): split band (a 500 Hz tone under a
+  heavily reduced 6 kHz moves 0.3 dB), stereo-linked (a loud L takes R down 3.6 dB), and adaptive: loud low content
+  raises its threshold (a 300 Hz tone at −10 dBFS takes 6 kHz's reduction from 6.1 to 2.2 dB, at −3 dBFS to none),
+  not by a plain power sum. It rarely acts on vocals: without it our chain nulls loud held-out vocals at −65 … −72 dB,
+  one sibilant part excepted (−31 dB).
