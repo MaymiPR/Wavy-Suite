@@ -31,7 +31,7 @@ def fixed_sos():
     txt = open(os.path.join(HERE, '..', 'plugins', 'WVoxChain', 'WVoxChainFixed.h')).read()
     body = txt[txt.index('{ 48000.0,') + len('{ 48000.0,'):]
     body = body[:body.index('} } }')]
-    v = [float(t) for t in re.findall(r"[-+]?d[d.eE+-]*", body)]
+    v = [float(t) for t in re.findall(r"[-+]?\d[\d.eE+-]*", body)]
     rows = np.array(v).reshape(-1, 5)
     return np.array([[r[0], r[1], r[2], 1.0, r[3], r[4]] for r in rows])
 
