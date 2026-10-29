@@ -7,6 +7,7 @@
 #include "WVoxChainEq.h"
 #include "WVoxChainEqTables.h"
 #include "WVoxChainCompress.h"
+#include "WVoxChainDeEss.h"
 #include "WDelayDsp.h"
 #include "WCompAnalog.h"
 #include "WDelayAnalogTables.h"
@@ -135,7 +136,7 @@ private:
     const eqtables::Rate* rate = nullptr;
     bool bassStage = true;
     int colourIndex = 0;
-    std::array<Biquad, 8> sec;
+    std::array<Biquad, (size_t) std::max (8, eqtables::sections)> sec;
     int n = 0, count = 0;
     double fs = 48000.0, glide = 0.0, shown = 0.0, to = 0.0;
     bool dirty = true;
@@ -146,7 +147,8 @@ private:
 class Reverb
 {
 public:
-    void prepare (double fs, int block);
+    // skip: samples dropped from the responses' (silent) start, the reverb's de-esser's delay
+    void prepare (double fs, int block, int skip);
     void process (const float* inL, const float* inR, float* outL, float* outR, int n, int colour, float gain);
     void reset() { for (auto& c : conv) for (auto& e : c) if (e) e->reset(); }
 
@@ -173,12 +175,40 @@ private:
     double fs = 48000.0;
     int la = 64, w = 0, active = -1;
     std::vector<float> bl, br;
-    std::vector<double> need;
-    std::vector<int> dq;
-    int qh = 0, qt = 0;
+    std::vector<long long> dq;
+    std::vector<double> dqNeed;
+    long long qh = 0, qt = 0;
     long long count = 0;
-    double gf = 0.0, gs = 0.0, pw = 0.0, lg = 1.0;
+    double gf = 0.0, gs = 0.0, pw = 0.0, lg = 1.0, fbL = 0.0, fbR = 0.0;
     std::array<Biquad, 4> linear;
+};
+
+// The main de-esser, as fitted (nulltest/fit_voxchain_deess.py; deess.c is the same algorithm): a zero-phase high band H
+// (its taps per rate) is turned down, x - (1 - g) H x; g from two stereo-linked detectors on the signal after the fixed
+// filter: a high-pass one against a threshold that rises with a low-pass one (thr = T + k low, in amplitude), the
+// reduction smoothed (attack, hold, release, a slow stage). The gain is computed lookAhead samples before the audio it
+// turns down, so the audio is delayed by the band's half length and the look-ahead (taken out of the input delay).
+// It turns down one or two signals with the same gain (the main one: the dry path after the fixed filter, and the tap
+// before it that the reverb takes). The reverb's send has a second one, the same but for its threshold (the presets'
+// -28 dB against the main one's -20; measured: 8 dB lower on every colour), after the main one.
+class DeEsser
+{
+public:
+    void prepare (double fs, double thresholdOffsetDb = 0.0);
+    void reset();
+    int delay() const { return nt + la; }
+    // det: what the detectors see (read before a is written, so it may be a); b may be null
+    void process (const float* detL, const float* detR, float* aL, float* aR, float* bL, float* bR, int n);
+
+private:
+    double fs = 48000.0;
+    int nt = 24, la = 24, len = 1, w = 0, gw = 0;
+    const double* h = nullptr;
+    std::vector<float> al, ar, bl, br, gq;
+    Biquad dh, dl;
+    double eh = 0.0, el = 0.0, r = 0.0, rs = 0.0, gl = 1.0;
+    int hold = 0, holdN = 0;
+    double ha = 0, hr = 0, lla = 0, llr = 0, ga = 0, gr = 0, sa = 0, sr = 0, offset = 0;
 };
 
 // the delays, as measured (MEASUREMENTS.md, WVox Chain: Phase 4): the send through H-Delay's Analog 4 and its line
@@ -238,10 +268,11 @@ private:
     std::array<Biquad, 4> fixedFilter;
     EqStage bass, treble;
     Compressor compressor;
+    DeEsser deesser, reverbDeesser;
     Reverb reverb;
     Delays delays;
+    std::array<Biquad, 3> delayFix;                                    // (the echoes' response against the reference's)
     Doubler doubler;
-    std::array<Biquad, 4> sendFilter;                                  // (the delays and the doubler take the send after the fixed filter)
     juce::AudioBuffer<float> tap, send, wet, wet2, wet3;
     std::minstd_rand noise { 0x5eed };
     double level = 0.0, levelCoef = 0.0, noiseGain = 0.0;

@@ -1898,3 +1898,65 @@ off in both, since two noise sources cannot null; a held-out vocal at −16 dBFS
   defaults, every sixth factory preset, six random settings): median −12.6 dB, **−27.6 dB without the doubler** (the
   defaults −38.2; settings with Compress near 0 or clear −32 … −45; presets driving Compress to +7 … +10 −17.5 … −25).
   The doubler, on by default and about 9 dB under the dry signal, sets the figure wherever it is on (defaults −16.6).
+
+## WVox Chain: Phase 4, third pass (the de-essers, Bass Upper, Compress), 2026-10-29
+
+- **The main de-esser** (`probe_deess.py`, `deess.c`, `fit_voxchain_deess.py`; the first pass's model was wrong):
+  - **The band turned down is zero-phase**: with a loud 12 or 16 kHz tone holding the de-esser down, a quiet noise
+    probe's response over the clear chain's is 1 − (1 − g) H(f) with H real (phase 0.000 rad at every frequency, the
+    same shape at every depth and drive): H 0.009 at 200 Hz, 0.215 at 1 kHz, 0.544 at 2, 0.749 at 3, 0.919 at 5,
+    0.993 at 10 kHz, 1 above. A symmetric FIR of ±24 taps at 48 kHz holds it to −62 dB (designed per rate from it). So
+    a de-essed signal is x − (1 − g) H x: no 5 kHz high-pass, and loud sibilance pulls the band down from about 1 kHz.
+  - **Its gain**: two stereo-linked detectors on the signal after the fixed filter: a second-order high-pass one
+    (4.7 kHz, Q 0.79; attack 0.5 ms, release 0.7 ms) against a threshold that **rises with a low-pass one in linear
+    amplitude** (1.4 kHz, Q 0.76, 44 / 254 ms, the preset's low-band 24.9 / 248.7): thr = T + 0.40 · low. A 16 kHz tone
+    at −3 dBFS loses 9.4 dB alone, 8.5 with a 100 Hz tone at −24, 5.6 at −12, none from 0 dBFS (the same law at 1 and
+    2 kHz through the low-pass). The reduction is the high level over the threshold at 1.02 dB per dB (an
+    unlimited ratio: a 16 kHz tone comes out at −12.77 dBFS from −12 to +6 in), smoothed: attack 0.07 ms, a 5.1 ms hold,
+    release 17 ms; computed 28 samples (48 kHz) ahead of the audio it turns down.
+  - Fitted on tone steps, low-tone mixes, bursts of 2 ms … 1 s and loud training vocals (mean −40.9 dB); held-out
+    vocals: the sibilant ones −35 … −44 dB (−29 … −37 without it), the others unchanged (−71 … −77).
+  - Not matched: white noise at −4.5 dBFS rms (−8 dB: the reference turns it down 4 dB, ours more) and a loud L with a
+    quiet R (−6 dB): the stereo link is not a plain maximum. Neither is vocal material.
+- **The reverb's own de-esser** ("Reverb", after the main one, on the reverb's send only): the same, 8 dB lower (the
+  presets' −28 against −20; measured: a 10 kHz burst at 0 dBFS reaches every reverb 8.0 dB lower than through the main
+  one alone, the same on every colour). The reverbs' responses (captured with impulses, which never reach it) start
+  with at least 162 silent samples, so its delay comes out of them. Reverb wet nulls on 10 kHz bursts from −20 dBFS up:
+  +3.6 … −14 → −34 … −47 dB; on loud vocals −24 … −59 dB.
+- **A loading race in the reverb**: our engines load their responses on a background thread; on a busy machine the
+  prepare step could finish before the whole response was in, so a render (or a session) started with a partial
+  reverb (nulls −0.8 … −33 dB under load). Prepare now waits for each engine's full length.
+- **Bass Upper** (`fit_voxchain_eqrefine.py`): every one of its positions from 0 up is exactly linear and
+  time-invariant, but its subsonic high-pass has a **notch near 10 Hz** (zeros on the unit circle) and poles crowded
+  near DC, which Steiglitz–McBride's direct form cannot resolve (−46 … −67 dB). Refined with the poles and zeros
+  themselves as the parameters (least squares on the response, an analytic Jacobian) from several starts, every
+  position worse than −85 dB at every rate (696): Bass Upper's median −66.8 → −98.5 dB at 48 kHz (−85.7 → −97.4 at
+  44.1, −66 → −86 at 88.2 / 96), its worst −50.6 → −59 (13 of its 101 positions from 0 up still above −80 at 48 kHz);
+  every Bass Sub / Lower position now −86 dB or better at every rate (were down to −55). The tables grow to 10
+  sections.
+- **Compress**:
+  - Its fit cases were rendered through the whole clear chain, the main de-esser included, but fitted without it: at
+    high faders Compress drives vocals to about −4 dBFS, where the de-esser works. With it in the model the same fits
+    null better (Push +10, a loud vocal: −17.5 → −27.0 dB; Wall 0: −20.8 → −27.1).
+  - A bug in our look-ahead limiter: its sliding minimum dropped old entries only when its queue was full, so a deep
+    reduction could outlast its window. Fixed; our plug-in now equals the model to −142 … −147 dB on every colour
+    (Wall was −37 dB from the model).
+- **The delays' echoes**: our echoes over the reference's (white noise at −30 dBFS after 6 s of silence; the wet output
+  less the output with Delay clear) are the same on every colour and side within 0.05 dB: −0.15 dB at 60 Hz, +0.15 at
+  500 Hz, −0.3 above 3 kHz, the phase within 0.06 rad. A low shelf (132 Hz, +0.16 dB), a bell (430 Hz, Q 1.0,
+  −0.15) and a high shelf (1.93 kHz, +0.35) on the delays' output take it out (the ratio's error rms 0.033 → 0.015).
+  Echo nulls: Slap −29 → −36 dB, Eight −26 → −31, Quarter −27 → −33.
+- **Compress, refitted** (`fit_voxchain_compress.py refit`, `rescue`): the model gains a static correction of its
+  reduction at the tone ladder's 18 levels (solved from the ladder's steady gain errors, kept only where the mean null
+  improves), and two structural switches, tested at four steps in each combination: the limiter **before** the
+  compressor (as the chain's L1 before its 1176; then the 1176's input gain between them) and a **feedback** detector
+  (the 1176's style). Push and Wall fit best as before (the compressor first, feed-forward); Spank from +2 up with the
+  limiter first and feedback (+10: mean −16.7 → −21.8 dB), from +1 down as before. Every step refitted with the de-esser
+  in the model; mean null per step (tone ladder, two bursts, two loud vocals), before → after: Push −10 … 0 −47.9 …
+  −34.7 → −47.9 … −35.2, +1 … +10 −28.2 … −26.9 → −33.8 … −27.8 (+2 −24.7 → −31.5); Spank −10 … +1 about the same
+  (−33.5 … −29.0), +2 … +10 −23.7 … −16.7 → −26.6 … −21.8; Wall −42.7 … −25.9 → −43.0 … −27.0. Where two neighbouring
+  steps differ in structure the plug-in takes the nearer step's parameters instead of blending them.
+- **Nulls after this pass** (`nulltest_wvoxchain.py`): the linear cases median −75.7 dB, worst −67.9 (was −46.0: Bass
+  Upper from 0 up now −69.7 … −75.1); the whole chain (a held-out vocal at −6 dBFS peaks) median **−31.2 dB without
+  the doubler** (was −27.6; the defaults −38.0, random settings −31 … −44, presets driving Compress to +7 … +10
+  −20.9 … −29.8), −13.1 dB with it (was −12.6). Compress at high faders remains the largest error after the doubler.

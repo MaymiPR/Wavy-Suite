@@ -1,5 +1,5 @@
 // Unit tests for WVox Chain (Phase 2): the parameters as the reference's (ranges, defaults, the colours' texts), the
-// components' buses, the latency, the audio path (the gains, the delay), and the editor (its size, the Mono/Stereo
+// components' buses, the latency, the audio path (the gains, the delay), the de-esser, and the editor (its size, the Mono/Stereo
 // component's layout, the colour selectors' clicks, the faders' grab area and the selection, a snapshot paints).
 // Run: WVoxChainTests (exit code 0 = all passed).
 #include <cmath>
@@ -83,6 +83,39 @@ static void testPath()
     CHECK_NEAR (b.getSample (1, 10 + 195) / 0.01, -0.130, 0.002);
 }
 
+// the main de-esser (every colour clear): a steady tone's level out at 0 dBFS against at -30 dBFS (dB, its share above
+// -30's): the reference turns 10 kHz down 13.2 dB and 6 kHz 11.0, leaves 1 kHz alone (MEASUREMENTS.md, Phase 4)
+static double toneGain (double freq, double peakDb)
+{
+    WVoxChainProcessor p;
+    p.setPlayConfigDetails (2, 2, 48000.0, 512);
+    for (const auto& st : wvoxchain::stages()) set (p, st.colour, 0.0f);
+    p.prepareToPlay (48000.0, 512);
+    juce::AudioBuffer<float> b (2, 512);
+    juce::MidiBuffer m;
+    const double a = std::pow (10.0, peakDb / 20.0);
+    double in = 0.0, out = 0.0;
+    for (int blk = 0, t = 0; blk < 48; ++blk)
+    {
+        for (int i = 0; i < 512; ++i, ++t)
+        {
+            const float v = (float) (a * std::sin (2.0 * juce::MathConstants<double>::pi * freq * t / 48000.0));
+            b.setSample (0, i, v); b.setSample (1, i, v);
+            if (blk >= 32) in += (double) v * v;
+        }
+        p.processBlock (b, m);
+        if (blk >= 32) for (int i = 0; i < 512; ++i) out += (double) b.getSample (0, i) * b.getSample (0, i);
+    }
+    return 10.0 * std::log10 (out / in);
+}
+
+static void testDeEsser()
+{
+    CHECK_NEAR (toneGain (10000.0, 0.0) - toneGain (10000.0, -30.0), -13.2, 1.0);
+    CHECK_NEAR (toneGain (6000.0, 0.0) - toneGain (6000.0, -30.0), -11.0, 1.0);
+    CHECK_NEAR (toneGain (1000.0, 0.0) - toneGain (1000.0, -30.0), 0.0, 0.2);
+}
+
 static void testEditor()
 {
     WVoxChainProcessor p;
@@ -151,6 +184,7 @@ int main()
     testParameters();
     testBusesAndLatency();
     testPath();
+    testDeEsser();
     testEditor();
     std::printf ("%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;
