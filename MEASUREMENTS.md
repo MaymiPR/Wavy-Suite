@@ -1857,3 +1857,44 @@ off in both, since two noise sources cannot null; a held-out vocal at −16 dBFS
   raises its threshold (a 300 Hz tone at −10 dBFS takes 6 kHz's reduction from 6.1 to 2.2 dB, at −3 dBFS to none),
   not by a plain power sum. It rarely acts on vocals: without it our chain nulls loud held-out vocals at −65 … −72 dB,
   one sibilant part excepted (−31 dB).
+
+## WVox Chain: Phase 4, second pass (Compress, the delays, the doubler), 2026-10-28
+
+- **The clear chain distorts slightly**, statically: its 2nd harmonic rises 10 dB per 10 dB (−82.5 dB at −20 dBFS), its
+  3rd 20 dB per 10 dB. A regression on tones and a vocal places it before the fixed filter: y = F(x − 0.00145 x² +
+  0.00146 x³). In the chain (before the EQ) the clear null went from −75.4 to −76.5 dB, and the tone cases by up to 12 dB.
+- **Compress** (`fit_voxchain_compress.py`, `comp.c`):
+  - Each colour adds a **fixed linear filter** whatever the fader (the fader moves only the gain): Push and Wall share
+    one (−0.36 dB at 40 Hz, −1.19 at 20 kHz), Spank has its own (−7.8 dB at 20 kHz). Captured exactly per colour and
+    rate (order 8, −112 … −137 dB; Spank at 96 kHz −73.5).
+  - The colours **distort**: the 2nd harmonic 18 dB over the clear chain's, the odd ones rising 10 dB per 10 dB (an
+    x·|x| term, as an analog-modelled compressor gives).
+  - The dynamics: a compressor (Push: a slow attack, the gain sinking over about 100 ms; a slow release, 300 … 900 ms;
+    Spank a fast first stage and a slower second) and a smooth ceiling (−4.86 dBFS out for 0 … +6 dBFS in on Push,
+    steady to 0.1 dB within a cycle: no sample-level clipping). Modelled as an input gain, a compressor with a two-stage
+    release, a static shaper, a look-ahead limiter (its 64 samples taken out of the input delay, so the latency stays
+    193) and an output gain, fitted per colour and fader step on a tone ladder, two bursts and two loud vocals:
+    −20 … −52 dB per signal (most −25 … −35). The remaining errors are the distortion's exact shape and the attack and
+    release laws.
+- **The delays** (WDelay's model of H-Delay, reused, set from each colour's preset):
+  - The send is taken **after the fixed filter** (its polarity-inverting response is in the echoes).
+  - SuperTap's two taps each **turn the stereo image by 45 degrees**: the first at once, L = g (L + R), R = g (R − L);
+    the second 0.004 bar later (8 ms at 120 bpm), L = g (L − 0.995 R), R = g (0.995 L + R); g at fader 0 −16.1 dB (the
+    send's gain stage, the tap level and the pan law); SuperTap's LFO is off in the preset.
+  - The **"compressive mapping" of long notes was H-Delay's glide**: the line starts at the preset's time and glides to
+    the tempo's note; an impulse 4 s or more into a render gives exactly the note (1/8 at 60 bpm: 481.4 ms at 0.02 s,
+    497.5 at 1 s, 500.0 at 4 and 8 s).
+  - Nulls on a held-out vocal (6 s of silence first): the echoes −29 … −32 dB, the whole output −42 … −55 dB. The
+    echoes' residual is around 100 … 300 Hz (1 dB, 0.36 rad: the 150 Hz high-pass or the Analog stage's low end).
+- **The doubler** (Waves Doubler, two voices per colour): each voice's delay swings as a slow cosine, d(t) = centre +
+  amp cos (2 pi f t + phase) from the plug-in's start, f = the preset's LFO rate / 2 (Stereo: 0.200 / 0.300 Hz, from
+  7.45 and 14.98 ms, amp 2.62 / 1.74 ms = 0.1494 ms x |depth| / rate). The voices are not a single moving read head:
+  a direct fit of one to the reference's wet output stays uncorrelated (+3 dB), as a pitch shifter crossfading between
+  grains would be. So the doubler is matched in its delays, rates, shelves and level (calibrated on white noise), not
+  nulled; in a session its LFOs could not line up with the reference's anyway.
+- **The main de-esser is not in yet** (its model does not fit the tone steps): our chain lacks it, which shows on loud,
+  sibilant material only.
+- **The whole chain** (`nulltest_wvoxchain.py full`: a held-out vocal at −6 dBFS peaks after 6 s of silence; the
+  defaults, every sixth factory preset, six random settings): median −12.6 dB, **−27.6 dB without the doubler** (the
+  defaults −38.2; settings with Compress near 0 or clear −32 … −45; presets driving Compress to +7 … +10 −17.5 … −25).
+  The doubler, on by default and about 9 dB under the dry signal, sets the figure wherever it is on (defaults −16.6).

@@ -65,6 +65,9 @@ void WVoxChainProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
         pin[c] = work.getMagnitude (c, 0, n);
     }
     wvoxchain::dsp::Params p;
+    if (auto* ph = getPlayHead())
+        if (auto pos = ph->getPosition())
+            if (auto bpm = pos->getBpm()) p.bpm = *bpm;
     p.sensitivity = get (wvoxchain::sensitivity); p.output = get (wvoxchain::output); p.balance = get (wvoxchain::balance);
     for (size_t i = 0; i < 6; ++i)
     {

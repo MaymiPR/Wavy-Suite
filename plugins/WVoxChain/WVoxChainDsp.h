@@ -6,6 +6,10 @@
 #include "WVoxChainFixed.h"
 #include "WVoxChainEq.h"
 #include "WVoxChainEqTables.h"
+#include "WVoxChainCompress.h"
+#include "WDelayDsp.h"
+#include "WCompAnalog.h"
+#include "WDelayAnalogTables.h"
 
 // WVox Chain's audio, as measured on the reference (MEASUREMENTS.md, WVox Chain: Phase 3 and the full campaign):
 //   in -> Sensitivity -> Balance (the far side) -> the latency -> Bass, Treble -> Compress -> the de-esser -> [the sends'
@@ -22,6 +26,7 @@ struct Params
     float sensitivity = 0.0f, output = 0.0f, balance = 0.0f;
     float fader[6] {};                                                // Bass, Treble, Compress, Reverb, Delay, Pitch
     int colour[6] { 1, 1, 1, 1, 1, 1 };
+    double bpm = 120.0;                                               // the host's tempo (the delays are synced to it)
 };
 
 // a second-order section, transposed direct form II, per channel
@@ -151,6 +156,69 @@ private:
     int running = 0;                                                  // the colour whose engine runs (0: none yet)
 };
 
+// Compress, as fitted (nulltest/fit_voxchain_compress.py; comp.c is the same algorithm): an input gain into a
+// compressor (stereo-linked; a power or peak detector, the threshold, ratio and knee, attack and a two-stage release),
+// a static shaper (x^2, x |x|, x^3) before or after it, a look-ahead limiter holding the output under its ceiling, an
+// output gain, then the colour's own linear filter (exact per rate). Its parameters per fader step, interpolated. The
+// look-ahead delays the path by la samples (also while Compress is clear, a plain delay), taken out of the input delay.
+class Compressor
+{
+public:
+    void prepare (double fs);
+    int lookAhead() const { return la; }
+    void process (float* l, float* r, int n, int colour, float fader);
+
+private:
+    void reset();
+    double fs = 48000.0;
+    int la = 64, w = 0, active = -1;
+    std::vector<float> bl, br;
+    std::vector<double> need;
+    std::vector<int> dq;
+    int qh = 0, qt = 0;
+    long long count = 0;
+    double gf = 0.0, gs = 0.0, pw = 0.0, lg = 1.0;
+    std::array<Biquad, 4> linear;
+};
+
+// the delays, as measured (MEASUREMENTS.md, WVox Chain: Phase 4): the send through H-Delay's Analog 4 and its line
+// (WDelay's model of H-Delay, set from each colour's preset: Slap a 1/16 note, no feedback, -12 dB; Eight 1/8, 50 %,
+// -9 dB; Quarter 1/4, 30 %, -9 dB; high-pass 150 Hz, low-pass 5 kHz; synced to the host's tempo), then SuperTap's two
+// taps, each turning the stereo image by 45 degrees: the first at once, L = g1 (L + R), R = g1 (R - L); the second 0.004
+// bar later, L = g2 (L - 0.995 R), R = g2 (0.995 L + R). The line keeps running while Delay is clear.
+class Delays
+{
+public:
+    void prepare (double fs, int block);
+    void process (const float* inL, const float* inR, float* outL, float* outR, int n, int colour, float gain, double bpm);
+
+private:
+    double fs = 48000.0;
+    wcomp::Analog analog;
+    wdelay::dsp::Delay line;
+    juce::AudioBuffer<float> work;
+    std::vector<float> histL, histR;                                  // the line's output, for the second tap
+    int hpos = 0, running = 1;
+};
+
+// the doubler (Pitch), as measured: Waves Doubler's two voices per colour, the left one on the left input, the right
+// on the right, each a delay swung by a slow cosine (the preset's LFO rate / 2: 0.15 .. 0.3 Hz), the preset's shelves
+// (Stereo, Wide: -8.6 dB under 400 Hz, +4.5 dB over 4 kHz; Spreader none) and the measured wet level. Its LFOs run
+// from the plug-in's start, so in a session they cannot line up with the reference's.
+class Doubler
+{
+public:
+    void prepare (double fs);
+    void process (const float* inL, const float* inR, float* outL, float* outR, int n, int colour, float gain);
+
+private:
+    double fs = 48000.0, t = 0.0;
+    std::vector<float> lineL, lineR;
+    int pos = 0, running = 1;
+    std::array<Biquad, 2> shelves;
+    int shelvesFor = -1;
+};
+
 class Chain
 {
 public:
@@ -169,8 +237,12 @@ private:
     std::vector<float> lineL, lineR;
     std::array<Biquad, 4> fixedFilter;
     EqStage bass, treble;
+    Compressor compressor;
     Reverb reverb;
-    juce::AudioBuffer<float> tap, wet;
+    Delays delays;
+    Doubler doubler;
+    std::array<Biquad, 4> sendFilter;                                  // (the delays and the doubler take the send after the fixed filter)
+    juce::AudioBuffer<float> tap, send, wet, wet2, wet3;
     std::minstd_rand noise { 0x5eed };
     double level = 0.0, levelCoef = 0.0, noiseGain = 0.0;
 };

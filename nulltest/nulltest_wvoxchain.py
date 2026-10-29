@@ -53,6 +53,42 @@ def linear_cases():
     return cases
 
 
+def full_cases():
+    """the whole chain: the defaults, a few of the factory presets, random settings (campaign_voxchain.py's)"""
+    import campaign_voxchain as CV
+    cases = [('defaults', {})]
+    presets = CV.factory_presets()
+    for name, kw in presets[:43:6]: cases.append((name, kw))
+    rng = np.random.default_rng(2026)
+    for i in range(6):
+        kw = {st: round(float(rng.uniform(-10, 10)), 1) for st in STAGES}
+        kw.update({st + '_color': int(rng.integers(0, 4)) for st in STAGES})
+        kw['sensitivity'] = round(float(rng.uniform(-6, 6)), 1); kw['output'] = round(float(rng.uniform(-6, 6)), 1)
+        kw['balance'] = round(float(rng.uniform(-6, 6)), 1)
+        cases.append(('random %d' % i, kw))
+    return cases
+
+
+def full():
+    """the whole chain on a held-out vocal at a working level (peaks -6 dBFS): 6 s of silence first in both, so the
+    reference's delay glide has settled and the doubler's LFOs started together; the null over the vocal, and with the
+    doubler left out (its time-varying voices)"""
+    pad = 6 * FS
+    v = V.part(30)[0][:FS * 10]; v = v / np.abs(v).max() * 10 ** (-6 / 20)
+    x = np.concatenate([np.zeros(pad), v]).astype(np.float32)
+    res = []
+    for name, kw in full_cases():
+        y = C.render(x, FS, {C.NOISE: 0}, C.host(**kw), preroll=0.0)[:, pad:]
+        z = render_ours(x, kw)[:, pad:]
+        n = 10 * np.log10(np.sum((y - z) ** 2) / np.sum(y ** 2))
+        kw2 = dict(kw, pitch_color=0)
+        y2 = C.render(x, FS, {C.NOISE: 0}, C.host(**kw2), preroll=0.0)[:, pad:]; z2 = render_ours(x, kw2)[:, pad:]
+        n2 = 10 * np.log10(np.sum((y2 - z2) ** 2) / np.sum(y2 ** 2))
+        res.append((n, n2))
+        print('  %-10s null %6.1f dB; without the doubler %6.1f dB   %s' % (name, n, n2, ' '.join('%s=%s' % kv for kv in sorted(kw.items()))), flush=True)
+    print('median %.1f dB (without the doubler %.1f dB)' % (np.median([r[0] for r in res]), np.median([r[1] for r in res])))
+
+
 def main():
     x = V.part(30)[0][:FS * 12]; x = x * 10 ** (-16 / 20) / np.abs(x).max()    # (a held-out vocal, its peak under the dynamics' thresholds)
     print('input: peak %.1f dBFS, rms %.1f dBFS' % (20 * np.log10(np.abs(x).max()), 20 * np.log10(np.sqrt(np.mean(x ** 2)))))
@@ -65,4 +101,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    full() if 'full' in sys.argv[1:] else main()

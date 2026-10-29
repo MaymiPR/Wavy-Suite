@@ -75,12 +75,12 @@ static void testPath()
     p.prepareToPlay (48000.0, 512);
     juce::AudioBuffer<float> b (2, 512);
     juce::MidiBuffer m;
-    b.clear(); b.setSample (0, 10, 1.0f); b.setSample (1, 10, 1.0f);
+    b.clear(); b.setSample (0, 10, 0.01f); b.setSample (1, 10, 0.01f);  // (a small impulse: the chain's slight distortion)
     p.processBlock (b, m);
-    CHECK_NEAR (b.getSample (0, 10 + 192), 0.0, 1e-4);
-    CHECK_NEAR (b.getSample (0, 10 + 193), 0.278, 0.002);               // (+6 then -6 dB: unity)
-    CHECK_NEAR (b.getSample (0, 10 + 194), -0.721, 0.002);
-    CHECK_NEAR (b.getSample (1, 10 + 195), -0.130, 0.002);
+    CHECK_NEAR (b.getSample (0, 10 + 192) / 0.01, 0.0, 1e-3);
+    CHECK_NEAR (b.getSample (0, 10 + 193) / 0.01, 0.278, 0.002);        // (+6 then -6 dB: unity)
+    CHECK_NEAR (b.getSample (0, 10 + 194) / 0.01, -0.721, 0.002);
+    CHECK_NEAR (b.getSample (1, 10 + 195) / 0.01, -0.130, 0.002);
 }
 
 static void testEditor()
