@@ -4,7 +4,7 @@
 
 namespace wavy
 {
-inline const char* const repoUrl = "https://github.com/MaymiPR/WavySuite";
+inline const char* const repoUrl = "https://github.com/MaymiPR/Wavy-Suite";
 
 // The Wavy mark (docs/branding/wavy-icon.svg): three identical sine swells, stepped evenly down
 // and across, cyan into amber, each fainter than the last, on a black tile (or on whatever is behind it).

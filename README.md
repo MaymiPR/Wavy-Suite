@@ -15,7 +15,7 @@ Mono / stereo variants live in one plugin behind a **Mode** switch.
 ## Download
 
 One installer per operating system installs every plugin in the suite — get it from
-[Releases](https://github.com/MaymiPR/WavySuite/releases):
+[Releases](https://github.com/MaymiPR/Wavy-Suite/releases):
 
 | System | File | Installs to |
 |---|---|---|
