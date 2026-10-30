@@ -1974,3 +1974,13 @@ off in both, since two noise sources cannot null; a held-out vocal at −16 dBFS
   improve, 06 −20.9 → −21.2, 18 −21.3 → −22.9, 30 −21.1 → −24.7, 42 −21.2 → −23.0, the defaults −38.0 → −39.4; a few
   lighter settings lose about 1 dB, 36 −29.8 → −29.0, random 0 −33.0 → −31.9, random 2 −35.9 → −34.6). The linear
   cases unchanged (median −75.7 dB).
+- **Compress, fifth pass (tried, not adopted).** Where the error is: on loud vocals at fader +5 … +10, 79 … 97 % of
+  Push's and Wall's envelope error falls in steady loud stretches (not attacks or releases), the reference there
+  0.1 … 0.5 dB louder than ours. On steady noise (150 Hz … 4 kHz, −36 … −6 dBFS rms) the opposite: the reference
+  0.4 … 1.1 dB quieter than ours at −18 … −6 dBFS (noise nulls −18 … −24 dB). So the miss depends on the crest factor,
+  which a correction learned from sines cannot follow. Tried: the noise ladder as an eighth case per step
+  (`noise_signals`) with the detector's window free (it stays at its 0.05 ms floor; Push +10 mean −26.7 → −27.0, its
+  vocal 1.7 dB worse); and Wall in the limiter-first structure (`restructure 3 1 0`; better from +4 up on the fit cases,
+  mostly noise and bursts, +0.6 … +1.1 dB mean). On the held-out vocal through the whole chain Wall's presets got
+  slightly worse (06 −21.2 → −20.4, 12 −25.4 → −24.9), so neither is in the plug-in. What is missing is structural:
+  the L1 and the 1176's detectors and how they read a dense signal against a sine.

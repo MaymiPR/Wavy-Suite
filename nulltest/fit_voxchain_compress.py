@@ -75,14 +75,46 @@ def render_low():
     print('rendered %d positions' % len(jobs))
 
 
+def noise_signals():
+    """a steady noise ladder (150 Hz .. 4 kHz, -36 .. -6 dBFS rms): a crest factor a sine does not have, so the
+    detector's reading of peaks against power (on steady loud noise the first fits compressed up to 1 dB too little,
+    on sustained vocals too much)"""
+    from scipy.signal import butter, sosfilt
+    rng = np.random.default_rng(21)
+    n = int(0.5 * FS); lv = (-36, -30, -24, -18, -12, -6)
+    nz = sosfilt(butter(2, [150, 4000], 'bandpass', fs=FS, output='sos'), rng.standard_normal(n * len(lv)))
+    s = np.concatenate([nz[k * n:(k + 1) * n] / np.sqrt(np.mean(nz[k * n:(k + 1) * n] ** 2)) * 10 ** (l / 20) for k, l in enumerate(lv)])
+    return [np.stack([s, s]).astype(np.float32)]
+
+
+def _render_extra(job):
+    import cv_ref as C
+    c, v, kind = job
+    path = os.path.join(MEAS, 'c%d_%+03d_%s.npz' % (c, v, kind))
+    if os.path.exists(path): return path
+    X = low_signals() if kind == 'low' else noise_signals()
+    Y = [C.render(x, FS, {C.NOISE: 0}, C.host(**dict(CLEAR, compress_color=c, compress=v))) for x in X]
+    np.savez(path, **{'x%d' % i: x for i, x in enumerate(X)}, **{'y%d' % i: y for i, y in enumerate(Y)})
+    return path
+
+
+def render_noise():
+    jobs = [(c, v, 'noise') for c in (1, 2, 3) for v in range(-10, 11)]
+    with Pool(12) as pool:
+        for i, p in enumerate(pool.imap_unordered(_render_extra, jobs)): pass
+    print('rendered %d positions' % len(jobs))
+
+
 def load_data(c, v):
-    """a step's cases: the ladder, two bursts, two vocals, and the low tones' ladders when rendered"""
+    """a step's cases: the ladder, two bursts, two vocals, then (when rendered) the low tones' ladders and the noise
+    ladder"""
     d = np.load(os.path.join(MEAS, 'c%d_%+03d.npz' % (c, v)))
     data = [(d['x%d' % i].astype(np.float64), d['y%d' % i].astype(np.float64)) for i in range(5)]
-    low = os.path.join(MEAS, 'c%d_%+03d_low.npz' % (c, v))
-    if os.path.exists(low):
-        d = np.load(low)
-        data += [(d['x%d' % i].astype(np.float64), d['y%d' % i].astype(np.float64)) for i in range(2)]
+    for kind, count in (('low', 2), ('noise', 1)):
+        path = os.path.join(MEAS, 'c%d_%+03d_%s.npz' % (c, v, kind))
+        if os.path.exists(path):
+            d = np.load(path)
+            data += [(d['x%d' % i].astype(np.float64), d['y%d' % i].astype(np.float64)) for i in range(count)]
     return data
 
 
@@ -233,6 +265,7 @@ def solve_corr(p, x, y, rounds=4):
 
 # the chain's L1 sub-presets per colour (threshold, output; RESEARCH.md): the limiter-first order starts from them
 L1 = {1: (-3.0, -6.0), 2: (-7.0, -7.0), 3: (-11.0, -8.0)}
+FORCE = [False]
 
 
 def refit_one(args):
@@ -250,7 +283,7 @@ def refit_one(args):
     if len(data) > 5 and p[40] <= 0: p[40] = 20.0                      # (the detector's high-pass, from nearly off)
     free = FREE + ([39] if order == 1 else []) + ([40] if len(data) > 5 else [])
     best = [float(np.mean(nulls(p, data))), p.copy()]
-    if first[0] < best[0]: best = first
+    if first[0] < best[0] and not FORCE[0]: best = first             # (FORCE: keep the asked structure, to compare)
     for rnd in range(3):
         q = solve_corr(best[1], *data[0])
         val = float(np.mean(nulls(q, data)))
@@ -302,6 +335,30 @@ def refit_low():
             res['%d %+d' % (c, v)] = dict(p=p, nulls=ns)
             json.dump(res, open(PARAMS, 'w'), indent=1)
             print('c%d %+3d: %s  (was %s; %.0f s)' % (c, v, ' '.join('%.1f' % n for n in ns), ' '.join('%.1f' % n for n in st), time.time() - t0), flush=True)
+    print('done in %.0f s' % (time.time() - t0))
+
+
+def _forced(args):
+    FORCE[0] = True
+    return refit_one(args)
+
+
+def restructure():
+    """restructure colour order feedback: every step of the colour refitted in that structure (forced, from its present
+    fit) on all its cases; a step keeps the new fit only where its mean null beats the present one's on the same cases"""
+    c, order, fb = (int(a) for a in sys.argv[2:5])
+    res = json.load(open(PARAMS))
+    t0 = time.time()
+    with Pool(6) as pool:
+        base = dict(((b[0], b[1]), b[2]) for b in pool.map(_baseline, [(c, v, res['%d %+d' % (c, v)]['p']) for v in range(-10, 11)]))
+        jobs = [(c, v, res['%d %+d' % (c, v)]['p'], order, fb) for v in range(-10, 11)]
+        for c_, v, p, ns, st in pool.imap_unordered(_forced, jobs):
+            key = '%d %+d' % (c_, v)
+            keep = np.mean(ns) < base[(c_, v)]
+            if keep: res[key] = dict(p=p, nulls=ns)
+            json.dump(res, open(PARAMS, 'w'), indent=1)
+            print('c%d %+3d: order %d fb %d %s (mean %.2f) against %.2f: %s  (%.0f s)' % (c_, v, order, fb, ' '.join('%.1f' % n for n in ns),
+                  np.mean(ns), base[(c_, v)], 'kept' if keep else 'not kept', time.time() - t0), flush=True)
     print('done in %.0f s' % (time.time() - t0))
 
 
