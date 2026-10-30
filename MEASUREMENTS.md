@@ -1,7 +1,7 @@
 # WVox: measurements of the reference (Phase 3)
 
 Everything here was measured on the user's own licensed install. The data (JSON, CSV tables, plots) is in
-`measurements/rvox/`; large raw arrays (`.npz`) are left out and regenerate with the scripts. Reproduce with `python -I nulltest/measure_rvox.py` (needs `pedalboard`, `numpy`, `scipy`, `matplotlib`).
+`measurements/rvox/`; large raw arrays (`.npz`) are left out and regenerate with the scripts. Reproduce with `python -I nulltest/measure_rvox.py` (needs Python 3.12 or newer with the packages in `requirements.txt`).
 
 ## Method
 
