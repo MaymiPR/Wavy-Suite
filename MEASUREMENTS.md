@@ -1960,3 +1960,17 @@ off in both, since two noise sources cannot null; a held-out vocal at −16 dBFS
   Upper from 0 up now −69.7 … −75.1); the whole chain (a held-out vocal at −6 dBFS peaks) median **−31.2 dB without
   the doubler** (was −27.6; the defaults −38.0, random settings −31 … −44, presets driving Compress to +7 … +10
   −20.9 … −29.8), −13.1 dB with it (was −12.6). Compress at high faders remains the largest error after the doubler.
+- **Compress, fourth pass: the low tones.** The fit cases were all at 1 kHz (and two vocals), which hides two things
+  the reference does at low frequencies, measured with 100 / 250 Hz tones at −24 … −6 dBFS: it compresses them less
+  (our fundamental 0.3 … 0.7 dB low at Compress +10) and its gain does not ripple within a cycle as ours did (Spank's
+  3rd harmonic at −24 dBFS −65 dB, ours −35; the reference's 2nd harmonic −55 dB on Spank and Wall, ours under −75).
+  On a loud vocal, Spank +10's error was mostly gain movement on a 1 … 10 ms scale (a per-2 ms gain correction took
+  its null from −17.8 to −24.8 dB; a 64-tap linear filter changed nothing). Two 100 / 250 Hz ladders (−36 … 0 dBFS)
+  join each step's cases and the model gains a first-order high-pass on the compressor's detector; every step refitted
+  in its structure (`fit_voxchain_compress.py refit_low`; the high-pass settles at about 30 … 40 Hz). No step got
+  worse; the low ladders −22 … −27 → −27 … −33 dB; the loud vocals (Spank +5 / +10) −19.5 / −17.9 → −23.6 / −21.6, Wall
+  +10 −21.9 → −22.3, Push about the same.
+- **The whole chain after it**: without the doubler median −30.8 dB (−31.2 before: the presets driving Compress
+  improve, 06 −20.9 → −21.2, 18 −21.3 → −22.9, 30 −21.1 → −24.7, 42 −21.2 → −23.0, the defaults −38.0 → −39.4; a few
+  lighter settings lose about 1 dB, 36 −29.8 → −29.0, random 0 −33.0 → −31.9, random 2 −35.9 → −34.6). The linear
+  cases unchanged (median −75.7 dB).

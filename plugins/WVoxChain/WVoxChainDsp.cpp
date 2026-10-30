@@ -126,7 +126,7 @@ void Compressor::prepare (double sampleRate)
 
 void Compressor::reset()
 {
-    gf = gs = pw = fbL = fbR = 0.0; lg = 1.0; w = 0; qh = qt = 0; count = 0;
+    gf = gs = pw = fbL = fbR = 0.0; dhx[0] = dhx[1] = dhy[0] = dhy[1] = 0.0; lg = 1.0; w = 0; qh = qt = 0; count = 0;
     std::fill (bl.begin(), bl.end(), 0.0f); std::fill (br.begin(), br.end(), 0.0f);
     for (auto& b : linear) b.reset();
 }
@@ -175,12 +175,22 @@ void Compressor::process (float* l, float* r, int n, int colour, float fader)
     const double a2 = p[15], bb = p[16], a3 = p[17];
     const bool after = p[18] >= 0.5, power = p[12] > 0.5;
     auto shape = [a2, bb, a3] (double u) { return u + a2 * u * u + bb * u * std::abs (u) + a3 * u * u * u; };
+    // the detector's first-order high-pass (none at 0)
+    const bool detHp = p[40] > 0.0;
+    const double hk = detHp ? std::tan (juce::MathConstants<double>::pi * juce::jmin (p[40], 0.45 * fs) / fs) : 0.0;
+    const double hb = 1.0 / (1.0 + hk), hav = (hk - 1.0) / (hk + 1.0);
     // the compressor (its input gain first; the static correction's knots referred to the level before that gain)
     auto compress = [&] (double& a, double& b)
     {
         a *= gin; b *= gin;
         if (! after) { a = shape (a); b = shape (b); }
-        const double v = feedback ? juce::jmax (std::abs (fbL), std::abs (fbR)) : juce::jmax (std::abs (a), std::abs (b));
+        double da = feedback ? fbL : a, db = feedback ? fbR : b;
+        if (detHp)
+        {
+            const double ua = hb * (da - dhx[0]) - hav * dhy[0], ub = hb * (db - dhx[1]) - hav * dhy[1];
+            dhx[0] = da; dhx[1] = db; dhy[0] = ua; dhy[1] = ub; da = ua; db = ub;
+        }
+        const double v = juce::jmax (std::abs (da), std::abs (db));
         double L;
         if (power) { pw = cw * pw + (1.0 - cw) * v * v; L = 10.0 * std::log10 (pw + 1.0e-30); }
         else L = 20.0 * std::log10 (v + 1.0e-30);

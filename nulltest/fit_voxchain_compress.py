@@ -24,7 +24,7 @@ MEAS = os.path.join(HERE, '..', 'reference', 'wvoxchain', 'meas', 'compress')
 PARAMS = os.path.join(HERE, '..', 'reference', 'wvoxchain', 'meas', 'compress_params.json')
 FS = 48000
 NAMES = ['gin', 'thr', 'ratio', 'knee', 'att', 'rel', 'relSlow', 'slowShare', 'ceil', 'limRel', 'look', 'gout', 'power', 'win', 'limKnee',
-         'a2', 'b', 'a3', 'shapeAfter'] + ['corr%+d' % l for l in range(-45, 7, 3)] + ['order', 'feedback', 'limGin']
+         'a2', 'b', 'a3', 'shapeAfter'] + ['corr%+d' % l for l in range(-45, 7, 3)] + ['order', 'feedback', 'limGin', 'detHP']
 NP = len(NAMES)
 SH = [-0.01, 0.01, 0.0, 1]
 PUSH0 = [-0.001498, -9.404, 9.606, 5.733, 18.03, 291.6, 0.7521, 0.002176, 0.5733, 7.723, 64, -0.0007511, 1, 0.129, 20.55, 0.01282, 0.006674, 0.002828, 1]
@@ -45,6 +45,45 @@ def signals():
     for k, pk in ((24, 0), (26, -6)):
         x = V.part(k)[0][:FS * 6]; out.append(x / np.abs(x).max() * 10 ** (pk / 20))
     return [np.stack([s, s]).astype(np.float32) for s in out]
+
+
+def low_signals():
+    """the low tones' ladders (100 and 250 Hz, -36 .. 0 dBFS): the compression's frequency dependence and its ripple
+    within a cycle (the harmonics), which the 1 kHz ladder does not show"""
+    out = []
+    n = int(0.4 * FS); t = np.arange(n) / FS
+    for f0 in (100, 250):
+        out.append(np.concatenate([10 ** (l / 20) * np.sin(2 * np.pi * f0 * t) for l in (-36, -24, -18, -12, -6, 0)]))
+    return [np.stack([s, s]).astype(np.float32) for s in out]
+
+
+def _render_low(job):
+    import cv_ref as C
+    c, v = job
+    path = os.path.join(MEAS, 'c%d_%+03d_low.npz' % (c, v))
+    if os.path.exists(path): return path
+    X = low_signals()
+    Y = [C.render(x, FS, {C.NOISE: 0}, C.host(**dict(CLEAR, compress_color=c, compress=v))) for x in X]
+    np.savez(path, **{'x%d' % i: x for i, x in enumerate(X)}, **{'y%d' % i: y for i, y in enumerate(Y)})
+    return path
+
+
+def render_low():
+    jobs = [(c, v) for c in (1, 2, 3) for v in range(-10, 11)]
+    with Pool(12) as pool:
+        for i, p in enumerate(pool.imap_unordered(_render_low, jobs)): pass
+    print('rendered %d positions' % len(jobs))
+
+
+def load_data(c, v):
+    """a step's cases: the ladder, two bursts, two vocals, and the low tones' ladders when rendered"""
+    d = np.load(os.path.join(MEAS, 'c%d_%+03d.npz' % (c, v)))
+    data = [(d['x%d' % i].astype(np.float64), d['y%d' % i].astype(np.float64)) for i in range(5)]
+    low = os.path.join(MEAS, 'c%d_%+03d_low.npz' % (c, v))
+    if os.path.exists(low):
+        d = np.load(low)
+        data += [(d['x%d' % i].astype(np.float64), d['y%d' % i].astype(np.float64)) for i in range(2)]
+    return data
 
 
 def _render(job):
@@ -201,15 +240,17 @@ def refit_one(args):
     (kept only when the mean null improves) and Nelder-Mead; the best of all is kept"""
     c, v, p0, order, fb = args
     COLOUR[0] = c; DEESS[0] = True
-    d = np.load(os.path.join(MEAS, 'c%d_%+03d.npz' % (c, v)))
-    data = [(d['x%d' % i].astype(np.float64), d['y%d' % i].astype(np.float64)) for i in range(5)]
+    data = load_data(c, v)
     p = pad(p0)
     start = nulls(p, data)
+    first = [float(np.mean(start)), p.copy()]
     if order == 1 and p[37] < 0.5:
         p[37] = 1; p[39] = -L1[c][0]; p[8] = L1[c][1]
     p[38] = fb
-    free = FREE + ([39] if order == 1 else [])
+    if len(data) > 5 and p[40] <= 0: p[40] = 20.0                      # (the detector's high-pass, from nearly off)
+    free = FREE + ([39] if order == 1 else []) + ([40] if len(data) > 5 else [])
     best = [float(np.mean(nulls(p, data))), p.copy()]
+    if first[0] < best[0]: best = first
     for rnd in range(3):
         q = solve_corr(best[1], *data[0])
         val = float(np.mean(nulls(q, data)))
@@ -244,12 +285,30 @@ def refit():
     print('done in %.0f s' % (time.time() - t0))
 
 
+def refit_low():
+    """refit_low [colour ...]: every step again with the low tones' ladders in its cases and the detector's high-pass
+    free, each in the structure it has (a stopped run resumes: steps with every parameter are kept)"""
+    cols = [int(a) for a in sys.argv[2:]] or [1, 2, 3]
+    res = json.load(open(PARAMS))
+    t0 = time.time()
+    jobs = []
+    for c in cols:
+        for v in range(-10, 11):
+            p = res['%d %+d' % (c, v)]['p']
+            if len(p) >= NP: continue
+            q = pad(p); jobs.append((c, v, p, int(q[37] > 0.5), int(q[38] > 0.5)))
+    with Pool(6) as pool:
+        for c, v, p, ns, st in pool.imap_unordered(refit_one, jobs):
+            res['%d %+d' % (c, v)] = dict(p=p, nulls=ns)
+            json.dump(res, open(PARAMS, 'w'), indent=1)
+            print('c%d %+3d: %s  (was %s; %.0f s)' % (c, v, ' '.join('%.1f' % n for n in ns), ' '.join('%.1f' % n for n in st), time.time() - t0), flush=True)
+    print('done in %.0f s' % (time.time() - t0))
+
+
 def _baseline(args):
     c, v, p0 = args
     COLOUR[0] = c; DEESS[0] = True
-    d = np.load(os.path.join(MEAS, 'c%d_%+03d.npz' % (c, v)))
-    data = [(d['x%d' % i].astype(np.float64), d['y%d' % i].astype(np.float64)) for i in range(5)]
-    return c, v, float(np.mean(nulls(pad(p0), data)))
+    return c, v, float(np.mean(nulls(pad(p0), load_data(c, v))))
 
 
 def rescue():

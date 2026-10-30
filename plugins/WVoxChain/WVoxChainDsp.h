@@ -179,7 +179,7 @@ private:
     std::vector<double> dqNeed;
     long long qh = 0, qt = 0;
     long long count = 0;
-    double gf = 0.0, gs = 0.0, pw = 0.0, lg = 1.0, fbL = 0.0, fbR = 0.0;
+    double gf = 0.0, gs = 0.0, pw = 0.0, lg = 1.0, fbL = 0.0, fbR = 0.0, dhx[2] {}, dhy[2] {};
     std::array<Biquad, 4> linear;
 };
 

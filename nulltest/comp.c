@@ -11,6 +11,7 @@
         input gain p[0] sits between them, and the limiter has its own input gain p[39])
      38 the compressor's detector: 0 on its input (feed-forward), 1 on its output (feedback)
      39 the limiter's input gain (dB; the limiter-first order only)
+     40 a first-order high-pass on the compressor's detector input (Hz; 0 or less: none)
    The output is aligned with the input (the look-ahead's delay taken out). */
 #include <math.h>
 #include <stdlib.h>
@@ -28,11 +29,21 @@ static void compressor(double* a, double* b, int n, double fs, const double* p, 
     const double a2 = p[15], bb = p[16], a3 = p[17];
     const int fb = p[38] > 0.5;
     double gf = 0, gsl = 0, pw = 0, ol = 0, orr = 0;
+    /* the detector's high-pass (bilinear, first order) per side */
+    const int hp = p[40] > 0;
+    const double kk = hp ? tan(3.14159265358979323846 * p[40] / fs) : 0, hb = 1 / (1 + kk), ha = (kk - 1) / (kk + 1);
+    double hx[2] = { 0, 0 }, hy[2] = { 0, 0 };
     for (int i = 0; i < n; ++i)
     {
         double x = a[i] * gin, y = b[i] * gin;
         if (shapeBefore) { x = SHAPE(x); y = SHAPE(y); }
-        double v = fb ? (fabs(ol) > fabs(orr) ? fabs(ol) : fabs(orr)) : (fabs(x) > fabs(y) ? fabs(x) : fabs(y));
+        double da = fb ? ol : x, db = fb ? orr : y;
+        if (hp)
+        {
+            double ua = hb * (da - hx[0]) - ha * hy[0], ub = hb * (db - hx[1]) - ha * hy[1];
+            hx[0] = da; hx[1] = db; hy[0] = ua; hy[1] = ub; da = ua; db = ub;
+        }
+        double v = fabs(da) > fabs(db) ? fabs(da) : fabs(db);
         double L;
         if (p[12] > 0.5) { pw = cw * pw + (1 - cw) * v * v; L = 10 * log10(pw + 1e-30); }
         else L = 20 * log10(v + 1e-30);

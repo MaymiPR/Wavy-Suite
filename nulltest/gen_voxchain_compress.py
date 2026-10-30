@@ -14,7 +14,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MEAS = os.path.join(HERE, '..', 'reference', 'wvoxchain', 'meas')
 OUT = os.path.join(HERE, '..', 'plugins', 'WVoxChain', 'WVoxChainCompress.h')
 RATES = (44100, 48000, 88200, 96000)
-NP = 40                                                            # (comp.c's parameters; older fits are padded with zeros)
+NP = 41                                                            # (comp.c's parameters; older fits are padded with zeros)
 
 
 def main():
@@ -24,7 +24,8 @@ def main():
              '// per colour its linear filter per rate (second-order sections b0 b1 b2 a1 a2) and the dynamics\' parameters per',
              '// fader step -10 .. +10 (comp.c\'s order: input gain, threshold, ratio, knee, attack, release, slow release, slow share,',
              '// ceiling, limiter release, look-ahead, output gain, power detector, window, limiter knee, a2, b, a3, shaper after,',
-             '// the static correction at -45 .. +6 dB, the stages\' order, the feedback detector, the limiter\'s input gain).',
+             '// the static correction at -45 .. +6 dB, the stages\' order, the feedback detector, the limiter\'s input gain,',
+             '// the detector\'s high-pass).',
              '// Do not edit.', 'namespace wvoxchain::comptables', '{', 'inline constexpr int nParams = %d;' % NP,
              'struct Linear { double fs; double sos[4][5]; };', 'struct Colour { Linear linear[4]; double p[21][%d]; };' % NP]
     missing = []
