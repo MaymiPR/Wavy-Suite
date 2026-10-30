@@ -16,13 +16,18 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  PLUGINVAL: https://github.com/Tracktion/pluginval/releases/download/v1.0.4   # pinned: a new pluginval can fail an unchanged plug-in
 
 jobs:
   windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Configure
         run: cmake -B build -A x64
@@ -36,7 +41,7 @@ jobs:
       - name: Validate every VST3 (pluginval, strictest level)
         shell: pwsh
         run: |
-          Invoke-WebRequest https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip -OutFile pluginval.zip
+          Invoke-WebRequest $env:PLUGINVAL/pluginval_Windows.zip -OutFile pluginval.zip
           Expand-Archive pluginval.zip -DestinationPath pluginval
           $failed = 0
           foreach ($line in Get-Content packaging/plugins.txt) {
@@ -83,6 +88,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: "Configure (universal: Apple Silicon + Intel)"
         run: cmake -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
@@ -114,7 +121,7 @@ jobs:
           mkdir -p ~/Library/Audio/Plug-Ins/Components
           cp -R stage/au/* ~/Library/Audio/Plug-Ins/Components/
           killall -9 AudioComponentRegistrar || true
-          curl -sL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip
+          curl -sL -o pluginval.zip $PLUGINVAL/pluginval_macOS.zip
           unzip -q pluginval.zip
           P=pluginval.app/Contents/MacOS/pluginval
           grep -v '^#' packaging/plugins.txt | grep -v '^\s*$' | while IFS='|' read -r t p code; do
@@ -151,6 +158,8 @@ jobs:
     runs-on: ubuntu-22.04   # the oldest glibc we support (2.35), so the build runs on newer systems too
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Dependencies
         run: |
@@ -171,7 +180,7 @@ jobs:
       - name: Validate every VST3 (pluginval, strictest level)
         run: |
           set -e
-          curl -sL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Linux.zip
+          curl -sL -o pluginval.zip $PLUGINVAL/pluginval_Linux.zip
           unzip -q pluginval.zip
           grep -v '^#' packaging/plugins.txt | grep -v '^\s*$' | while IFS='|' read -r t p code; do
             xvfb-run -a ./pluginval --strictness-level 10 --skip-gui-tests --timeout-ms 900000 --validate "build/plugins/$t/${t}_artefacts/Release/VST3/$p.vst3"
@@ -202,8 +211,12 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [windows, macos, linux]
     runs-on: ubuntu-24.04   # pinned: ubuntu-latest moves to 26.04 during 2026-10/11
+    permissions:
+      contents: write   # only this job publishes
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333   # v8.0.2
         with:
           path: artifacts
