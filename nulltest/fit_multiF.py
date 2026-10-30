@@ -1,12 +1,12 @@
 """WBass: joint time-domain fit of wbass_model.generated7 over the fitting sets at Freq 40/80/160/256
 (wbass_fitdata.py); writes build/multiF.json, the constants used in plugins/WBass/WBassDsp.h."""
-import sys, json; sys.path.insert(0, r"C:/Users/wint1/Downloads/REA/Wavy/nulltest")
+import sys, json, os; HERE=os.path.dirname(os.path.abspath(__file__)); ROOT=os.path.dirname(HERE); sys.path.insert(0, HERE)
 import numpy as np, wbass_model as M
 from scipy.optimize import least_squares
 FS=48000
 sets=[]
 for F in (40,80,160,256):
-    d=np.load(r"C:/Users/wint1/Downloads/REA/Wavy/measurements/rbass/fitdata_%d.npz" % F)
+    d=np.load(os.path.join(ROOT, "measurements/rbass/fitdata_%d.npz" % F))
     for n in d.files:
         if n.startswith("gen_"): sets.append((F,d["x_"+n[4:]].astype(np.float64),d[n],n[4:]))
 sl=slice(FS//10,None)
@@ -25,7 +25,7 @@ def resid(v):
 v0=np.array([base[k] if k in lin else np.log(abs(base[k])) for k in keys])
 lo=np.array([-0.5 if k in ("s1","s2") else 0.0 if k=="alpha" else -15 for k in keys]); hi=np.array([1.5 if k in ("s1","s2") else 1.0 if k=="alpha" else 8 for k in keys])
 r=least_squares(resid,np.clip(v0,lo+1e-6,hi-1e-6),bounds=(lo,hi),diff_step=1e-3,max_nfev=80)
-P=mk(r.x); json.dump(P,open(r"C:/Users/wint1/Downloads/REA/Wavy/build/multiF.json","w"))
+P=mk(r.x); json.dump(P,open(os.path.join(ROOT, "build/multiF.json"),"w"))
 print({k:round(P[k],6) for k in keys})
 for F in (40,80,160,256):
     v=[10*np.log10(np.sum((g[sl]-M.generated7(x,F,P)[sl])**2)/np.sum(g[sl]**2)) for FF,x,g,n in sets if FF==F]

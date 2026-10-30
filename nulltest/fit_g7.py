@@ -1,15 +1,15 @@
 """WBass: joint fit of the gain-control model (wbass_model.generated7) on step trajectories, steady-state harmonics
 and Decay-0 step renders at Freq 80. Usage: python fit_g7.py generated7 <place> <keys json> <x0 json> <lo json> <hi json>"""
-import sys, json; sys.path.insert(0, r"C:/Users/wint1/Downloads/REA/Wavy/nulltest")
+import sys, json, os; HERE=os.path.dirname(os.path.abspath(__file__)); ROOT=os.path.dirname(HERE); sys.path.insert(0, HERE)
 import numpy as np, wbass_model as M
 from scipy.signal import sosfilt, hilbert
 from scipy.optimize import least_squares
 FS=48000; F=80.0
 fname=sys.argv[1]; place=sys.argv[2]; fn=getattr(M,fname)
-dyn=json.load(open(r"C:/Users/wint1/Downloads/REA/Wavy/measurements/rbass/dyn_env70.json"))
-raw=json.load(open(r"C:/Users/wint1/Downloads/REA/Wavy/measurements/rbass/raw_decay0.json"))
-lev=json.load(open(r"C:/Users/wint1/Downloads/REA/Wavy/measurements/rbass/levels_decay0.json"))
-st=np.load(r"C:/Users/wint1/Downloads/REA/Wavy/measurements/rbass/steps_80.npz")
+dyn=json.load(open(os.path.join(ROOT, "measurements/rbass/dyn_env70.json")))
+raw=json.load(open(os.path.join(ROOT, "measurements/rbass/raw_decay0.json")))
+lev=json.load(open(os.path.join(ROOT, "measurements/rbass/levels_decay0.json")))
+st=np.load(os.path.join(ROOT, "measurements/rbass/steps_80.npz"))
 harm=[(L,f0,np.array([complex(*v) for v in c])) for L,f0,c in raw if f0 in (10,15,22,33,48,64,80)]
 harm+=[(L,float(f0s),np.array([complex(*v) for v in c])) for f0s,rows in lev.items() for L,c in rows if L in (-60,-36,-12,0)]
 steps=[(st["x_%s_0" % f].astype(np.float64),st["gen_%s_0" % f]) for f in ("30","55","90")]
@@ -44,7 +44,7 @@ def err(v,show=False):
     return np.array(e)
 r=least_squares(err,X0,bounds=(LO,HI),x_scale=np.abs(np.array(X0))+1e-3,diff_step=1e-3,max_nfev=150)
 P=mk(r.x); print(fname,place,"cost %.1f" % r.cost,{k:round(x,6) for k,x in zip(KEYS,r.x)})
-json.dump(P,open(r"C:/Users/wint1/Downloads/REA/Wavy/build/fit_%s_%s.json" % (fname,place),"w"))
+json.dump(P,open(os.path.join(ROOT, "build/fit_%s_%s.json" % (fname,place)),"w"))
 for x,g in steps:
     m=fn(x,F,P); sl=slice(FS//20,None); print("  step residual %.1f dB" % (10*np.log10(np.sum((g[sl]-m[sl])**2)/np.sum(g[sl]**2))))
 for L,f0,c in harm[:14]:
