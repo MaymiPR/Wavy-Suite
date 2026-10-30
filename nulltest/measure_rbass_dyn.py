@@ -1,6 +1,8 @@
 """WBass: gain trajectory of the reference through level steps of a 70 Hz tone (Decay 0), as the ratio of Hilbert
 envelopes of the generated part and of the filtered input; writes measurements/rbass/dyn_env70.json."""
-import sys, json; sys.path.insert(0, r"C:/Users/wint1/Downloads/REA/Wavy/nulltest")
+import os
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))     # (the repository)
+import sys, json; sys.path.insert(0, ROOT + r"/nulltest")
 import numpy as np, refhost as R, wbass_model as M
 from scipy.signal import sosfilt, hilbert
 FS=48000; F=80.0
@@ -20,4 +22,4 @@ for f0 in (70.0,):
         i1=int(0.3*FS); i2=int(0.9*FS)
         def at(ms,base): return 20*np.log10(cs[base+int(ms*48)])
         print("%-14s gain dB after step: " % key+" ".join("%dms %.1f" % (ms,at(ms,i1)) for ms in (2,5,10,20,40,80,200,500)),"| after 2nd step: "+" ".join("%dms %.1f" % (ms,at(ms,i2)) for ms in (2,5,10,20,40,80,200,500)) if L1 is not None else "",flush=True)
-json.dump(out,open(r"C:/Users/wint1/Downloads/REA/Wavy/measurements/rbass/dyn_env70.json","w"))
+json.dump(out,open(ROOT + r"/measurements/rbass/dyn_env70.json","w"))

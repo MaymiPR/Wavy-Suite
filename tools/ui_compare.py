@@ -1,10 +1,12 @@
 """Private UI check: compares a WVoxSnapshot PNG with the reference skin composed from the
 local Waves install (extracted into reference/, which is git-ignored). Usage: ui_compare.py ours.png out.png"""
+import os
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))     # (the repository)
 import sys
 from PIL import Image, ImageChops
-R = r'C:\Users\wint1\Downloads\REA\Wavy\reference\rvox_png\PNG_'
-base = Image.open(R + r'\15002.png').convert('RGBA')
-def put(n, x, y): base.alpha_composite(Image.open(f'{R}\{n}.png').convert('RGBA'), (x, y))
+R = os.path.join(ROOT, 'reference', 'rvox_png', 'PNG_')
+base = Image.open(os.path.join(R, '15002.png')).convert('RGBA')
+def put(n, x, y): base.alpha_composite(Image.open(os.path.join(R, f'{n}.png')).convert('RGBA'), (x, y))
 put(11012, 135, 99)                    # comp thumb at 0 dB
 put(280, 41, 105 + 195 - 41)           # gate at -80
 put(280, 297, 105)                     # gain at 0
