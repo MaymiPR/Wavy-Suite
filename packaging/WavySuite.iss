@@ -41,6 +41,7 @@ Name: "custom"; Description: "Choose plugins and formats"; Flags: iscustom
 
 [Files]
 Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
+Source: "THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Uninstall Wavy Suite"; Filename: "{uninstallexe}"

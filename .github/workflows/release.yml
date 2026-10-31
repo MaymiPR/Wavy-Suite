@@ -152,7 +152,7 @@ jobs:
           pkgbuild --root stage/au   --component-plist pkg/au.plist   --install-location "/Library/Audio/Plug-Ins/Components"       --identifier com.wavysuite.au   --version "$V" pkg/WavySuite-AU.pkg
           pkgbuild --root stage/vst3 --component-plist pkg/vst3.plist --install-location "/Library/Audio/Plug-Ins/VST3/Wavy Suite" --identifier com.wavysuite.vst3 --version "$V" pkg/WavySuite-VST3.pkg
           pkgbuild --root stage/clap --component-plist pkg/clap.plist --install-location "/Library/Audio/Plug-Ins/CLAP/Wavy Suite" --identifier com.wavysuite.clap --version "$V" pkg/WavySuite-CLAP.pkg
-          cp LICENSE pkg/res/LICENSE.txt
+          cat LICENSE packaging/THIRD-PARTY-NOTICES.txt > pkg/res/LICENSE.txt   # the installer's license page
           sed "s/VERSION/$V/g" packaging/distribution.xml > pkg/distribution.xml
           productbuild --distribution pkg/distribution.xml --package-path pkg --resources pkg/res "dist/WavySuite-$V-macOS.pkg"
           pkgutil --payload-files "dist/WavySuite-$V-macOS.pkg" | head -20
@@ -215,6 +215,7 @@ jobs:
           cp packaging/install-linux.sh "$D/" && chmod +x "$D/install-linux.sh"
           cp packaging/INSTALL-Linux.txt "$D/INSTALL.txt"
           cp LICENSE "$D/LICENSE.txt"
+          cp packaging/THIRD-PARTY-NOTICES.txt "$D/"
           tar -czf "dist/$D.tar.gz" "$D"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
