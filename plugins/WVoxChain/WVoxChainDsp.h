@@ -232,21 +232,43 @@ private:
 };
 
 // the doubler (Pitch), as measured: Waves Doubler's two voices per colour, the left one on the left input, the right
-// on the right, each a delay swung by a slow cosine (the preset's LFO rate / 2: 0.15 .. 0.3 Hz), the preset's shelves
-// (Stereo, Wide: -8.6 dB under 400 Hz, +4.5 dB over 4 kHz; Spreader none) and the measured wet level. Its LFOs run
-// from the plug-in's start, so in a session they cannot line up with the reference's.
+// on the right. Stereo (MEASUREMENTS.md, the doubler's third pass): each voice a linearly interpolated read of the
+// send whose speed swings as a triangle (+-7 cents, 0.2 / 0.3 Hz, from the plug-in's start) with a small steady drift,
+// the delay one sample longer from the first whole-sample crossing after each turn down until the same after each turn
+// up; then a 200 Hz low shelf (-8.6 dB) and a 5.54 kHz high shelf (+4.5 dB), -10 dB at fader 0. Spreader: the same read
+// head (+-15 cents, 0.15 Hz) kept within 64 .. 576 samples by crossfading to a tap 256 samples nearer the middle (the
+// reference picks its splice points from the signal; ours are where the clicks show them). Wide (not measured in detail
+// yet): a delay swung by a slow cosine, the old shelves and the measured wet level. The LFOs run from the plug-in's
+// start (prepare or reset).
 class Doubler
 {
 public:
-    void prepare (double fs);
+    void prepare (double fs, int chainLatency);
+    void reset();
     void process (const float* inL, const float* inR, float* outL, float* outR, int n, int colour, float gain);
 
 private:
+    double clockOffset = 0.0;
+    // a measured voice's state: the last delay, its direction, the extra sample and the pending turn; the pitch
+    // shifter's tap offset, the next one while they crossfade and how far the crossfade is (-1: none)
+    struct TriState
+    {
+        double last = 0.0;
+        bool down = false, armed = false;
+        double armFloor = 0.0;
+        int extra = 0;
+        double offset = 0.0, next = 0.0;
+        int fade = -1;
+    };
+    double triDelay (int colour, int voice, double n) const;           // the smooth delay (samples) at sample n
+    void resetVoices (int colour);
+    int voicesFor = -1;
     double fs = 48000.0, t = 0.0;
     std::vector<float> lineL, lineR;
     int pos = 0, running = 1;
     std::array<Biquad, 2> shelves;
     int shelvesFor = -1;
+    std::array<TriState, 2> tri;
 };
 
 class Chain

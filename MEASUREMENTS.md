@@ -1984,3 +1984,37 @@ off in both, since two noise sources cannot null; a held-out vocal at −16 dBFS
   mostly noise and bursts, +0.6 … +1.1 dB mean). On the held-out vocal through the whole chain Wall's presets got
   slightly worse (06 −21.2 → −20.4, 12 −25.4 → −24.9), so neither is in the plug-in. What is missing is structural:
   the L1 and the 1176's detectors and how they read a dense signal against a sine.
+
+## WVox Chain: Phase 4, the doubler's third pass, 2026-10-31
+
+`nulltest/fit_voxchain_doubler2.py`: click trains through the reference's Pitch stage alone (fader +10, every other
+colour clear, the output less the output with Pitch clear), the clicks' send response (the fixed filter) divided out.
+
+- **A voice is one moving read head, linearly interpolated.** Each click comes back as one tap: two neighbouring
+  samples sharing it, then a tail common to every click. A shared response plus a per-click delay with linear
+  interpolation (alternating least squares, `track`) leaves −51 dB median per click. The second pass's "uncorrelated
+  as a grain shifter would be" was the delay curve's shape, not grains.
+- **The speed swings as a triangle, not a cosine.** The delay's second difference is constant within each half of the
+  LFO and flips sign at its peaks, so the delay is a chain of parabolas; a cosine misses it by up to ±5 samples, which
+  on broadband material leaves no correlation. Stereo: ±7 cents (0.0040434 in natural-log units) at 0.19988 and
+  0.29992 Hz, starting at 0 and rising; the LFO's clock leads the aligned output by about 130 samples at 48 kHz (both
+  voices' phase); start delays 359.01 and 719.01 samples; a steady drift of −8.15e-6 samples per sample, the same on
+  both voices (−0.39 samples a second; 60 s of clicks follow it to 0.01 samples rms, with no reset).
+- **One-sample steps.** Just after each delay maximum the delay jumps +1 sample, just after each minimum −1: from the
+  first whole-sample crossing after a turn down, one sample longer, until the first crossing after the next turn up.
+  With them (`tri`) the Stereo delay tracks fit to 0.007 samples rms.
+- **Stereo's response**: an RBJ low shelf 200.47 Hz, Q 0.500, −8.61 dB and a high shelf 5539 Hz, Q 0.500, +4.50 dB
+  (−81 dB from the measured response); −10.0 dB at fader 0 (1.2 dB per step, as before).
+- **In the plug-in**: Stereo's wet output nulls −45 / −48 dB (L / R) on a held-out vocal at every fader, the whole output
+  −59 dB at fader 0; white noise −31 / −29 dB (the one-sample steps' timing near a turn is the limit). Before: no
+  correlation.
+- **Spreader is a pitch shifter** (`stagger`, `grains`: twelve click trains 100 samples apart): ±15 cents at 0.1501 Hz,
+  the two voices opposite, a drift of about −4e-5 samples per sample, both voices starting at 320 samples. When a voice's
+  delay leaves 64 … 576 samples (320 ± 256), a tap 256 samples nearer the middle fades in linearly over 256 samples as
+  the old one fades out (simultaneous at the output). On clicks our model follows the reference to 0.05 samples through
+  its jumps, but on noise and vocals the two part at the first jump: the reference picks its splice points from the
+  signal (inferred: sparse clicks show the default step, dense material does not). Not matched yet; in the plug-in the
+  window, swing, rate and crossfade are the measured ones.
+- **Wide** (clicks 75 ms apart): the same shelves as Stereo and a pitch shifter jumping by about 346 samples, but its
+  left output also carries a tap near the right voice's delay (about 1,893 samples), with up to three taps at once. Not
+  modelled yet; the plug-in keeps the second pass's voices for it.

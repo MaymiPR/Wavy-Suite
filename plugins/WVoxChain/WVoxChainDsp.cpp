@@ -414,26 +414,94 @@ constexpr DoublerColour doublerColours[4] = {
     { { { 10.065, 2.616, 0.1998, 3.202, 0.2655 }, { 16.717, 1.742, 0.3, 3.216, 0.2650 } }, true },   // Stereo ("Tight")
     { { { 6.00, 2.17, 0.2, 2.34, 0.2651 }, { 35.26, 4.26, 0.3035, 6.13, 0.2660 } }, true },          // Wide ("Medium")
     { { { 8.35, 3.07, 0.15, 5.17, 0.2668 }, { 6.33, 3.01, 0.15, 1.33, 0.2890 } }, false } };         // Spreader ("Wide")
+
+// the measured voices (fitted on click trains through the reference at 48 kHz, nulltest/fit_voxchain_doubler2.py), per
+// colour (Stereo, Spreader; Wide not yet): the delay at the start (samples at 48 kHz), the speed's swing (a triangle
+// starting at 0 and rising, in natural-log units: Stereo 7 cents, Spreader 15), its rate (Hz), the delay's steady drift
+// (samples per sample), the LFO clock's lead over the aligned output (samples at 48 kHz); then the pitch shifter's
+// window: when the delay leaves [low, high] a tap step samples nearer the middle fades in as the old one fades out, both
+// linearly over fade samples (Stereo's never leaves it). The gain at fader 0 and whether the shelves are on.
+struct TriVoice { double d0, swing, f, drift, lead; };
+struct MeasuredColour { TriVoice v[2]; double low, high, step, fade, gain; bool measured; };
+constexpr MeasuredColour measuredColours[4] = {
+    {},
+    { { { 359.0128, 0.0040442, 0.199880, -8.1534e-6, 130.0 }, { 719.0065, 0.0040433, 0.2999246, -8.1531e-6, 130.0 } },
+      -1.0e9, 1.0e9, 0.0, 1.0, 0.31615, true },                                                    // Stereo
+    {},                                                                                               // (Wide: the old model)
+    { { { 319.776, -0.008667, 0.150057, -4.0e-5, 61.2 }, { 320.243, 0.008666, 0.150070, -3.5e-5, 52.4 } },
+      64.0, 576.0, 256.0, 256.0, 0.31489, true } };                                                  // Spreader
+constexpr bool spreaderExtraSample = false;                              // (the one-sample steps: Stereo's; Spreader's unknown)
+
+// the integral of a unit triangle (0 at u = 0, rising to 1 at u = 1/4, period 1) from 0 to u
+double integralTri (double u)
+{
+    const double r = u - std::floor (u);
+    if (r < 0.25) return 2.0 * r * r;
+    if (r < 0.75) return 0.125 + 2.0 * (r - 0.25) - 2.0 * (r * r - 0.0625);
+    return 0.125 + 2.0 * (r * r - 0.5625) - 4.0 * (r - 0.75);
+}
 }
 
-void Doubler::prepare (double sampleRate)
+double Doubler::triDelay (int colour, int voice, double n) const
+{
+    // (the fit's clock counts the aligned output plus the LFO's lead: the doubler's own samples less the chain's
+    // latency, plus that; the start delay is the delay where that clock is 0)
+    const auto& v = measuredColours[colour].v[voice];
+    const double k = fs / 48000.0, lead = v.lead * k;
+    n -= clockOffset;
+    return v.d0 * k + v.swing * fs / v.f * (integralTri (v.f * (n + lead) / fs) - integralTri (v.f * lead / fs)) + v.drift * n;
+}
+
+void Doubler::reset()
+{
+    t = 0.0;
+    resetVoices (running);
+    std::fill (lineL.begin(), lineL.end(), 0.0f); std::fill (lineR.begin(), lineR.end(), 0.0f);
+    for (auto& b : shelves) b.reset();
+}
+
+void Doubler::resetVoices (int colour)
+{
+    voicesFor = colour;
+    if (! measuredColours[colour].measured) return;
+    for (int k = 0; k < 2; ++k)
+    {
+        auto& st = tri[(size_t) k];
+        st = {};
+        st.last = triDelay (colour, k, t - 1.0);
+        st.down = triDelay (colour, k, t) < st.last;
+    }
+}
+
+void Doubler::prepare (double sampleRate, int chainLatency)
 {
     fs = sampleRate;
+    clockOffset = chainLatency;
     lineL.assign ((size_t) (fs * 0.1) + 8, 0.0f); lineR.assign (lineL.size(), 0.0f);
-    pos = 0; t = 0.0; running = 1; shelvesFor = -1;
-    for (auto& b : shelves) b.reset();
+    pos = 0; running = 1; shelvesFor = -1;
+    reset();
 }
 
 void Doubler::process (const float* inL, const float* inR, float* outL, float* outR, int n, int colour, float gain)
 {
     if (colour > 0) running = colour;
     const auto& dc = doublerColours[running];
+    const auto& mc = measuredColours[running];
+    if (voicesFor != running) resetVoices (running);
     if (shelvesFor != running)
     {
         shelvesFor = running;
         double c[5];
-        rbj (eq::lowShelf, 400.0, 0.7071, -8.6, fs, c); shelves[0].set (c);
-        rbj (eq::highShelf, 4000.0, 0.7071, 4.5, fs, c); shelves[1].set (c);
+        if (mc.measured)
+        {
+            rbj (eq::lowShelf, 200.4691, 0.4996, -8.6057, fs, c); shelves[0].set (c);
+            rbj (eq::highShelf, 5539.4842, 0.5003, 4.4971, fs, c); shelves[1].set (c);
+        }
+        else
+        {
+            rbj (eq::lowShelf, 400.0, 0.7071, -8.6, fs, c); shelves[0].set (c);
+            rbj (eq::highShelf, 4000.0, 0.7071, 4.5, fs, c); shelves[1].set (c);
+        }
     }
     const int len = (int) lineL.size();
     const double g = colour > 0 ? gain : 0.0;
@@ -452,8 +520,45 @@ void Doubler::process (const float* inL, const float* inR, float* outL, float* o
         double v[2];
         for (int k = 0; k < 2; ++k)
         {
-            const double dms = dc.v[k].centre + dc.v[k].amp * std::cos (2.0 * juce::MathConstants<double>::pi * dc.v[k].f * ts + dc.v[k].phase);
-            v[k] = dc.v[k].gain * read (k == 0 ? lineL : lineR, pos, juce::jlimit (1.0, (double) len - 4.0, dms * fs / 1000.0));
+            const auto& line = k == 0 ? lineL : lineR;
+            if (mc.measured)
+            {
+                // the smooth delay, then the reference's extra sample: from the first whole-sample crossing after a
+                // turn down until the first after the next turn up (the click trains' one-sample steps)
+                auto& st = tri[(size_t) k];
+                const double d = triDelay (running, k, t);
+                const bool down = d < st.last;
+                if (down != st.down) { st.down = down; st.armed = true; st.armFloor = std::floor (st.last); }
+                if (st.armed && std::floor (d) != st.armFloor) { st.extra = st.down && (running == 1 || spreaderExtraSample) ? 1 : 0; st.armed = false; }
+                st.last = d;
+                const double fsk = fs / 48000.0;
+                auto tap = [&] (double offset)                                  // a linear read offset + d (+ 1) samples back
+                {
+                    const double e = juce::jlimit (1.0, (double) len - 4.0, offset + d + st.extra);
+                    const int i0 = (int) e; const double fr = e - i0;
+                    return (1.0 - fr) * line[(size_t) ((pos - i0 + 2 * len) % len)] + fr * line[(size_t) ((pos - i0 - 1 + 2 * len) % len)];
+                };
+                // the pitch shifter's window: a tap leaving it starts a crossfade to one a step nearer the middle
+                const double cur = st.offset + d;
+                if (st.fade < 0 && (cur < mc.low * fsk || cur > mc.high * fsk))
+                {
+                    st.next = st.offset + (cur < mc.low * fsk ? mc.step : -mc.step) * fsk;
+                    st.fade = 0;
+                }
+                double y = tap (st.offset);
+                if (st.fade >= 0)
+                {
+                    const double x = (st.fade + 1) / (mc.fade * fsk);
+                    y = (1.0 - x) * y + x * tap (st.next);
+                    if (++st.fade >= (int) std::lround (mc.fade * fsk)) { st.offset = st.next; st.fade = -1; }
+                }
+                v[k] = mc.gain * y;
+            }
+            else
+            {
+                const double dms = dc.v[k].centre + dc.v[k].amp * std::cos (2.0 * juce::MathConstants<double>::pi * dc.v[k].f * ts + dc.v[k].phase);
+                v[k] = dc.v[k].gain * read (line, pos, juce::jlimit (1.0, (double) len - 4.0, dms * fs / 1000.0));
+            }
             if (dc.shelves) { v[k] = shelves[0].run (v[k], k); v[k] = shelves[1].run (v[k], k); }
         }
         pos = (pos + 1) % len;
@@ -495,7 +600,7 @@ void Chain::prepare (double sampleRate, int maxBlock)
         rbj (eq::highShelf, 1929.09, 0.7071, 0.3470, fs, c); delayFix[2].set (c);
         for (auto& f : delayFix) f.reset();
     }
-    doubler.prepare (fs);
+    doubler.prepare (fs, latency);
     for (auto* bf : { &tap, &send, &wet, &wet2, &wet3 }) bf->setSize (2, jmax (1, maxBlock));
     levelCoef = std::exp (-1.0 / (0.010 * fs));
     level = 0.0;
@@ -512,6 +617,7 @@ void Chain::reset()
     reverbDeesser.reset();
     for (auto& f : delayFix) f.reset();
     reverb.reset();
+    doubler.reset();
 }
 
 void Chain::process (float* l, float* r, int n, const Params& p)
