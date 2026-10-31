@@ -143,7 +143,7 @@ void WCompEditor::tick()
     showMeter();
 
     const double lit = lamp.step (dt);
-    if (std::abs (lit - lampLevel) > 0.004 || (lit == 0.0) != (lampLevel == 0.0))
+    if (std::abs (lit - lampLevel) > 0.004 || juce::exactlyEqual (lit, 0.0) != juce::exactlyEqual (lampLevel, 0.0))
     {
         lampLevel = lit;
         content().repaint (Rectangle<float> (kLimLamp.x - 12.0f, kLimLamp.y - 12.0f, 24.0f, 24.0f).toNearestInt());

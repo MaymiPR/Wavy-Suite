@@ -29,7 +29,7 @@ inline void wavesWheel (juce::Slider& s, const juce::MouseEvent& e, const juce::
     }
     else v = s.proportionOfLengthToValue (juce::jlimit (0.0, 1.0, s.valueToProportionOfLength (v) + notches * scale / 72.0));
     v = juce::jlimit (s.getMinimum(), s.getMaximum(), v);
-    if (v == s.getValue()) return;
+    if (juce::exactlyEqual (v, s.getValue())) return;
     juce::Slider::ScopedDragNotification drag (s);
     s.setValue (v, juce::sendNotificationSync);
 }

@@ -26,6 +26,7 @@
 //     constant: measured with loud 1 kHz tones, where nothing is generated).
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <vector>
 #include "WBassGainNet.h"
 
@@ -160,7 +161,7 @@ public:
     }
 
     // parameters (call from the audio thread before process)
-    void setFreq (double hz) { if (hz != freq) { freq = hz; designFor (freq); } }
+    void setFreq (double hz) { if (! std::equal_to<>() (hz, freq)) { freq = hz; designFor (freq); } }
     void setIntensityDb (double db) { intensity = std::pow (10.0, db / 20.0); }
     void setOriginalBass (bool in) { origIn = in; }
     void setGainDb (double db) { gainTarget = std::pow (10.0, db / 20.0); }
@@ -207,12 +208,12 @@ public:
             else
             {
                 const double d = detLp2.run (detLp1.run (xm));
-                const double r = t.kr == 1.0 ? std::abs (d) : std::pow (std::abs (d), t.kr);
+                const double r = std::equal_to<>() (t.kr, 1.0) ? std::abs (d) : std::pow (std::abs (d), t.kr);
                 const double k1 = r > e1 ? a1a : a1;
                 e1 = k1 * e1 + (1.0 - k1) * r;
                 const double k2c = e1 > e2 ? a2a : a2;
                 e2 = k2c * e2 + (1.0 - k2c) * e1;
-                const double level = t.kr == 1.0 ? e2 : std::pow (e2, 1.0 / t.kr);
+                const double level = std::equal_to<>() (t.kr, 1.0) ? e2 : std::pow (e2, 1.0 / t.kr);
                 const double al = std::abs (l);
                 const double kl = al > eL ? aLa : aLr;
                 eL = kl * eL + (1.0 - kl) * al;

@@ -12,7 +12,6 @@ constexpr float kGraphDbTop = 118.0f, kPxPerDb = 40.0f / 6.0f;            // 0 d
 constexpr float kMeterTop = 119.0f, kMeterBottom = 283.0f;                 // 0 .. -40 dB
 const float kTicks[] = { 12.0f, 6.0f, 0.0f, -6.0f, -12.0f, -24.0f, -100.0f };
 
-float graphX (float f) { return 4.0f + 88.0f * std::log2 (f / 16.0f); }    // 16 Hz .. ~1 kHz, 88 px per octave
 float graphY (float db) { return kGraphDbTop - db * kPxPerDb; }
 }
 

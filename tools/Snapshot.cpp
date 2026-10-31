@@ -19,7 +19,7 @@ int main (int argc, char** argv)
                 if (r->getParameterID() == a.upToFirstOccurrenceOf ("=", false, false))
                     r->setValueNotifyingHost (r->convertTo0to1 (a.fromFirstOccurrenceOf ("=", false, false).getFloatValue()));
     }
-    auto* ed = proc->createEditorIfNeeded();          // owned by us; its destructor detaches it from the processor
+    auto* ed = proc->createEditorAndMakeActive();          // owned by us; its destructor detaches it from the processor
     if (juce::String (argc > 2 ? argv[argc - 1] : "") == "--bench")   // each visible slider: the time to repaint it as it turns
     {
         std::function<void (juce::Component&)> visit = [&] (juce::Component& c)

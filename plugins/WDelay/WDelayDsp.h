@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <functional>
 #include <vector>
 
 namespace wdelay::dsp
@@ -86,7 +87,7 @@ public:
     void set (bool hp, double f0, double q, double fs)
     {
         on = f0 > 0.0;
-        if (! on || (f0 == freq && hp == high && fs == rate)) return;
+        if (! on || (std::equal_to<>() (f0, freq) && hp == high && std::equal_to<>() (fs, rate))) return;
         freq = f0; high = hp; rate = fs;
         // the reference's frequency is warped: w0 = 2 atan (pi f / fs), i.e. a cutoff of (fs / pi) atan (pi f / fs)
         // (LoPass 4000 at 3912 Hz, 15000 at 11 859 Hz at 48 kHz; measured)
@@ -194,7 +195,7 @@ public:
                 // the read: the taps round ceil (d), one phase past the delay
                 const double fl = std::floor (l.d);
                 int centre, u;
-                if (l.d == fl) { centre = (int) fl; u = k.phases + 1; }
+                if (std::equal_to<>() (l.d, fl)) { centre = (int) fl; u = k.phases + 1; }
                 else { centre = (int) fl + 1; u = (int) std::floor ((l.d - fl) * (double) k.phases) + 1; }
                 const float* h = k.offset (u);
                 float acc = 0.0f;

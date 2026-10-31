@@ -272,7 +272,7 @@ void WDelayEditor::tick()
     // the clip light: lit at 0 dBFS (the reference's ClipLevel 0.999999), held a moment
     clipAge = jmax (l, r) >= -8.7e-6f ? 0.0 : clipAge + dt;
     const double lit = clipAge < 1.0 ? 1.0 : 0.0;
-    if (lit != clipLevel)
+    if (! juce::exactlyEqual (lit, clipLevel))
     {
         clipLevel = lit;
         content().repaint (Rectangle<float> (24.0f, 24.0f).withCentre (kClipLamp).toNearestInt());
@@ -330,7 +330,7 @@ void WDelayEditor::Display::paint (Graphics& g)
     g.fillRoundedRectangle (win.reduced (1.0f).withTrimmedTop (1.0f), 4.0f);
     const float scale = jlimit (0.5f, 4.0f, std::round (g.getInternalContext().getPhysicalPixelScaleFactor() * 4.0f) / 4.0f);
     const Rectangle<float> pane (294.0f, 68.0f, 135.0f, 70.0f);
-    if (glass.isNull() || glassScale != scale)
+    if (glass.isNull() || ! juce::exactlyEqual (glassScale, scale))
     {
         static const uint8 grid[12][23] = {
             { 63, 65, 69, 73, 84, 88, 88, 92, 97, 86, 81, 83, 82, 79, 76, 74, 70, 68, 66, 64, 60, 57, 56 },
@@ -670,7 +670,7 @@ void WDelayEditor::TapPad::paint (Graphics& g)
     // pressed); selected (after a click, until another control is): a yellow line just outside the pad
     const float scale = jlimit (0.5f, 4.0f, std::round (g.getInternalContext().getPhysicalPixelScaleFactor() * 4.0f) / 4.0f);
     const auto area = getBounds().toFloat();                                       // design coordinates
-    if (imgScale != scale)
+    if (! juce::exactlyEqual (imgScale, scale))
     {
         imgScale = scale;
         up = renderTap (false, scale, area);
@@ -787,7 +787,7 @@ void WDelayEditor::LinkWheel::move (float d)
     auto* lp = ed.proc.apvts.getParameter (wdelay::lopass);
     const float a = hp->getValue(), b = lp->getValue();
     d = jlimit (-jmin (a, b), 1.0f - jmax (a, b), d);
-    if (d == 0.0f) return;
+    if (juce::exactlyEqual (d, 0.0f)) return;
     hp->setValueNotifyingHost (a + d);
     lp->setValueNotifyingHost (b + d);
     turn += d * 12.0f;
@@ -884,7 +884,7 @@ Image renderMeterHousing (float scale, Rectangle<float> area)
 void WDelayEditor::Meter::paint (Graphics& g)
 {
     const float scale = jlimit (0.5f, 4.0f, std::round (g.getInternalContext().getPhysicalPixelScaleFactor() * 4.0f) / 4.0f);
-    if (housingScale != scale) { housingScale = scale; housing = renderMeterHousing (scale, kMeterFrame); }
+    if (! juce::exactlyEqual (housingScale, scale)) { housingScale = scale; housing = renderMeterHousing (scale, kMeterFrame); }
     g.drawImageTransformed (housing, AffineTransform::scale (1.0f / scale));
     // a red triangle per channel pointing inward (measured at rest: 608 .. 618 x 239 .. 246, its point 1 px below the
     // scale's -inf; the body red to a darker red, a pink lip along its top edge, a thin shadow under it)

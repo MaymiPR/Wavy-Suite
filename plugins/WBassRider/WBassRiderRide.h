@@ -185,29 +185,29 @@ private:
         double process (double x) { const double y = b0 * x + z1; z1 = b1 * x - a1 * y + z2; z2 = b2 * x - a2 * y; return y; }
         void clear() { z1 = z2 = 0.0; }
         void set (double c0, double c1, double c2, double d0, double d1, double d2) { b0 = c0 / d0; b1 = c1 / d0; b2 = c2 / d0; a1 = d1 / d0; a2 = d2 / d0; }
-        void lowShelf (double fs, double fc, double gdb, double q)
+        void lowShelf (double rate, double fc, double gdb, double q)
         {
-            const double A = std::pow (10.0, gdb / 40.0), w0 = 2.0 * 3.141592653589793 * fc / fs, c = std::cos (w0), al = std::sin (w0) / (2.0 * q), sa = 2.0 * std::sqrt (A) * al;
+            const double A = std::pow (10.0, gdb / 40.0), w0 = 2.0 * 3.141592653589793 * fc / rate, c = std::cos (w0), al = std::sin (w0) / (2.0 * q), sa = 2.0 * std::sqrt (A) * al;
             set (A * ((A + 1) - (A - 1) * c + sa), 2 * A * ((A - 1) - (A + 1) * c), A * ((A + 1) - (A - 1) * c - sa),
                  (A + 1) + (A - 1) * c + sa, -2 * ((A - 1) + (A + 1) * c), (A + 1) + (A - 1) * c - sa);
         }
         // two identical first-order low shelves, each with half the gain (the hidden HPF 30 Hz / -30 dB, as the reference
         // builds its weighting)
-        void doubleLowShelf (double fs, double fc, double gdb)
+        void doubleLowShelf (double rate, double fc, double gdb)
         {
-            const double g = std::sqrt (std::pow (10.0, 0.5 * gdb / 20.0)), K = std::tan (3.141592653589793 * fc / fs);
-            const double b0 = 1.0 / K + g, b1 = g - 1.0 / K, a0 = 1.0 / K + 1.0 / g, a1 = 1.0 / g - 1.0 / K;
-            const double c0 = b0 / a0, c1 = b1 / a0, d1 = a1 / a0;
+            const double gs = std::sqrt (std::pow (10.0, 0.5 * gdb / 20.0)), K = std::tan (3.141592653589793 * fc / rate);
+            const double n0 = 1.0 / K + gs, n1 = gs - 1.0 / K, m0 = 1.0 / K + 1.0 / gs, m1 = 1.0 / gs - 1.0 / K;
+            const double c0 = n0 / m0, c1 = n1 / m0, d1 = m1 / m0;
             set (c0 * c0, 2.0 * c0 * c1, c1 * c1, 1.0, 2.0 * d1, d1 * d1);
         }
-        void lowPass (double fs, double fc, double q)
+        void lowPass (double rate, double fc, double q)
         {
-            const double w0 = 2.0 * 3.141592653589793 * fc / fs, c = std::cos (w0), al = std::sin (w0) / (2.0 * q);
+            const double w0 = 2.0 * 3.141592653589793 * fc / rate, c = std::cos (w0), al = std::sin (w0) / (2.0 * q);
             set ((1 - c) / 2, 1 - c, (1 - c) / 2, 1 + al, -2 * c, 1 - al);
         }
-        void highPass (double fs, double fc, double q)
+        void highPass (double rate, double fc, double q)
         {
-            const double w0 = 2.0 * 3.141592653589793 * fc / fs, c = std::cos (w0), al = std::sin (w0) / (2.0 * q);
+            const double w0 = 2.0 * 3.141592653589793 * fc / rate, c = std::cos (w0), al = std::sin (w0) / (2.0 * q);
             set ((1 + c) / 2, -(1 + c), (1 + c) / 2, 1 + al, -2 * c, 1 - al);
         }
     };

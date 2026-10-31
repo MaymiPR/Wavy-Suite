@@ -104,16 +104,16 @@ bool LinearDrag::down (Slider& s, const MouseEvent& e)
     return true;
 }
 
-void LinearDrag::drag (Slider& s, const MouseEvent& e, float pxPerUnit, bool vertical)
+void LinearDrag::drag (Slider& s, const MouseEvent& e, float unitPx, bool vert)
 {
     if (! active) return;
     const auto d = e.position - last;
     last = e.position;
     float k = 1.0f;
-    if (wavy::ctrlHeldNow()) k = std::abs (vertical ? d.y : d.x) <= 2.0f ? 0.037f : 0.19f;
+    if (wavy::ctrlHeldNow()) k = std::abs (vert ? d.y : d.x) <= 2.0f ? 0.037f : 0.19f;
     virt += d * k;
-    this->vertical = vertical;
-    this->pxPerUnit = pxPerUnit;
+    vertical = vert;
+    pxPerUnit = unitPx;
     const float moved = vertical ? origin.y - virt.y : virt.x - origin.x;
     s.setValue (jlimit (s.getMinimum(), s.getMaximum(), start + (double) (moved / pxPerUnit)), sendNotificationSync);
 }
@@ -471,18 +471,18 @@ static MouseCursor dragCursor()
 WBassRiderEditor::WBassRiderEditor (WBassRiderProcessor& p)
     : Editor (p, p.apvts, p.undo, p.apvts.getParameter (wbassrider::mode), "WBass Rider", JucePlugin_VersionString, W, H,
               wavy::Toolbar::Style::Renaissance, wbassrider::modeNames()),
+      lasso (make<wavy::flat::LassoOverlay>()),
       proc (p),
       sensitivity (make<Knob>()), spill (make<Knob>()), artifacts (make<Knob>()), responseSwitch (make<Switch>()),
       target (make<TargetSlider>()), rangeMax (make<Fader> (Fader::RangeMax)), rangeMin (make<Fader> (Fader::RangeMin)),
-      output (make<Fader> (Fader::Output)), rider (make<Fader> (Fader::Rider)), idleColumn (make<IdleColumn>()),
-      lasso (make<wavy::flat::LassoOverlay>())
+      output (make<Fader> (Fader::Output)), rider (make<Fader> (Fader::Rider)), idleColumn (make<IdleColumn>())
 {
     setFactoryPresets (wbassrider::factoryPresets());             // Target stays where it is, as in the reference, unless a preset sets it
     marks.blueAlone = { &rider, &idleColumn };
     marks.changed = [this] { content().repaint(); };
-    const auto cursor = dragCursor();
+    const auto dragging = dragCursor();
     for (Component* c : { (Component*) &sensitivity, (Component*) &spill, (Component*) &artifacts, (Component*) &output })
-        c->setMouseCursor (cursor);
+        c->setMouseCursor (dragging);
     marks.enter = [this] (Slider* sl) { openEntry (sl); };
     for (auto* k : { &sensitivity, &spill, &artifacts }) k->marks = &marks;
     for (auto* f : { &rangeMax, &rangeMin, &output, &rider }) f->marks = &marks;
@@ -605,7 +605,7 @@ void WBassRiderEditor::closeEntry (bool apply)
         }
     }
     e->setVisible (false);
-    MessageManager::callAsync ([e = std::shared_ptr<TextEditor> (std::move (e))] {});   // destroyed after its callback returns
+    MessageManager::callAsync ([owned = std::shared_ptr<TextEditor> (std::move (e))] {});   // destroyed after its callback returns
     content().repaint();
 }
 
@@ -816,7 +816,7 @@ void WBassRiderEditor::paintStatic (Graphics& g) const
             for (auto& t : ticks)
                 for (float side : { -1.0f, 1.0f })
                 {
-                    if (t.angle == 0.0f && side > 0.0f) continue;
+                    if (juce::exactlyEqual (t.angle, 0.0f) && side > 0.0f) continue;
                     const float a = degreesToRadians (side * t.angle);
                     const Point<float> c (cx, 111.5f), d (std::sin (a), -std::cos (a));
                     g.setColour (Colour::greyLevel (t.grey / 255.0f));

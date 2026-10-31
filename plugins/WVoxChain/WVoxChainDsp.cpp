@@ -163,7 +163,7 @@ void Compressor::process (float* l, float* r, int n, int colour, float fader)
     const double t = x - k0;
     double p[comptables::nParams];
     // (two steps fitted in different structures, the stages' order or the detector, do not blend: the nearer one)
-    const bool same = c.p[k0][37] == c.p[k0 + 1][37] && c.p[k0][38] == c.p[k0 + 1][38];
+    const bool same = juce::exactlyEqual (c.p[k0][37], c.p[k0 + 1][37]) && juce::exactlyEqual (c.p[k0][38], c.p[k0 + 1][38]);
     for (int k = 0; k < comptables::nParams; ++k)
         p[k] = same ? c.p[k0][k] + (c.p[k0 + 1][k] - c.p[k0][k]) * t : c.p[t < 0.5 ? k0 : k0 + 1][k];
     const bool limFirst = p[37] >= 0.5, feedback = p[38] >= 0.5;

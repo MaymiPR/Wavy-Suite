@@ -364,6 +364,7 @@ Rectangle<float> Fader::capCore() const
         case Rider:    return { b.getX() + 19.0f, b.getY(), 53.0f, 69.0f };
         case Output:   return { b.getX() + 7.0f, b.getY() + 1.0f, 40.0f, 25.0f };
         case RangeMax: return { b.getX() + 15.0f, b.getY() + 1.0f, 39.0f, 25.0f };
+        case RangeMin:
         default:       return { b.getX() + 15.0f, b.getY() + 5.0f, 39.0f, 25.0f };
     }
 }
@@ -698,7 +699,7 @@ void WVoxRiderEditor::closeEntry (bool apply)
         }
     }
     e->setVisible (false);
-    MessageManager::callAsync ([e = std::shared_ptr<TextEditor> (std::move (e))] {});
+    MessageManager::callAsync ([owned = std::shared_ptr<TextEditor> (std::move (e))] {});
     content().repaint();
 }
 

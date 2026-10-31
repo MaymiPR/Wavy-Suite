@@ -219,7 +219,7 @@ wdelay::dsp::Settings WDelayProcessor::settings (double fs) const
     const float hp = get (wdelay::hipass), lp = value (wdelay::lopass, &lpPreset);
     s.hipassHz = hp < wdelay::kHiPassOff ? 0.0f : hp;
     // set from outside, LoPass is Off from 20 100; a preset's is Off at exactly 20 100 (its 20 139 filters, measured)
-    s.lopassHz = (lpPreset ? lp == wdelay::kLoPassOff : lp >= wdelay::kLoPassOff) ? 0.0f : lp;
+    s.lopassHz = (lpPreset ? juce::exactlyEqual (lp, wdelay::kLoPassOff) : lp >= wdelay::kLoPassOff) ? 0.0f : lp;
     s.depth = get (wdelay::depth) * 0.01f;
     s.rateHz = get (wdelay::rate);
     if (sync != 2)                                                 // synced: Rate is in cycles per beat at 60 BPM (measured)

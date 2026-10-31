@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <tuple>
 #include "WVoxRiderFit.h"
 
 // WVox Rider's riding (Phase 4): the reference's measured stages (MEASUREMENTS.md "WVox Rider: Phase 3 / 4") with
@@ -27,8 +28,8 @@ struct RideSettings
 
     bool operator== (const RideSettings& o) const
     {
-        return target == o.target && rangeMin == o.rangeMin && rangeMax == o.rangeMax && idleDb == o.idleDb
-               && vocalSensitivity == o.vocalSensitivity && spill == o.spill && fast == o.fast && live == o.live;
+        return std::tie (target, rangeMin, rangeMax, idleDb, vocalSensitivity, spill, fast, live)
+               == std::tie (o.target, o.rangeMin, o.rangeMax, o.idleDb, o.vocalSensitivity, o.spill, o.fast, o.live);
     }
 };
 

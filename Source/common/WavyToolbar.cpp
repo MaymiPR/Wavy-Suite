@@ -97,7 +97,7 @@ juce::Rectangle<int> Toolbar::rect (Item i) const
     }
 }
 
-int Toolbar::hitTest (juce::Point<int> p) const
+int Toolbar::itemAt (juce::Point<int> p) const
 {
     for (int i = 0; i < numItems; ++i)
         if (rect ((Item) i).contains (p)) return i;
@@ -579,7 +579,7 @@ void Toolbar::paint (juce::Graphics& g)
 
 void Toolbar::mouseMove (const juce::MouseEvent& e)
 {
-    const int h = hitTest (e.getPosition());
+    const int h = itemAt (e.getPosition());
     if (h != hot) { hot = h; repaint(); }
 }
 
@@ -587,7 +587,7 @@ void Toolbar::mouseExit (const juce::MouseEvent&) { hot = -1; repaint(); }
 
 void Toolbar::mouseDown (const juce::MouseEvent& e)
 {
-    const auto item = (Item) hitTest (e.getPosition());
+    const auto item = (Item) itemAt (e.getPosition());
     const auto target = juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (rect (item))).withStandardItemHeight (16);
     switch (item)
     {

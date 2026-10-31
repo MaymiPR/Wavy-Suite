@@ -22,6 +22,7 @@
 // No parameter smoothing (the reference changes at block boundaries).
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include "WBassXNet.h"
 #if defined (__SSE2__) || defined (_M_X64) || (defined (_M_IX86_FP) && _M_IX86_FP >= 2)
  #include <emmintrin.h>
@@ -185,7 +186,7 @@ public:
     }
 
     void setInputDb (double db) { input = db <= -99.9 ? 0.0 : std::pow (10.0, std::min (db, 0.0) / 20.0); }
-    void setFreq (double hz) { hz = std::clamp (std::round (hz), 32.0, 256.0); if (hz != freq) { freq = hz; design(); } }
+    void setFreq (double hz) { hz = std::clamp (std::round (hz), 32.0, 256.0); if (! std::equal_to<>() (hz, freq)) { freq = hz; design(); } }
     void setDecayDb (double db) { decay = std::pow (10.0, std::clamp (db, -24.0, -9.0) / 20.0); }
     void setRatio (double r) { ratio = std::clamp (r, 1.0, 4.0); lnRatio = (float) std::log (ratio); }
     void setResponseMs (double ms) { response = std::clamp (ms, 10.0, 30.0); respFeat = (float) ((response - 20.0) / 10.0); }

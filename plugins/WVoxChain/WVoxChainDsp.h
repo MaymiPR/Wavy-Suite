@@ -101,7 +101,7 @@ public:
     {
         if (colourIndex == 0) return;
         if (std::abs (shown - to) > 1.0e-4) { shown = to + glide * (shown - to); if (++count >= 16) { count = 0; dirty = true; } }
-        else if (shown != to) { shown = to; dirty = true; }
+        else if (! juce::exactlyEqual (shown, to)) { shown = to; dirty = true; }
         if (dirty) update();
         for (int i = 0; i < n; ++i) { l = sec[(size_t) i].run (l, 0); r = sec[(size_t) i].run (r, 1); }
     }

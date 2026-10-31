@@ -65,6 +65,7 @@ function(wavy_add_plugin target product code clapid)
     endif()
     juce_add_plugin(${target}
         COMPANY_NAME "Wavy Suite"
+        BUNDLE_ID com.wavysuite.${target}   # (the default, from the company name, would hold a space)
         PLUGIN_MANUFACTURER_CODE Wavy
         PLUGIN_CODE ${code}
         FORMATS ${formats}
@@ -78,6 +79,8 @@ function(wavy_add_plugin target product code clapid)
         AU_MAIN_TYPE kAudioUnitType_Effect)
     target_sources(${target} PRIVATE ${P_SOURCES})
     target_link_libraries(${target} PRIVATE WavyCommon juce::juce_recommended_warning_flags)
+    # (GCC: the VST3 SDK inside JUCE writes four-character codes as character constants)
+    target_compile_options(${target} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wno-multichar>)
     if(WAVY_CLAP)
         clap_juce_extensions_plugin(TARGET ${target}
             CLAP_ID "${clapid}" CLAP_FEATURES audio-effect)

@@ -45,7 +45,7 @@ private:
     void paintFlat (juce::Graphics&);
     enum Item { About, Skins, Mode, Undo, Redo, Prev, Next, Copy, Setup, Save, Menu, Preset, numItems };
     juce::Rectangle<int> rect (Item) const;
-    int hitTest (juce::Point<int>) const;
+    int itemAt (juce::Point<int>) const;
 
     void switchSetup();
     void copyToOther();

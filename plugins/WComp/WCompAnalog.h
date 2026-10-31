@@ -24,7 +24,7 @@ public:
         fs = sampleRate;
         channels = std::max (1, std::min (2, numChannels));
         for (auto& c : chans) c = {};
-        for (int c = 0; c < 2; ++c) chans[(size_t) c].rng = 0x9E3779B97F4A7C15ull * (uint64_t) (c + 1);
+        for (int c = 0; c < 2; ++c) chans[(size_t) c].rng = (uint64_t) 0x9E3779B97F4A7C15ull * (uint64_t) (c + 1);
         built = -1;
         setMode (mode);
     }
