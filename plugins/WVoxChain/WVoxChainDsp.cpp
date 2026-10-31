@@ -417,11 +417,11 @@ namespace
 // samples (Stereo's never leaves it). The gain at fader 0, whether the shelves are on and whether the delay takes the
 // one-sample steps after its turns (measured on Stereo; Wide's and Spreader's unknown, so off). The step is one of 20,
 // round (256 2^(k / 20)) samples, the one where the voice's input best matches itself: its autocorrelation at each
-// step, kept with an exponential memory of about 1024 samples, the highest taken (on a tie, the longest step: 495 in
+// step, kept with an exponential memory of about 960 samples, the highest taken (on a tie, the longest step: 495 in
 // silence) (MEASUREMENTS.md, the doubler's fourth pass).
 struct TriVoice { double d0, swing, f, drift, lead, low, high; };
 struct MeasuredColour { TriVoice v[2]; double fade, gain; bool shelves, extraSample; };
-constexpr double corrMemory = 1024.0;                                   // (samples at 48 kHz)
+constexpr double corrMemory = 960.0;                                    // (samples at 48 kHz)
 constexpr MeasuredColour measuredColours[4] = {
     {},
     { { { 359.0128, 0.0040442, 0.199880, -8.1534e-6, 130.0, -1.0e9, 1.0e9 },
@@ -498,7 +498,13 @@ void Doubler::process (const float* inL, const float* inR, float* outL, float* o
     for (int k = 0; k < 20; ++k) lag[k] = (int) std::lround (std::round (256.0 * std::pow (2.0, k / 20.0)) * fsk);
     for (int i = 0; i < n; ++i)
     {
-        lineL[(size_t) pos] = inL[i]; lineR[(size_t) pos] = inR[i];
+        // (the shelves come before the pitch shifter: its step search hears them; Wide's left voice: no match -> -37 dB)
+        if (mc.shelves)
+        {
+            lineL[(size_t) pos] = (float) shelves[1].run (shelves[0].run (inL[i], 0), 0);
+            lineR[(size_t) pos] = (float) shelves[1].run (shelves[0].run (inR[i], 1), 1);
+        }
+        else { lineL[(size_t) pos] = inL[i]; lineR[(size_t) pos] = inR[i]; }
         double v[2];
         for (int k = 0; k < 2; ++k)
         {
@@ -538,7 +544,6 @@ void Doubler::process (const float* inL, const float* inR, float* outL, float* o
                 if (++st.fade >= (int) std::lround (mc.fade * fsk)) { st.offset = st.next; st.fade = -1; }
             }
             v[k] = mc.gain * y;
-            if (mc.shelves) { v[k] = shelves[0].run (v[k], k); v[k] = shelves[1].run (v[k], k); }
         }
         pos = (pos + 1) % len;
         t += 1.0;

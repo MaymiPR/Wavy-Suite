@@ -2051,3 +2051,9 @@ colour clear, the output less the output with Pitch clear), the clicks' send res
   −6 dBFS, −30 … −32 → −35 at −20 (× 0.5 and × 0.7 both worse).
 - **The whole chain** (`nulltest_wvoxchain.py full`): median −27.1 dB with the doubler (was −14.7), −32.1 without (was
   −30.8).
+- **Refinements** (the held-out vocal, the doubler alone): the memory 960 samples rather than 1024 (anything from 930 to
+  990 the same; still inside the pair probes' bounds): Spreader's right voice no match → −39.2 dB, its left −15.2 →
+  −20.6. **The shelves come before the pitch shifter** (its step search hears them): Wide's left voice no match →
+  −36.9 dB, held over the whole 10 s. Remaining partings are near-ties in the search (Wide's right voice at 7.7 s:
+  315 against 326, 1 % apart) and Spreader's left voice taking its one-sample step one turn differently from 3.5 s;
+  per-grain step state and a grain inheriting the direction's step were both tried and fit worse.
