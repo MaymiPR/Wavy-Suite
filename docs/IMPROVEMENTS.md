@@ -14,7 +14,7 @@ When part of a reference resists identification, keep everything that *is* ident
    and plenty of steady tones and level steps; a network only behaves where it has seen data.
 3. **Read the reference's own gain** where the plug-in is a pure gain stage (output / delayed input / fixed gain). It
    gives a direct, sample-by-sample target.
-4. **Train a small GRU** in PyTorch (`C:\Users\wint1\.venvs\wavy-torch`): first supervised on that gain, then
+4. **Train a small GRU** in PyTorch (`C:\Users\wint1\Desktop\AI Projects\Plugins\.venv-gpu`): first supervised on that gain, then
    fine-tuned on the null residual itself. Training only on the residual can stall when the learned branch sits
    behind a `min()` (no gradient while it is inactive).
 5. **Add structural guards** so the network cannot spoil cases the identified model already nulls (WVox: a floor at

@@ -8,7 +8,7 @@ a small GRU corrects the analytical slow ratio.
 
 Features per step: ln of the peak detector level, ln of the smallest fast ratio, ln of the analytical slow ratio,
 ln M. Loss: the null residual itself, 10 log10(sum (y - ref)^2 / sum ref^2) per example, averaged.
-Runs in the PyTorch environment (C:\\Users\\wint1\\.venvs\\wavy-torch).
+Runs in the PyTorch environment (C:\\Users\\wint1\\Desktop\\AI Projects\\Plugins\\.venv-gpu).
 
     python train_wvox.py [steps] [hidden]
 """

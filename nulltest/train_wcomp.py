@@ -1,4 +1,4 @@
-"""Trains WComp's learned gain correction (run in the PyTorch environment, C:\\Users\\wint1\\.venvs\\wavy-torch):
+"""Trains WComp's learned gain correction (run in the PyTorch environment, C:\\Users\\wint1\\Desktop\\AI Projects\\Plugins\\.venv-gpu):
 a GRU over WComp's own states and settings (render_trainset_wcomp.py FEATURES, one step per 16 samples) gives a
 correction in dB of the compressor's gain, held over each step and faded out without gain reduction (guard) and while
 the target reduction stays flat (flat_guard: steady tones, which the analytical model nulls already). The loss

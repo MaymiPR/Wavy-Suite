@@ -6,7 +6,7 @@
 
 Targets: the gain extracted from reference renders (render_trainset_mb.py, extract_g2.py). Loss: the gain error weighted
 by u^2, i.e. by how much it changes the output (where u is near zero the extracted gain is not determined).
-Runs in the PyTorch environment (C:\\Users\\wint1\\.venvs\\wavy-torch).
+Runs in the PyTorch environment (C:\\Users\\wint1\\Desktop\\AI Projects\\Plugins\\.venv-gpu).
 
     python train_wbassx.py [steps] [hidden]                      (supervised on the extracted gains)
     python train_wbassx.py e2e steps hidden [init.pt]           (end-to-end on the generated part itself)

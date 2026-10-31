@@ -11,7 +11,7 @@ only the level-to-gain block is learned.
     generated = HP3(F)(-n + k2 Decay q)
 
 Targets: the reference's generated part (render_trainset.py). Loss: mean over examples of the residual in dB.
-Runs in the PyTorch environment (C:\\Users\\wint1\\.venvs\\wavy-torch).
+Runs in the PyTorch environment (C:\\Users\\wint1\\Desktop\\AI Projects\\Plugins\\.venv-gpu).
 
     python train_gain.py [steps] [hidden]
 """
