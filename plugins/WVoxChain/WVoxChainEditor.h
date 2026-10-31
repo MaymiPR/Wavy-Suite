@@ -50,10 +50,16 @@ public:
     void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
     void mouseDoubleClick (const juce::MouseEvent&) override;
-    void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w) override { wavy::wavesWheel (*this, e, w, wheelAcc, false); }
+    void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
     float capTop() const;                                            // the cap's top in local px (the control is 43 x 215)
     bool onCap (juce::Point<float> p) const { return p.x >= 0.0f && p.x < 34.0f && p.y >= capTop() && p.y < capTop() + 58.0f; }
+    // a value the user set (Alt-click, typed or with the wheel) as one gesture of its own
+    void userSet (double v);
     bool dragging = false;
+    // the user's own moves (not the host's, a preset's or undo's): a gesture begins, then the value moves from -> to
+    // (from: the value when the gesture began); the editor's In/Out link follows them
+    std::function<void()> onUserStart;
+    std::function<void (double from, double to)> onUserMove;
 
 private:
     const bool sens;
@@ -117,6 +123,21 @@ private:
     std::array<Sprite, 24> frames;
 };
 
+// Wavy's own In/Out link (not in the reference): a push button in a pocket at the top of the Output fader's track,
+// the mirror of the Sensitivity LED's on the input side, lit while Sensitivity and Output are linked; a click
+// toggles it (and unmarks the marked control)
+class LinkButton : public juce::Button
+{
+public:
+    explicit LinkButton (Marks& m) : juce::Button ("Link In/Out"), marks (m) { setClickingTogglesState (true); }
+    void paintButton (juce::Graphics&, bool, bool) override;
+    void clicked() override { marks.clear(); }
+
+private:
+    Marks& marks;
+    Sprite off, on;
+};
+
 // the Balance knob (Stereo component only): a click marks it (a yellow ring round its cap), a vertical drag turns it
 // (the reference's knob rate: 1/1000 of the range per px on small mouse steps) with the cursor hidden and put back
 // where the drag began, Alt-click resets, a double-click types a value
@@ -162,6 +183,7 @@ protected:
 private:
     void showEntry (juce::Slider*);
     void layoutForMode();
+    void linkFaders (wvoxchain::ui::Fader& mine, wvoxchain::ui::Fader& other);
 
     WVoxChainProcessor& proc;
     std::vector<wvoxchain::ui::Fader*> faders;                      // Sensitivity, the six stages, Output
@@ -170,6 +192,7 @@ private:
     wvoxchain::ui::Meter& outMeter;
     wvoxchain::ui::SensLed& led;
     wvoxchain::ui::BalanceKnob& balance;
+    wvoxchain::ui::LinkButton& linkButton;
     std::unique_ptr<juce::TextEditor> entry;
     juce::Slider* entryFor = nullptr;
     juce::Image background;

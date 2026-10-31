@@ -26,6 +26,8 @@ inline constexpr const char* pitchColor = "pitchColor";
 inline constexpr const char* output = "output";
 inline constexpr const char* balance = "balance";
 inline constexpr const char* mode = "mode";                        // Stereo, Mono/Stereo (the two components)
+inline constexpr const char* link = "ioLink";                      // Wavy's own (not in the reference): Sensitivity and
+                                                                   // Output linked, the editor moving one against the other
 
 // the six stages: fader and colour IDs, the label under the fader, the colours' names (the host's texts, the clear
 // position first)

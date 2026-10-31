@@ -26,6 +26,7 @@ AudioProcessorValueTreeState::ParameterLayout WVoxChainProcessor::layout()
     addF (wvoxchain::output, "Output", -10.0f, 10.0f, text1, "dB");
     addF (wvoxchain::balance, "Balance", -6.0f, 6.0f, text1);
     l.add (std::make_unique<AudioParameterChoice> (ParameterID { wvoxchain::mode, 1 }, "Mode", wvoxchain::modeNames(), 0));
+    l.add (std::make_unique<AudioParameterBool> (ParameterID { wvoxchain::link, 1 }, "Link In/Out", false));
     return l;
 }
 

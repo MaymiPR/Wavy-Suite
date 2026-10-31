@@ -260,7 +260,8 @@ Image renderBackground (float s, bool stereo)
         static constexpr int trackX[6] = { 186, 253, 319, 386, 452, 519 };
         for (size_t i = 0; i < 6; ++i) overs.push_back ({ sk::tracks[i], (float) (trackX[i] + sk::trackDx), (float) sk::trackY });
         overs.push_back ({ &sk::sensTrack, (float) (49 + sk::trackDx), (float) sk::sideTrackY });
-        overs.push_back ({ &sk::outTrack, (float) (655 + sk::trackDx), (float) sk::sideTrackY });
+        // (the Output fader's track as the input's, with its pocket at the top: our In/Out link button sits in it)
+        overs.push_back ({ &sk::sensTrack, (float) (655 + sk::trackDx), (float) sk::sideTrackY });
         overs.push_back ({ &sk::meterWindowIn, (float) sk::meterInX, (float) sk::meterY });
         overs.push_back ({ &sk::meterWindowOut, (float) sk::meterOutX, (float) sk::meterY });
         for (const auto& sm : sk::seams) overs.push_back ({ sm.m, sm.x, sm.y });
@@ -340,15 +341,18 @@ Image renderBackground (float s, bool stereo)
                 bd.setPixelColour (px, py, Colour ((uint8) jlimit (0.0f, 255.0f, rgb[0] + n), (uint8) jlimit (0.0f, 255.0f, rgb[1] + n),
                                                    (uint8) jlimit (0.0f, 255.0f, rgb[2] + n)));
             }
-        for (const auto& sc : sk::screws) blendPolar (bd, s, sk::screw, sc[0], sc[1], 7.0f);
+        for (const auto& sc : sk::screws)
+            if (! (sc[0] > 670.0f && sc[1] < 210.0f))                   // (not the Output track's top screw: the link's pocket is there)
+                blendPolar (bd, s, sk::screw, sc[0], sc[1], 7.0f);
         blendPolar (bd, s, sk::headerScrewL, sk::headerScrews[0][0], sk::headerScrews[0][1], 8.5f);
         blendPolar (bd, s, sk::headerScrewR, sk::headerScrews[1][0], sk::headerScrews[1][1], 8.5f);
-        printOnPlate (bd, 657.0f, 31.0f, 46.0f, 17.0f, s);           // (on screen: y 29.6 .. 47.6, where the reference's mark sits)
+        printOnPlate (bd, 657.0f, 31.0f, 40.0f, 11.0f, s);           // (on screen: y 31.7 .. 53.2, a little under the reference's mark)
         engrave (bd, badgePath(), s);
     }
     Graphics g (img);
     g.addTransform (AffineTransform::scale (s));
     for (const auto& l : sk::labels) drawLabel (g, l);
+    drawLabel (g, { "LINK", 691.0f, 198.0f, 709.0f, 204.0f, 139.0f, false, true });   // (the link's, as the scale's print)
     for (const auto& r : sk::runs)
     {
         g.setColour (Colour::greyLevel (r.grey / 255.0f));
@@ -423,9 +427,10 @@ void Fader::mouseDown (const MouseEvent& e)
     if (! onCap (e.position)) { marks.clear(); return; }            // the track off the cap: nothing (but unmarks)
     if (e.mods.isShiftDown() && marks.selected == this) { marks.clear(); return; }
     marks.select (this);
-    if (e.mods.isAltDown()) { setValue (getDoubleClickReturnValue(), sendNotificationSync); repaint(); return; }
+    if (e.mods.isAltDown()) { userSet (getDoubleClickReturnValue()); repaint(); return; }
     dragging = true;
     start = getValue();
+    if (onUserStart) onUserStart();
     origin = last = virt = e.position;
     e.source.enableUnboundedMouseMovement (true, false);
     Slider::mouseDown (e);
@@ -441,6 +446,23 @@ void Fader::mouseDrag (const MouseEvent& e)
     virt += d * k;
     const double perUnit = kTravel / (getMaximum() - getMinimum());
     setValue (jlimit (getMinimum(), getMaximum(), start + (double) (origin.y - virt.y) / perUnit), sendNotificationSync);
+    if (onUserMove) onUserMove (start, getValue());
+}
+
+void Fader::mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& w)
+{
+    const double from = getValue();
+    if (onUserStart) onUserStart();
+    wavy::wavesWheel (*this, e, w, wheelAcc, false);
+    if (onUserMove && getValue() != from) onUserMove (from, getValue());
+}
+
+void Fader::userSet (double v)
+{
+    const double from = getValue();
+    if (onUserStart) onUserStart();
+    setValue (v, sendNotificationSync);
+    if (onUserMove && getValue() != from) onUserMove (from, getValue());
 }
 
 void Fader::mouseUp (const MouseEvent& e)
@@ -561,6 +583,18 @@ void Meter::paint (Graphics& g)
 }
 
 //==============================================================================
+void LinkButton::paintButton (Graphics& g, bool, bool)
+{
+    // the Sensitivity LED's body: dark while unlinked, lit in its yellow while linked
+    static constexpr int litFrame = 15;
+    const float s = physicalScale (g);
+    if (getToggleState())
+        drawSprite (g, sprite (on, s, [] (float sc) { return wavy::skin::renderLowRank (*sk::sensLeds[litFrame], sc); }), s, 0.0f, 0.0f);
+    else
+        drawSprite (g, sprite (off, s, [] (float sc) { return wavy::skin::renderLowRank (*sk::sensLeds[0], sc); }), s, 0.0f, 0.0f);
+}
+
+//==============================================================================
 void SensLed::set (float levelDb)
 {
     // the reference's LED (filmed, MEASUREMENTS.md): the input's rms level through the curve its state holds (X -144 /
@@ -622,12 +656,14 @@ WVoxChainEditor::WVoxChainEditor (WVoxChainProcessor& p)
     : Editor (p, p.apvts, p.undo, p.apvts.getParameter (wvoxchain::mode), "WVox Chain", JucePlugin_VersionString, W, H,
               wavy::Toolbar::Style::Classic, wvoxchain::modeNames()),
       proc (p),
-      inMeter (make<Meter> (marks)), outMeter (make<Meter> (marks)), led (make<SensLed> (marks)), balance (make<BalanceKnob> (marks))
+      inMeter (make<Meter> (marks)), outMeter (make<Meter> (marks)), led (make<SensLed> (marks)), balance (make<BalanceKnob> (marks)),
+      linkButton (make<LinkButton> (marks))
 {
     for (auto* c : getChildren())
         if (dynamic_cast<ResizableCornerComponent*> (c) != nullptr) c->setAlpha (0.0f);
     setFactoryPresets (wvoxchain::factoryPresets());
-    setKeepOnPresetLoad ({ p.apvts.getParameter (wvoxchain::sensitivity), p.apvts.getParameter (wvoxchain::output) });   // (IgnoreOnPresetLoad)
+    setKeepOnPresetLoad ({ p.apvts.getParameter (wvoxchain::sensitivity), p.apvts.getParameter (wvoxchain::output),   // (IgnoreOnPresetLoad)
+                           p.apvts.getParameter (wvoxchain::link) });
     marks.changed = [this] { content().repaint(); };
     marks.enter = [this] (Slider* sl) { showEntry (sl); };
 
@@ -654,9 +690,31 @@ WVoxChainEditor::WVoxChainEditor (WVoxChainProcessor& p)
     addToContent (outMeter, { 599, 227, 31, 175 });
     addToContent (led, { 52, 189, 28, 25 });
     attachSlider (balance, wvoxchain::balance, { 109, 395, 30, 30 }, 0.0);
+    attach (linkButton, wvoxchain::link, { 658, 189, 28, 25 });         // (where the input's LED sits, mirrored)
+    linkButton.setTooltip ("Link Input Sens and Output: moving one moves the other the opposite way");
+    linkFaders (*faders.front(), *faders.back());
+    linkFaders (*faders.back(), *faders.front());
     for (auto* f : faders) f->setDoubleClickReturnValue (true, 0.0);
     balance.setDoubleClickReturnValue (true, 0.0);
     layoutForMode();
+}
+
+// the In/Out link: while it is on, the user's moves of one fader move the other by the opposite amount from where it
+// stood when the gesture began (so a drag there and back leaves both where they were), clamped to its range. Only
+// the user's own moves: the host's automation, presets, setups and undo set each parameter as stored.
+void WVoxChainEditor::linkFaders (wvoxchain::ui::Fader& mine, wvoxchain::ui::Fader& other)
+{
+    auto base = std::make_shared<double> (0.0);
+    mine.onUserStart = [base, &other] { *base = other.getValue(); };
+    mine.onUserMove = [this, base, &other] (double from, double to)
+    {
+        if (! linkButton.getToggleState()) return;
+        auto* param = proc.apvts.getParameter (&other == faders.back() ? wvoxchain::output : wvoxchain::sensitivity);
+        const float v = jlimit (-10.0f, 10.0f, (float) (*base - (to - from)));
+        param->beginChangeGesture();
+        param->setValueNotifyingHost (param->convertTo0to1 (v));
+        param->endChangeGesture();
+    };
 }
 
 WVoxChainEditor::~WVoxChainEditor()
@@ -762,7 +820,11 @@ void WVoxChainEditor::showEntry (Slider* sl)
             if (t.containsAnyOf ("0123456789"))
             {
                 const double v = t.getDoubleValue();
-                if (v >= sl->getMinimum() && v <= sl->getMaximum()) sl->setValue (v, sendNotificationSync);   // (out of range: ignored)
+                if (v >= sl->getMinimum() && v <= sl->getMaximum())       // (out of range: ignored)
+                {
+                    if (auto* f = dynamic_cast<wvoxchain::ui::Fader*> (sl)) f->userSet (v);
+                    else sl->setValue (v, sendNotificationSync);
+                }
             }
         }
         MessageManager::callAsync ([this] { entry.reset(); entryFor = nullptr; content().repaint(); });
