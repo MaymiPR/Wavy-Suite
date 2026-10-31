@@ -1,4 +1,4 @@
-; Windows installer for the whole Wavy Suite (Inno Setup 6). Built by .github/workflows/release.yml:
+; Windows installer for the whole Wavy Suite (Inno Setup 7). Built by .github/workflows/release.yml:
 ;   pwsh packaging/make_iss_include.ps1 build      (writes packaging/plugins.iss.inc from plugins.txt)
 ;   iscc /DAppVersion=<version> packaging\WavySuite.iss
 
@@ -21,6 +21,11 @@ OutputDir=..\dist
 OutputBaseFilename=WavySuite-{#AppVersion}-Windows-Setup
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+; Inno Setup 7: a 64-bit Setup.exe (the default would still be 32-bit); AppVerName and TimeStampsInUTC are
+; stated because their defaults changed in 7 (name plus version with no localized word; UTC time stamps).
+SetupArchitecture=x64
+AppVerName=Wavy Suite {#AppVersion}
+TimeStampsInUTC=yes
 PrivilegesRequired=admin
 Compression=lzma2
 SolidCompression=yes
