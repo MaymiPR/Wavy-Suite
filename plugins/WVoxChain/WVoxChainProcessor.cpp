@@ -36,6 +36,18 @@ WVoxChainProcessor::WVoxChainProcessor()
       apvts (*this, &undo, "WVoxChain", layout())
 {
     setLatencySamples (wvoxchain::latencySamples (48000.0));
+    startTimerHz (30);
+}
+
+void WVoxChainProcessor::syncLink()
+{
+    if (! linked()) return;
+    auto* out = apvts.getParameter (wvoxchain::output);
+    const float mirror = -get (wvoxchain::sensitivity);
+    if (std::abs (out->convertFrom0to1 (out->getValue()) - mirror) < 1.0e-3f) return;
+    out->beginChangeGesture();
+    out->setValueNotifyingHost (out->convertTo0to1 (mirror));
+    out->endChangeGesture();
 }
 
 // stereo in / out (Stereo), mono in / stereo out (Mono/Stereo); a host offering mono out gets mono
@@ -70,6 +82,7 @@ void WVoxChainProcessor::processBlock (AudioBuffer<float>& b, MidiBuffer&)
         if (auto pos = ph->getPosition())
             if (auto bpm = pos->getBpm()) p.bpm = *bpm;
     p.sensitivity = get (wvoxchain::sensitivity); p.output = get (wvoxchain::output); p.balance = get (wvoxchain::balance);
+    if (linked()) p.output = -p.sensitivity;                            // (the In/Out link: Output mirrors Sensitivity)
     for (size_t i = 0; i < 6; ++i)
     {
         const auto& st = wvoxchain::stages()[i];

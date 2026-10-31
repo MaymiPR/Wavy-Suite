@@ -430,7 +430,6 @@ void Fader::mouseDown (const MouseEvent& e)
     if (e.mods.isAltDown()) { userSet (getDoubleClickReturnValue()); repaint(); return; }
     dragging = true;
     start = getValue();
-    if (onUserStart) onUserStart();
     origin = last = virt = e.position;
     e.source.enableUnboundedMouseMovement (true, false);
     Slider::mouseDown (e);
@@ -452,7 +451,6 @@ void Fader::mouseDrag (const MouseEvent& e)
 void Fader::mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& w)
 {
     const double from = getValue();
-    if (onUserStart) onUserStart();
     wavy::wavesWheel (*this, e, w, wheelAcc, false);
     if (onUserMove && getValue() != from) onUserMove (from, getValue());
 }
@@ -460,7 +458,6 @@ void Fader::mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& w)
 void Fader::userSet (double v)
 {
     const double from = getValue();
-    if (onUserStart) onUserStart();
     setValue (v, sendNotificationSync);
     if (onUserMove && getValue() != from) onUserMove (from, getValue());
 }
@@ -691,7 +688,8 @@ WVoxChainEditor::WVoxChainEditor (WVoxChainProcessor& p)
     addToContent (led, { 52, 189, 28, 25 });
     attachSlider (balance, wvoxchain::balance, { 109, 395, 30, 30 }, 0.0);
     attach (linkButton, wvoxchain::link, { 658, 189, 28, 25 });         // (where the input's LED sits, mirrored)
-    linkButton.setTooltip ("Link Input Sens and Output: moving one moves the other the opposite way");
+    linkButton.setTooltip ("Link Input Sens and Output: Output mirrors Input Sens (+3 in, -3 out)");
+    linkButton.onClick = [this] { proc.syncLink(); };                   // (on: Output jumps to the mirror at once)
     linkFaders (*faders.front(), *faders.back());
     linkFaders (*faders.back(), *faders.front());
     for (auto* f : faders) f->setDoubleClickReturnValue (true, 0.0);
@@ -699,20 +697,16 @@ WVoxChainEditor::WVoxChainEditor (WVoxChainProcessor& p)
     layoutForMode();
 }
 
-// the In/Out link: while it is on, the user's moves of one fader move the other by the opposite amount from where it
-// stood when the gesture began (so a drag there and back leaves both where they were), clamped to its range. Only
-// the user's own moves: the host's automation, presets, setups and undo set each parameter as stored.
+// the In/Out link: while it is on, Output is the mirror of Input Sens (the processor holds it there); the user's moves
+// of either fader set the other to its mirror at once, so the two move together in the same gesture
 void WVoxChainEditor::linkFaders (wvoxchain::ui::Fader& mine, wvoxchain::ui::Fader& other)
 {
-    auto base = std::make_shared<double> (0.0);
-    mine.onUserStart = [base, &other] { *base = other.getValue(); };
-    mine.onUserMove = [this, base, &other] (double from, double to)
+    mine.onUserMove = [this, &other] (double, double to)
     {
-        if (! linkButton.getToggleState()) return;
+        if (! proc.linked()) return;
         auto* param = proc.apvts.getParameter (&other == faders.back() ? wvoxchain::output : wvoxchain::sensitivity);
-        const float v = jlimit (-10.0f, 10.0f, (float) (*base - (to - from)));
         param->beginChangeGesture();
-        param->setValueNotifyingHost (param->convertTo0to1 (v));
+        param->setValueNotifyingHost (param->convertTo0to1 ((float) -to));
         param->endChangeGesture();
     };
 }

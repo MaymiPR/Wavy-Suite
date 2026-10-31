@@ -51,10 +51,17 @@ inline int latencySamples (double fs) { const int k = fs > 144000.0 ? 4 : fs > 7
 inline const std::vector<wavy::FactoryPreset>& factoryPresets() { static const std::vector<wavy::FactoryPreset> none; return none; }
 }
 
-class WVoxChainProcessor : public juce::AudioProcessor
+class WVoxChainProcessor : public juce::AudioProcessor, private juce::Timer
 {
 public:
     WVoxChainProcessor();
+    ~WVoxChainProcessor() override { stopTimer(); }
+
+    // the In/Out link (Wavy's own): while it is on, Output is the mirror of Sensitivity (Output = -Sensitivity) in
+    // the audio at every block, whatever the Output parameter holds; syncLink() sets the Output parameter to that
+    // mirror (a timer does it too, so automation, presets, setups and undo cannot leave the two apart)
+    bool linked() const { return get (wvoxchain::link) > 0.5f; }
+    void syncLink();
 
     void prepareToPlay (double, int) override;
     void releaseResources() override {}
@@ -88,6 +95,7 @@ public:
     int modeIndex() const { return juce::roundToInt (get (wvoxchain::mode)); }
 
 private:
+    void timerCallback() override { syncLink(); }
     juce::AudioProcessorValueTreeState::ParameterLayout layout();
     double sr = 48000.0;
     wvoxchain::dsp::Chain chain;

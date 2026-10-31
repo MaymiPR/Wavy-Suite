@@ -56,9 +56,8 @@ public:
     // a value the user set (Alt-click, typed or with the wheel) as one gesture of its own
     void userSet (double v);
     bool dragging = false;
-    // the user's own moves (not the host's, a preset's or undo's): a gesture begins, then the value moves from -> to
-    // (from: the value when the gesture began); the editor's In/Out link follows them
-    std::function<void()> onUserStart;
+    // the user's own moves (not the host's, a preset's or undo's): the value moves from -> to (from: where the
+    // gesture began); the editor's In/Out link follows them
     std::function<void (double from, double to)> onUserMove;
 
 private:
