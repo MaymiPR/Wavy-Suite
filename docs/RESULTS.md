@@ -1,0 +1,138 @@
+# Null-test results
+
+How closely each Wavy plug-in matches the plug-in it is modelled on. The residual is
+`20 log10(rms(ours - reference) / rms(reference))` in dB: lower is better, about -60 dB or less is a close match,
+0 dB means nothing in common. Numbers are reported as measured; no case is called a null unless the data shows it.
+
+## WVox Chain
+
+In development (Phase 4, the DSP). Against the reference at 48 kHz (`nulltest/nulltest_wvoxchain.py`):
+
+- Bass, Treble and Reverb stages with the others cleared (55 cases): **median -75.7 dB**, worst -67.9 dB.
+- The whole chain at the defaults, factory presets and random settings (15 cases): **median -30.8 dB** without the
+  doubler (the Pitch stage), -13.1 dB with it. The doubler is matched in its delays, modulation rates, shelves and level
+  but not sample for sample (the reference behaves like a grain pitch shifter), so it does not null. Compress is the
+  weakest of the other stages (-21 to -25 dB on heavy presets).
+- Details: [../MEASUREMENTS.md](../MEASUREMENTS.md).
+
+## WVox Rider
+
+Residual of WVox Rider against the reference, lower is better: **−74 dB** on level steps and **−47 … −66 dB** on vocal
+parts held out from the identification, at Studio and Live, Slow and Fast, other Targets, ranges and Idle values,
+Stereo, and at 44.1 and 96 kHz. Attack Fast is the weakest (about −50 dB), at word onsets.
+
+- How: the reference's riding was identified from probes and a corpus of 36 vocal parts (FL Studio's own vocal
+  phrases). It rides only on the samples its vocal detector passes, which is why it rises slowly on a real voice;
+  every constant is the reference's own hidden value, none is fitted. Details:
+  [NULL_RESULTS_WVOXRIDER.md](NULL_RESULTS_WVOXRIDER.md),
+  [MEASUREMENTS.md](../MEASUREMENTS.md#wvox-rider-phase-4-the-riding-identified-2026-10-28).
+- The reference's own 13 presets, loaded into it, against WVox Rider's (Wavy names): **median −60.9 dB**, worst −37.9
+  ([NULL_RESULTS_WVOXRIDER_PRESETS.md](NULL_RESULTS_WVOXRIDER_PRESETS.md)).
+- Not covered yet: the **Music side-chain** (Music Sensitivity). The reference uses the music only when its host
+  reports the side-chain active, which no offline host here does; WVox Rider rides without it for now.
+
+## WBass Rider
+
+Residual of WBass Rider against the reference, lower is better. The level read, the gain law, the 42 ms look-ahead,
+the smoothing and the hold null at **−48 … −49 dB** on steady tones and level steps; a bass line at **−30 dB** at
+nearly every Sensitivity × Response setting (−25 … −28 dB at Sensitivity 75 / 100), at 44.1 and 96 kHz alike.
+
+- Real bass parts (FL Studio's own bass samples played as bass lines) held out from the fit: **median −22 … −26 dB**
+  per setting, the worst parts −10 … −17 dB. Nearly all of that is a note ridden afresh by one side and not the
+  other, after which the two hold 1 … 4 dB apart until the next note; in a mix that is one note slightly louder or
+  quieter than with the reference, not an artefact. It is weakest at Response Fast and Sensitivity 100.
+- The reference's own 17 presets, set on both: **median −24.8 dB**; Live components −26 dB, Stereo −27 dB.
+- How: the reference's note detector (a windowed note level by pitch band, slow and long envelopes, follow and hold,
+  release and re-attack rules, the Idle glide) was identified from about 1,200 probe signals and its riding on a
+  corpus of 36 bass parts; its constants are fitted, and some rules (which notes are ridden afresh at Fast) are
+  matched to what the probes show rather than known. Details:
+  [NULL_RESULTS_WBASSRIDER.md](NULL_RESULTS_WBASSRIDER.md),
+  [NULL_RESULTS_WBASSRIDER_PRESETS.md](NULL_RESULTS_WBASSRIDER_PRESETS.md),
+  [MEASUREMENTS.md](../MEASUREMENTS.md#wbass-rider-phase-4-the-riding-model-identified-2026-10-26).
+
+## WDelay
+
+Residual of WDelay against the reference, lower is better. The delay path nulls: defaults, ms and synced times,
+the filters, Ping Pong from either side and Feedback up to 200 % at **−84 … −104 dB**; modulation at **−61 … −81 dB**;
+the reference's own 88 factory presets, loaded as it loads them (each on drums, bass and voice, with its own Analog
+mode): **median −53.2 dB**.
+
+- Analog modes: mode 4 nulls at −80 … −90 dB; modes 1–3 add random noise as the reference does, which no null can
+  remove, and mode 3's model is the weakest part (about −41 dB).
+- Limits: the slow tail of a glide (−40 … −80 dB while it settles), LoFi (−70 dB), and Feedback above 100 % with the
+  filters on, where the loop self-oscillates chaotically (the preset Fast Siren): such a loop nulls only for its first
+  fraction of a second, in any model short of a bit-exact one. At 96 kHz the audible band nulls at −46 … −61 dB.
+- How: H-Delay's interpolator (a 32-phase Kaiser sinc), its tape glide, the gain stage in the loop, its float
+  triangle LFO, the filters, Ping Pong's routing and every parameter's resolution were identified on the reference
+  by nulling; the Analog modes are fitted models (mode 4 is H-Comp's). Details:
+  [NULL_RESULTS_WDELAY.md](NULL_RESULTS_WDELAY.md),
+  [NULL_RESULTS_WDELAY_PRESETS.md](NULL_RESULTS_WDELAY_PRESETS.md),
+  [MEASUREMENTS.md](../MEASUREMENTS.md#wdelay-model-phase-4-identification-2026-10-25).
+
+## WComp
+
+Residual of WComp against the reference over 14 signals × 12 settings (the default, fast and slow releases, heavy
+ratios, Mix, the output limiter, the four Analog modes), lower is better: **median −47.0 dB**, worst −24.5 dB; the
+reference's 26 factory presets (each on voice, drums, bass and pink noise): **median −43.7 dB**, worst −20.8 dB.
+
+- At the default settings: tones and sweeps −84 dB (a null), voice-like −61 dB, bass line −57 dB, white noise −43 dB,
+  drums −33 dB, pink noise −32 dB.
+- Weakest: low notes under long attacks (30 … 60 ms: −15 … −20 dB on a bass line), a long release on voice (300 ms at
+  threshold −24: −22 dB), fast attacks on drums (about −23 dB), and a few presets on drums (Hard Squash −21 dB).
+- Analog modes: mode 4 nulls at −82 … −100 dB on loud material; modes 1–3 add random noise as the reference does,
+  which no null can remove (mode 2, the default, is limited to about −54 … −69 dB by its noise alone).
+- How: the detector, static curve, makeup, attack, smoothing, mix, limiter, tempo sync and the Analog stage were
+  identified on the reference; the program-dependent release is a fitted two-state law (its tables found by CMA-ES on
+  1034 measured cases), not the reference's algorithm, and a small learned correction (a GRU over WComp's own states,
+  trained on 4300 renders of the reference) fixes most of what that structure misses: low notes under long attacks,
+  long releases, deep compression (null test −41.4 → −47.0 dB, presets −35.6 → −43.7). Two reference quirks are documented: a slow start-up after a
+  reset (modelled) and a hidden synced release time that survives switching Sync back to ms (not copied: reload H-Comp
+  before nulling after a synced preset). The VU needle and limiter lamp follow the reference's, filmed from its editor's
+  OpenGL frames. Details: [NULL_RESULTS_WCOMP.md](NULL_RESULTS_WCOMP.md),
+  [NULL_RESULTS_WCOMP_PRESETS.md](NULL_RESULTS_WCOMP_PRESETS.md), [MEASUREMENTS.md](../MEASUREMENTS.md#wcomp-model-phase-4-identification).
+
+## WVox
+
+Residual of WVox against the reference, `20 log10(rms(difference) / rms(reference))`, lower is better:
+
+- **Steady tones, any setting** (Compression, Gate, Gain, input level, 44.1–192 kHz, mono and stereo): −95 to −120 dB (a null).
+- **Compression 0** with any Gate / Gain: −120 dB and below (a null).
+- **Level steps, sweeps, speech-like material:** −30 to −65 dB, worse at heavy compression.
+- **Dense noise at heavy compression:** −24 to −33 dB (was −10 to −25 dB before the learned slow path).
+- Over a 672-case grid of settings: median −70 dB, worst −23 dB. The compressor's slow path is the fitted model plus a
+  small learned correction (trained on renders of the reference, guarded so steady signals stay exact).
+  Details: [NULL_GRID.md](NULL_GRID.md), [NULL_RESULTS.md](NULL_RESULTS.md).
+
+## WBassX
+
+Residual of WBassX against the reference over 12 signals × 8 settings (Freq, Ratio, Response, Decay, High-pass, the
+Original Bass and Harmonics faders), lower is better: **median −48.5 dB** on the whole output and **−42.7 dB** on the
+created harmonics alone.
+
+- Per signal (created harmonics, median over the settings): white noise and quiet tones −49 to −59 dB; tones, sweeps and
+  pink noise −40 to −49 dB; level steps −34 dB; bass notes −27 dB; kick-like transients −19 dB.
+- Over 120 random settings of every control with the hardest signals (bass notes, kicks, a loud tone, pink noise):
+  median −35.2 dB on the whole output, −29.2 dB on the harmonics (`nulltest/nullgrid_wbassx.py`).
+- Worst cases: loud material at extreme settings (Freq 256 with Ratio 4 and Decay −12, or Decay −9), where the
+  reference's own harmonic feedback goes unstable.
+- How: the filters, the harmonic generator with its Decay feedback, the faders, monitors and clip were identified
+  exactly; the harmonics compressor (Ratio, Response) is a small recurrent network (48 units, ~7 % of one core) trained
+  on renders of the reference, so it is a learned model of that part, not its algorithm.
+  Details: [NULL_RESULTS_WBASSX.md](NULL_RESULTS_WBASSX.md), [MEASUREMENTS.md](../MEASUREMENTS.md#wbassx-model-phase-4-identification).
+
+## WBass
+
+Residual of WBass against the reference over 12 signals × 8 settings (Freq, Intensity, Gain, Original Bass In / Out),
+lower is better: **median −36.8 dB** on the whole output and **−31.5 dB** on the created harmonics alone.
+
+- Per signal (median over the settings): tones at or above Freq, sweeps, white noise −43 to −49 dB; bass notes,
+  level steps, pink noise and tones below Freq −31 to −40 dB; kick-like transients −28 dB.
+- Worst cases: Freq 160 with Original Bass Out on very low input (30 Hz tone −4 dB, kicks −9 dB, 60 Hz tone −16 dB):
+  the output is then only the created bass, and its level is off there.
+- How: the filters and the harmonic generator were identified exactly; the gain control of the created bass is a small
+  recurrent network (32 units, ~6 % of one core) trained on renders of the reference, so it is a learned model of that
+  part, not its algorithm. Meters move like the reference's (measured from its editor).
+  Details: [NULL_RESULTS_WBASS.md](NULL_RESULTS_WBASS.md), [MEASUREMENTS.md](../MEASUREMENTS.md#wbass-model-phase-4-identification).
+
+How it was worked out: [RESEARCH.md](../RESEARCH.md) (documented behaviour), [MEASUREMENTS.md](../MEASUREMENTS.md) (what was measured and identified),
+[VALIDATION.md](VALIDATION.md) (unit tests, pluginval, CI), [IMPROVEMENTS.md](IMPROVEMENTS.md) (open items and the learned-block procedure).

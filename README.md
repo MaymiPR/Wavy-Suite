@@ -1,21 +1,59 @@
 <p align="center">
-  <img src="docs/branding/wavy-banner.svg" alt="Wavy Suite" width="100%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/branding/wavy-banner-dark.svg">
+    <img src="docs/branding/wavy-banner-light.svg" alt="Wavy Suite logo: three stepped sine waves, cyan to amber" width="100%">
+  </picture>
 </p>
 
 # Wavy Suite
 
-Open-source effect plugins (**VST3**, **CLAP**, **AU**) for Windows, macOS and Linux, built with JUCE.
-Each Wavy plugin is an independent, from-scratch recreation of a familiar mixing tool: modelled from its public
-manual, then measured against the real thing and null-tested, with the numbers published as they are.
-Mono / stereo variants live in one plugin behind a **Mode** switch.
+Open-source mixing plug-ins (VST3, CLAP, AU) for Windows, macOS and Linux, each one a from-scratch recreation of a
+familiar studio tool, measured and null-tested against the original.
+
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+[![Formats](https://img.shields.io/badge/formats-VST3%20%7C%20CLAP%20%7C%20AU-informational)](#build-from-source)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](#build-from-source)
+
+<p align="center">
+  <img src="docs/images/hero-suite.png" alt="Three Wavy editors side by side: WVox Chain's six-fader vocal chain, WComp's orange compressor with a VU meter, and WVox Rider's narrow fader panel" width="100%">
+</p>
 
 > Wavy Suite is an independent project. It is not affiliated with, endorsed by or sponsored by Waves Audio.
-> Other companies' product names appear only to describe what a Wavy plugin is modelled on and belong to their owners.
+> Other companies' product names appear only to describe what a Wavy plug-in is modelled on and belong to their owners.
 
-## Download
+## Features
 
-One installer per operating system installs every plugin in the suite — get it from
-[Releases](https://github.com/MaymiPR/Wavy-Suite/releases):
+- **Modelled from measurements.** Each plug-in's behaviour was identified from the original's manual and from thousands
+  of test renders, then null-tested. The results are published as measured, weak cases included
+  ([docs/RESULTS.md](docs/RESULTS.md)).
+- **One plug-in per tool.** Mono and stereo variants live in one plug-in behind a **Mode** switch.
+- **The same toolbar everywhere:** undo and redo, a preset menu with factory presets (Wavy names) and your own, A/B
+  setups with copy, and a window-size menu.
+- **Every format from one build:** VST3 and CLAP on all three systems, plus AU on macOS.
+
+## Plug-ins
+
+| | Plug-in | Modelled on | Match (median residual) |
+|---|---|---|---|
+| <img src="docs/images/wvox.png" alt="WVox editor: Gate fader, Comp meter and Gain fader on dark blue" width="160"> | **WVox** | three-control vocal compressor, gate and limiter | −70 dB over a 672-case grid; steady tones null |
+| <img src="docs/images/wbass.png" alt="WBass editor: Freq, Intensity and Gain controls on dark blue" width="160"> | **WBass** | psychoacoustic bass enhancer | −36.8 dB |
+| <img src="docs/images/wbassx.png" alt="WBassX editor: bass enhancer with harmonics compressor, filters and monitor modes" width="160"> | **WBassX** | bass enhancer with harmonics compressor, filters and monitor modes | −48.5 dB |
+| <img src="docs/images/wcomp.png" alt="WComp editor: orange compressor with large Threshold knob and VU meter" width="160"> | **WComp** | hybrid compressor with punch, tempo-synced release, analog modes and limiter | −47.0 dB |
+| <img src="docs/images/wdelay.png" alt="WDelay editor: delay with time, feedback, filters, modulation and analog controls" width="160"> | **WDelay** | hybrid delay with tape-style time changes, ping-pong, modulation, filters and LoFi | delay path −84 to −104 dB |
+| <img src="docs/images/wbass-rider.png" alt="WBass Rider editor: narrow panel with Target, Range and Rider faders" width="160"> | **WBass Rider** | note-by-note bass level rider | bass line −30 dB |
+| <img src="docs/images/wvox-rider.png" alt="WVox Rider editor: narrow panel with Target, sensitivity knobs and Range, Rider and Output faders" width="160"> | **WVox Rider** | real-time vocal level rider | vocals −47 to −74 dB |
+| <img src="docs/images/wvox-chain.png" alt="WVox Chain editor: red header and six stage faders from Bass to Pitch" width="160"> | **WVox Chain** | one-fader-per-stage vocal chain: EQ, compression, de-essing, reverb, delay, doubling | in development; −30.8 dB without the doubler |
+
+Lower is better: about −60 dB or less is a close match, 0 dB is no match. Per-setting numbers, weak spots and how
+each model was found: [docs/RESULTS.md](docs/RESULTS.md).
+
+WVox Chain is not in the installers yet. WVox Bend is planned.
+
+## Install
+
+No installer has been published on this repository's
+[Releases](https://github.com/MaymiPR/Wavy-Suite/releases) page yet. When one is, there is one installer per system,
+each with every plug-in:
 
 | System | File | Installs to |
 |---|---|---|
@@ -23,156 +61,65 @@ One installer per operating system installs every plugin in the suite — get it
 | macOS 10.13+ (Apple Silicon and Intel) | `WavySuite-<version>-macOS.pkg` | `/Library/Audio/Plug-Ins/{Components, VST3/Wavy Suite, CLAP/Wavy Suite}` |
 | Linux x86-64 (glibc 2.35+) | `WavySuite-<version>-Linux.tar.gz` | `~/.vst3/Wavy Suite`, `~/.clap/Wavy Suite` (run `install-linux.sh`) |
 
-The installers are not code-signed or notarized; see [packaging/](packaging) for the first-run steps on each system.
+The installers are not code-signed or notarized. First-run steps for each system are in [packaging/](packaging).
 
-## Plugins
+## Build from source
 
-| Wavy plugin | Modelled on | Status |
-|---|---|---|
-| **WVox** | vocal compressor / gate / limiter (three-control) | released: steady material nulls, dynamic material is close (see below) |
-| **WBass** | psychoacoustic bass enhancer (harmonic generator) | ready for the next release: close, not a null (median −36.8 dB, see below) |
-| **WBassX** | psychoacoustic bass enhancer with harmonics compressor, filters and monitor modes | ready for the next release: close, not a null (median −48.5 dB, see below) |
-| **WComp** | hybrid compressor with punch, tempo-synced release, analog modes and limiter | ready for the next release: close, not a null on every material (median −47.0 dB, see below) |
-| **WDelay** | hybrid delay with tape-style time changes, ping-pong, modulation, filters, LoFi and analog modes | ready for the next release: nulls on the delay path (−84 … −104 dB), close with modulation and Analog (see below) |
-| **WBass Rider** | note-by-note bass level rider with target, note detection, range and idle controls | ready for the next release: close, not a null on every bass part (bass line −30 dB, real bass −22 … −26 dB, see below) |
-| **WVox Rider** | real-time vocal level rider with a music side-chain, range and idle controls | ready for the next release: nulls on vocals (−47 … −74 dB, see below); the music side-chain not yet |
-| WVox Chain | a one-fader-per-stage vocal chain: EQ, compression, de-essing, reverb, delay, doubling | in progress: Phase 2 (the editor), first version; the audio passes (no DSP yet) |
-| WVox Bend | | planned |
+You need CMake 3.22 or newer, Git and a C++17 compiler (Visual Studio on Windows, Xcode on macOS, GCC on Linux).
+CMake downloads JUCE and the CLAP extensions on the first configure.
 
-### WVox Rider null test (honest numbers)
-
-Residual of WVox Rider against the reference, lower is better: **−74 dB** on level steps and **−47 … −66 dB** on vocal
-parts held out from the identification, at Studio and Live, Slow and Fast, other Targets, ranges and Idle values,
-Stereo, and at 44.1 and 96 kHz. Attack Fast is the weakest (about −50 dB), at word onsets.
-
-- How: the reference's riding was identified from probes and a corpus of 36 vocal parts (FL Studio's own vocal
-  phrases). It rides only on the samples its vocal detector passes, which is why it rises slowly on a real voice;
-  every constant is the reference's own hidden value, none is fitted. Details:
-  [docs/NULL_RESULTS_WVOXRIDER.md](docs/NULL_RESULTS_WVOXRIDER.md),
-  [MEASUREMENTS.md](MEASUREMENTS.md#wvox-rider-phase-4-the-riding-identified-2026-10-28).
-- The reference's own 13 presets, loaded into it, against WVox Rider's (Wavy names): **median −60.9 dB**, worst −37.9
-  ([docs/NULL_RESULTS_WVOXRIDER_PRESETS.md](docs/NULL_RESULTS_WVOXRIDER_PRESETS.md)).
-- Not covered yet: the **Music side-chain** (Music Sensitivity). The reference uses the music only when its host
-  reports the side-chain active, which no offline host here does; WVox Rider rides without it for now.
-
-### WBass Rider null test (honest numbers)
-
-Residual of WBass Rider against the reference, lower is better. The level read, the gain law, the 42 ms look-ahead,
-the smoothing and the hold null at **−48 … −49 dB** on steady tones and level steps; a bass line at **−30 dB** at
-nearly every Sensitivity × Response setting (−25 … −28 dB at Sensitivity 75 / 100), at 44.1 and 96 kHz alike.
-
-- Real bass parts (FL Studio's own bass samples played as bass lines) held out from the fit: **median −22 … −26 dB**
-  per setting, the worst parts −10 … −17 dB. Nearly all of that is a note ridden afresh by one side and not the
-  other, after which the two hold 1 … 4 dB apart until the next note; in a mix that is one note slightly louder or
-  quieter than with the reference, not an artefact. It is weakest at Response Fast and Sensitivity 100.
-- The reference's own 17 presets, set on both: **median −24.8 dB**; Live components −26 dB, Stereo −27 dB.
-- How: the reference's note detector (a windowed note level by pitch band, slow and long envelopes, follow and hold,
-  release and re-attack rules, the Idle glide) was identified from about 1,200 probe signals and its riding on a
-  corpus of 36 bass parts; its constants are fitted, and some rules (which notes are ridden afresh at Fast) are
-  matched to what the probes show rather than known. Details:
-  [docs/NULL_RESULTS_WBASSRIDER.md](docs/NULL_RESULTS_WBASSRIDER.md),
-  [docs/NULL_RESULTS_WBASSRIDER_PRESETS.md](docs/NULL_RESULTS_WBASSRIDER_PRESETS.md),
-  [MEASUREMENTS.md](MEASUREMENTS.md#wbass-rider-phase-4-the-riding-model-identified-2026-10-26).
-
-### WDelay null test (honest numbers)
-
-Residual of WDelay against the reference, lower is better. The delay path nulls: defaults, ms and synced times,
-the filters, Ping Pong from either side and Feedback up to 200 % at **−84 … −104 dB**; modulation at **−61 … −81 dB**;
-the reference's own 88 factory presets, loaded as it loads them (each on drums, bass and voice, with its own Analog
-mode): **median −53.2 dB**.
-
-- Analog modes: mode 4 nulls at −80 … −90 dB; modes 1–3 add random noise as the reference does, which no null can
-  remove, and mode 3's model is the weakest part (about −41 dB).
-- Limits: the slow tail of a glide (−40 … −80 dB while it settles), LoFi (−70 dB), and Feedback above 100 % with the
-  filters on, where the loop self-oscillates chaotically (the preset Fast Siren): such a loop nulls only for its first
-  fraction of a second, in any model short of a bit-exact one. At 96 kHz the audible band nulls at −46 … −61 dB.
-- How: H-Delay's interpolator (a 32-phase Kaiser sinc), its tape glide, the gain stage in the loop, its float
-  triangle LFO, the filters, Ping Pong's routing and every parameter's resolution were identified on the reference
-  by nulling; the Analog modes are fitted models (mode 4 is H-Comp's). Details:
-  [docs/NULL_RESULTS_WDELAY.md](docs/NULL_RESULTS_WDELAY.md),
-  [docs/NULL_RESULTS_WDELAY_PRESETS.md](docs/NULL_RESULTS_WDELAY_PRESETS.md),
-  [MEASUREMENTS.md](MEASUREMENTS.md#wdelay-model-phase-4-identification-2026-10-25).
-
-### WComp null test (honest numbers)
-
-Residual of WComp against the reference over 14 signals × 12 settings (the default, fast and slow releases, heavy
-ratios, Mix, the output limiter, the four Analog modes), lower is better: **median −47.0 dB**, worst −24.5 dB; the
-reference's 26 factory presets (each on voice, drums, bass and pink noise): **median −43.7 dB**, worst −20.8 dB.
-
-- At the default settings: tones and sweeps −84 dB (a null), voice-like −61 dB, bass line −57 dB, white noise −43 dB,
-  drums −33 dB, pink noise −32 dB.
-- Weakest: low notes under long attacks (30 … 60 ms: −15 … −20 dB on a bass line), a long release on voice (300 ms at
-  threshold −24: −22 dB), fast attacks on drums (about −23 dB), and a few presets on drums (Hard Squash −21 dB).
-- Analog modes: mode 4 nulls at −82 … −100 dB on loud material; modes 1–3 add random noise as the reference does,
-  which no null can remove (mode 2, the default, is limited to about −54 … −69 dB by its noise alone).
-- How: the detector, static curve, makeup, attack, smoothing, mix, limiter, tempo sync and the Analog stage were
-  identified on the reference; the program-dependent release is a fitted two-state law (its tables found by CMA-ES on
-  1034 measured cases), not the reference's algorithm, and a small learned correction (a GRU over WComp's own states,
-  trained on 4300 renders of the reference) fixes most of what that structure misses: low notes under long attacks,
-  long releases, deep compression (null test −41.4 → −47.0 dB, presets −35.6 → −43.7). Two reference quirks are documented: a slow start-up after a
-  reset (modelled) and a hidden synced release time that survives switching Sync back to ms (not copied: reload H-Comp
-  before nulling after a synced preset). The VU needle and limiter lamp follow the reference's, filmed from its editor's
-  OpenGL frames. Details: [docs/NULL_RESULTS_WCOMP.md](docs/NULL_RESULTS_WCOMP.md),
-  [docs/NULL_RESULTS_WCOMP_PRESETS.md](docs/NULL_RESULTS_WCOMP_PRESETS.md), [MEASUREMENTS.md](MEASUREMENTS.md#wcomp-model-phase-4-identification).
-
-### WVox null test (honest numbers)
-
-Residual of WVox against the reference, `20 log10(rms(difference) / rms(reference))`, lower is better:
-
-- **Steady tones, any setting** (Compression, Gate, Gain, input level, 44.1–192 kHz, mono and stereo): −95 to −120 dB (a null).
-- **Compression 0** with any Gate / Gain: −120 dB and below (a null).
-- **Level steps, sweeps, speech-like material:** −30 to −65 dB, worse at heavy compression.
-- **Dense noise at heavy compression:** −24 to −33 dB (was −10 to −25 dB before the learned slow path).
-- Over a 672-case grid of settings: median −70 dB, worst −23 dB. The compressor's slow path is the fitted model plus a
-  small learned correction (trained on renders of the reference, guarded so steady signals stay exact).
-  Details: [docs/NULL_GRID.md](docs/NULL_GRID.md), [docs/NULL_RESULTS.md](docs/NULL_RESULTS.md).
-
-### WBassX null test (honest numbers)
-
-Residual of WBassX against the reference over 12 signals × 8 settings (Freq, Ratio, Response, Decay, High-pass, the
-Original Bass and Harmonics faders), lower is better: **median −48.5 dB** on the whole output and **−42.7 dB** on the
-created harmonics alone.
-
-- Per signal (created harmonics, median over the settings): white noise and quiet tones −49 to −59 dB; tones, sweeps and
-  pink noise −40 to −49 dB; level steps −34 dB; bass notes −27 dB; kick-like transients −19 dB.
-- Over 120 random settings of every control with the hardest signals (bass notes, kicks, a loud tone, pink noise):
-  median −35.2 dB on the whole output, −29.2 dB on the harmonics (`nulltest/nullgrid_wbassx.py`).
-- Worst cases: loud material at extreme settings (Freq 256 with Ratio 4 and Decay −12, or Decay −9), where the
-  reference's own harmonic feedback goes unstable.
-- How: the filters, the harmonic generator with its Decay feedback, the faders, monitors and clip were identified
-  exactly; the harmonics compressor (Ratio, Response) is a small recurrent network (48 units, ~7 % of one core) trained
-  on renders of the reference, so it is a learned model of that part, not its algorithm.
-  Details: [docs/NULL_RESULTS_WBASSX.md](docs/NULL_RESULTS_WBASSX.md), [MEASUREMENTS.md](MEASUREMENTS.md#wbassx-model-phase-4-identification).
-
-### WBass null test (honest numbers)
-
-Residual of WBass against the reference over 12 signals × 8 settings (Freq, Intensity, Gain, Original Bass In / Out),
-lower is better: **median −36.8 dB** on the whole output and **−31.5 dB** on the created harmonics alone.
-
-- Per signal (median over the settings): tones at or above Freq, sweeps, white noise −43 to −49 dB; bass notes,
-  level steps, pink noise and tones below Freq −31 to −40 dB; kick-like transients −28 dB.
-- Worst cases: Freq 160 with Original Bass Out on very low input (30 Hz tone −4 dB, kicks −9 dB, 60 Hz tone −16 dB):
-  the output is then only the created bass, and its level is off there.
-- How: the filters and the harmonic generator were identified exactly; the gain control of the created bass is a small
-  recurrent network (32 units, ~6 % of one core) trained on renders of the reference, so it is a learned model of that
-  part, not its algorithm. Meters move like the reference's (measured from its editor).
-  Details: [docs/NULL_RESULTS_WBASS.md](docs/NULL_RESULTS_WBASS.md), [MEASUREMENTS.md](MEASUREMENTS.md#wbass-model-phase-4-identification).
-
-How it was worked out: [RESEARCH.md](RESEARCH.md) (documented behaviour), [MEASUREMENTS.md](MEASUREMENTS.md) (what was measured and identified),
-[docs/VALIDATION.md](docs/VALIDATION.md) (unit tests, pluginval, CI), [docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md) (open items and the learned-block procedure).
-
-## Build
-
-```
+```bash
 cmake -S . -B build
 cmake --build build --config Release
 ctest --test-dir build -C Release
 ```
 
-JUCE and the CLAP extensions are fetched by CMake. Plugins land in `build/plugins/<Name>/<Name>_artefacts/Release`.
-The installers are made by [.github/workflows/release.yml](.github/workflows/release.yml) when a `v<version>` tag is pushed (which publishes them) or when the workflow is started by hand; ordinary pushes do not run it.
-To add a plugin to the installers, add it to [packaging/plugins.txt](packaging/plugins.txt).
+The plug-ins land in `build/plugins/<Name>/<Name>_artefacts/Release/` (`VST3/`, `CLAP/`, and `AU/` on macOS). Copy them
+to your system's plug-in folder (see the table above) and rescan in your DAW.
+
+On Linux, install the JUCE dependencies first (the list the release build uses, Ubuntu 22.04):
+
+```bash
+sudo apt-get install ninja-build libasound2-dev libjack-jackd2-dev libfreetype-dev libfontconfig1-dev \
+  libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
+  libglu1-mesa-dev mesa-common-dev
+```
+
+On Windows, clone to a short path or enable `git config --global core.longpaths true`: some JUCE example files have long
+names.
+
+## Usage
+
+Insert any Wavy plug-in on a track in a VST3, CLAP or AU host. Every editor opens with the same toolbar:
+
+<img src="docs/images/toolbar.png" alt="The Wavy toolbar: logo, Mode drop-down, undo and redo, preset box with previous and next arrows, A to B, Setup A and Save, then the menu button" width="643">
+
+| Control | What it does |
+|---|---|
+| Logo | About, the GitHub page, Report an Issue, License |
+| Mode (Stereo ▼) | Picks the variant, such as Mono or Stereo |
+| ↶ ↷ | Undo and redo |
+| Preset box | Default Preset, factory presets, your saved presets, Save As, Show User Presets Folder |
+| ← → | Previous and next preset |
+| A → B, Setup A / B | Copy the current setup to the other slot; switch between the two |
+| Save | Saves the current preset (asks for a name the first time) |
+| ☰ | Window size (as a percentage), Apply as Default to All |
+
+## Documentation
+
+- [docs/RESULTS.md](docs/RESULTS.md): null-test results per plug-in
+- [RESEARCH.md](RESEARCH.md): documented behaviour of the originals
+- [MEASUREMENTS.md](MEASUREMENTS.md): what was measured and identified, and how (data in `measurements/`)
+- [docs/VALIDATION.md](docs/VALIDATION.md): unit tests, pluginval and CI
+- [docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md): open items per plug-in
+- [CHANGELOG.md](CHANGELOG.md)
+
+## Contributing
+
+Bug reports and pull requests are welcome on [GitHub](https://github.com/MaymiPR/Wavy-Suite/issues). Run `ctest` before
+opening a pull request. The installers are built by [release.yml](.github/workflows/release.yml), which runs on a
+`v<version>` tag or by hand. To add a plug-in to them, list it in [packaging/plugins.txt](packaging/plugins.txt).
 
 ## License
 
-[AGPL-3.0](LICENSE). Measurement data (JSON, CSV, plots) is in `measurements/`; the reference plugins and their artwork are not part of this repository.
+[AGPL-3.0](LICENSE). The reference plug-ins and their artwork are not part of this repository.
