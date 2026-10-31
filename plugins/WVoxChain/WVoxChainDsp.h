@@ -235,11 +235,10 @@ private:
 // on the right. Stereo (MEASUREMENTS.md, the doubler's third pass): each voice a linearly interpolated read of the
 // send whose speed swings as a triangle (+-7 cents, 0.2 / 0.3 Hz, from the plug-in's start) with a small steady drift,
 // the delay one sample longer from the first whole-sample crossing after each turn down until the same after each turn
-// up; then a 200 Hz low shelf (-8.6 dB) and a 5.54 kHz high shelf (+4.5 dB), -10 dB at fader 0. Spreader: the same read
-// head (+-15 cents, 0.15 Hz) kept within 64 .. 576 samples by crossfading to a tap 256 samples nearer the middle (the
-// reference picks its splice points from the signal; ours are where the clicks show them). Wide (not measured in detail
-// yet): a delay swung by a slow cosine, the old shelves and the measured wet level. The LFOs run from the plug-in's
-// start (prepare or reset).
+// up; then a 200 Hz low shelf (-8.6 dB) and a 5.54 kHz high shelf (+4.5 dB), -10 dB at fader 0. Wide (+-18 cents, the
+// shelves) and Spreader (+-15 cents, 0.15 Hz, no shelves): the same read head kept within its start +-256 samples: when
+// it leaves, a tap one of 20 steps nearer the middle (round (256 2^(k / 20)) samples, where the input best matches
+// itself) fades in as the old one fades out. The LFOs run from the plug-in's start (prepare or reset).
 class Doubler
 {
 public:
@@ -259,6 +258,7 @@ private:
         int extra = 0;
         double offset = 0.0, next = 0.0;
         int fade = -1;
+        std::array<double, 20> corr {};                                // the input's autocorrelation at the 20 steps
     };
     double triDelay (int colour, int voice, double n) const;           // the smooth delay (samples) at sample n
     void resetVoices (int colour);

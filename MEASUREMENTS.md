@@ -2018,3 +2018,36 @@ colour clear, the output less the output with Pitch clear), the clicks' send res
 - **Wide** (clicks 75 ms apart): the same shelves as Stereo and a pitch shifter jumping by about 346 samples, but its
   left output also carries a tap near the right voice's delay (about 1,893 samples), with up to three taps at once. Not
   modelled yet; the plug-in keeps the second pass's voices for it.
+
+## WVox Chain: Phase 4, the doubler's fourth pass and the delays' loop level, 2026-10-31
+
+- **Wide is the same pitch shifter as Spreader** (clicks 100 ms apart, one voice per side, no crossing): ±18 cents
+  (0.0104 in natural-log units) at 0.2 / 0.3 Hz, the drift about −5.5e-5 samples per sample, the shelves as Stereo's.
+  Its left voice starts at 349 samples, the right at 1717.5, each the middle of its window (start ± 256).
+- **The one-sample steps** after each turn (Stereo's) are on Wide and Spreader too: with them the click tracks fit to
+  0.007 (Wide L), 0.018 (Spreader R) and 0.026 samples rms (Spreader L) against 0.24 without. The fitted drifts are
+  close to −swing² / 2 on all three colours (inferred; an exponential speed law did not fit better).
+- **How the step is chosen** (`probe_voxchain_splice.py`): silent input but for a pair of clicks Δ apart and a probe
+  after the jump.
+  - A single click never changes the step; a pair does, so the search is a product correlation.
+  - The steps are always one of 20: round (256 · 2^(k/20)), k = 0 … 19 (256, 265, 274 … 461, 478, 495). Every probe
+    step and every step measured on noise is one of them.
+  - Which one: the send's (the fixed filter's output) autocorrelation at each step, highest wins; computed on the
+    send it reproduces all 15 pair spacings tried (150 … 600, including 230 → 284, 400 → 446, 480 → 431,
+    520 → 461), on the raw input or low-passed versions 1 … 12. In silence every step ties and the longest (495)
+    is taken.
+  - Its memory is exponential: of two pairs, an older one needs (0.5 / a)² weight 0.31 … 0.39 to win 1000 samples
+    back and 0.028 … 0.063 3000 back: a time constant near 1024 samples (both bounds hold for 1024). On six
+    noise renders this rule picks the measured step at 11 of 12 first jumps (a decision 100 samples earlier or later:
+    7 of 12).
+- **In the plug-in** (the rule, the one-sample steps, the refits): on a held-out vocal Spreader's wet output nulls
+  −43 … −47 dB for its first 3 … 4.5 s, Wide's right voice −20 … −55 dB throughout; a voice still parts from the
+  reference at a jump where the rule picks another step or the one-sample steps start differently (Spreader's left
+  voice needed its third grain to start with the extra sample; per-grain or continuous step state each fit one voice
+  better), and stays apart after it.
+- **The delays' loop level**: our echoes were 0.6 … 0.8 dB quieter than the reference's at −6 dBFS vocal peaks
+  (0.1 … 0.2 at −20): H-Delay's gain recovery compressed them more. Feeding our H-Delay model the send 4.4 dB lower
+  (× 0.6, made up after it) matches both levels: the echoes' null on the held-out vocal −21 … −23 → −35 … −36 dB at
+  −6 dBFS, −30 … −32 → −35 at −20 (× 0.5 and × 0.7 both worse).
+- **The whole chain** (`nulltest_wvoxchain.py full`): median −27.1 dB with the doubler (was −14.7), −32.1 without (was
+  −30.8).
